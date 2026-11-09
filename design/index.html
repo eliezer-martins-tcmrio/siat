@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sistema de design · SIAT</title>
+<script>(function(){var t='system';try{t=localStorage.getItem('siat-tema')||t}catch(e){}document.documentElement.dataset.theme=t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light'})()</script>
+<link rel="stylesheet" href="siat.css">
+<style>
+  .lista { --colunas: 16px 84px minmax(0, 1fr) 104px; --colunas-estreito: 16px 84px minmax(0, 1fr) 92px; }
+  .ds-contexto .contexto { position: static; margin: 0; }
+  .ds-contexto .contexto + .contexto { border-top: 0; }
+</style>
+</head>
+<body data-pagina="design">
+<a class="pular" href="#conteudo">Ir para o conteúdo</a>
+<div class="app">
+  <main class="conteudo" id="conteudo" tabindex="-1">
+    <header class="cabecalho">
+      <div>
+        <h1>Sistema de design</h1>
+        <p class="sub">Tokens, componentes e regras de uso do SIAT. O botão Tema, no rodapé do menu, alterna claro, escuro e sistema para conferir cada peça nos dois temas.</p>
+      </div>
+    </header>
+
+    <section class="ds-secao" aria-labelledby="t-telas">
+      <h2 id="t-telas">Telas de exemplo</h2>
+      <div class="painel telas">
+        <a href="sistemas.html"><strong>Sistemas</strong><span>Substitui o sistemas.html</span></a>
+        <a href="versoes.html"><strong>Versões publicadas</strong><span>Substitui o VersaoDeSistemasPublicados.ps1</span></a>
+        <a href="mailqueue.html"><strong>MailQueue</strong><span>Porte do Visor, aberta em HML</span></a>
+        <a href="auditlog.html"><strong>AuditLog</strong><span>Porte do Visor, aberta em PRD</span></a>
+      </div>
+    </section>
+
+    <section class="ds-secao" aria-labelledby="t-cores">
+      <h2 id="t-cores">Cores</h2>
+      <p>Neutros levemente azulados e um único azul de marca. Cor forte só aparece para ambiente e para estado; o acento ciano é decoração e nunca fica sob texto.</p>
+      <div class="amostras" id="cores"></div>
+    </section>
+
+    <section class="ds-secao" aria-labelledby="t-amb">
+      <h2 id="t-amb">Ambientes</h2>
+      <p>Cada ambiente tem uma cor fixa em todas as telas. A etiqueta de ambiente é uma sigla em caixa reta com borda; a pílula de estado é arredondada e preenchida. Assim PRD (vermelho) não se confunde com erro, nem pela cor nem pela forma.</p>
+      <div class="painel">
+        <div class="ds-bloco">
+          <span class="ds-rotulo">Etiquetas de ambiente</span>
+          <span data-amb="dsv"><span class="amb">DSV</span></span>
+          <span data-amb="hml"><span class="amb">HML</span></span>
+          <span data-amb="prd"><span class="amb">PRD</span></span>
+          <span data-amb="cont"><span class="amb">CONT</span></span>
+        </div>
+        <div class="ds-bloco">
+          <span class="ds-rotulo">Pílulas de estado</span>
+          <span class="pilula ok">Enviado</span>
+          <span class="pilula info">Na fila</span>
+          <span class="pilula alerta">Divergente</span>
+          <span class="pilula erro">Erro</span>
+          <span class="pilula">Neutro</span>
+        </div>
+        <div class="ds-bloco">
+          <span class="ds-rotulo">Seletor de servidor: lista fechada, agrupada por ambiente (troque para ver a etiqueta mudar)</span>
+          <div id="seletorDemo"></div>
+        </div>
+        <div class="ds-contexto">
+          <div class="ds-bloco" style="padding-bottom:10px"><span class="ds-rotulo">Faixa de contexto: fixa no topo de toda tela que consulta um servidor</span></div>
+          <div class="contexto" id="ctxDsv"></div>
+          <div class="contexto" id="ctxHml"></div>
+          <div class="contexto" id="ctxPrd"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-secao" aria-labelledby="t-tipo">
+      <h2 id="t-tipo">Tipografia</h2>
+      <p>Segoe UI para tudo; Cascadia Mono para o que se copia (caminhos, versões, ids, servidores). Texto auxiliar nunca abaixo de 12px; números em colunas usam algarismos tabulares.</p>
+      <div class="painel escala">
+        <div><code>22px / 600</code><span style="font-size:22px;font-weight:600;color:var(--color-brand)">Título da página</span></div>
+        <div><code>16px / 600</code><span style="font-size:16px;font-weight:600">Título de seção e de estado</span></div>
+        <div><code>14px / 400</code><span>Texto padrão da interface e dos campos</span></div>
+        <div><code>13px / 400</code><span style="font-size:13px">Tabelas e listas de resultado</span></div>
+        <div><code>12px / 600</code><span style="font-size:12px;font-weight:600;color:var(--color-muted)">Cabeçalho de coluna e rótulo auxiliar</span></div>
+        <div><code>13px mono</code><span class="mono">\\APPPRD01\Sites\eTCM\VERSAO.TXT · 5.11.1</span></div>
+      </div>
+    </section>
+
+    <section class="ds-secao" aria-labelledby="t-acoes">
+      <h2 id="t-acoes">Botões e campos</h2>
+      <div class="painel">
+        <div class="ds-bloco">
+          <span class="ds-rotulo">Botões: uma ação primária por tela; altura mínima de 40px (32px no tamanho pequeno)</span>
+          <button type="button" class="botao">Consultar</button>
+          <button type="button" class="botao secundario">Cancelar</button>
+          <button type="button" class="botao discreto">Limpar</button>
+          <button type="button" class="botao" disabled>Desabilitado</button>
+          <button type="button" class="botao secundario pequeno" id="demoAtualizar"></button>
+          <span>Copiar <span class="mono">APPPRD01</span> <span id="demoCopiar"></span></span>
+        </div>
+        <div class="ds-bloco">
+          <span class="ds-rotulo">Filtro exclusivo</span>
+          <div class="segmentado" role="group" aria-label="Exemplo de filtro" id="demoSeg">
+            <button type="button" aria-pressed="true">Todos<span class="num">12</span></button>
+            <button type="button" aria-pressed="false">Com divergência<span class="num">2</span></button>
+            <button type="button" aria-pressed="false">Com erro<span class="num">2</span></button>
+          </div>
+        </div>
+        <div class="filtros">
+          <label class="campo">Aplicação
+            <select><option>Todas as aplicações</option><option>eTCM (12)</option></select>
+          </label>
+          <label class="campo"><span>LogID <span class="dica">começa com</span></span>
+            <input placeholder="ex.: 4363">
+          </label>
+          <label class="campo curto">Quantidade
+            <input type="number" value="50" min="1" max="1000">
+          </label>
+          <label class="busca">
+            <span class="so-leitor">Busca de exemplo</span>
+            <span id="demoIconeBusca"></span>
+            <input class="entrada" type="search" data-busca placeholder="Busca com o atalho /">
+            <kbd aria-hidden="true">/</kbd>
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-secao" aria-labelledby="t-dados">
+      <h2 id="t-dados">Dados</h2>
+      <p>Resumo em faixa única dividida, não em cartões soltos. Nas tabelas, só a exceção ganha cor: a versão normal é texto simples.</p>
+      <dl class="resumo">
+        <div><dt>Sistemas</dt><dd>12</dd></div>
+        <div><dt><span class="marcador" style="background:var(--color-ok)"></span>Sem pendências</dt><dd>8</dd></div>
+        <div><dt><span class="marcador" style="background:var(--color-warn)"></span>Com divergência</dt><dd>2</dd></div>
+        <div><dt><span class="marcador" style="background:var(--color-bad)"></span>Com erro</dt><dd>2</dd></div>
+      </dl>
+      <div class="painel">
+        <div class="tabela-rolagem">
+          <table class="tabela">
+            <thead><tr><th>Sistema</th><th data-amb="hml"><span class="amb">HML</span> Máquina 1</th><th data-amb="hml">Máquina 2</th><th data-amb="prd"><span class="amb">PRD</span> Máquina 1</th><th data-amb="prd">Máquina 2</th></tr></thead>
+            <tbody>
+              <tr><td class="nome">eTCM</td><td><span class="versao diverge">5.11.3</span></td><td><span class="versao diverge">5.11.2</span></td><td><span class="versao">5.11.1</span></td><td><span class="versao">5.11.1</span></td></tr>
+              <tr><td class="nome">STP</td><td><span class="versao">6.2.0</span></td><td><span class="versao">6.2.0</span></td><td><span class="versao">6.1.8</span></td><td><span class="pilula erro">Erro</span></td></tr>
+              <tr><td class="nome">SICATI</td><td><span class="versao">0.8.4</span></td><td><span class="vazio-cel">–</span></td><td><span class="vazio-cel">–</span></td><td><span class="vazio-cel">–</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="painel">
+        <div class="lista">
+          <div class="lista-cab" aria-hidden="true"><span></span><span>Situação</span><span>Assunto</span><span class="direita">Postado</span></div>
+          <div id="listaDemo"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-secao" aria-labelledby="t-estados">
+      <h2 id="t-estados">Estados</h2>
+      <p>Toda consulta tem os quatro estados: carregando (esqueleto estático e tempo decorrido, com Cancelar), vazio (diz o que foi procurado e oferece a saída), erro (mensagem da origem e o que conferir) e aviso (a página continua utilizável).</p>
+      <div class="painel">
+        <div class="progresso"></div>
+        <div class="barra"><span class="status">Consultando TCMBD4\HML… 2,4 s</span><button type="button" class="botao secundario pequeno empurra">Cancelar</button></div>
+        <div id="esqueletoDemo"></div>
+      </div>
+      <div class="painel">
+        <div class="estado">
+          <h2>Nenhum e-mail encontrado</h2>
+          <p>SMTP 3, contendo "recadastramento", em <span class="mono">TCMBD3\DEV</span>.</p>
+          <div class="acoes"><button type="button" class="botao secundario pequeno">Remover busca</button><button type="button" class="botao secundario pequeno">Todos os SMTPs</button></div>
+        </div>
+      </div>
+      <div class="painel">
+        <div class="estado erro">
+          <h2>Não foi possível consultar TCMBD4\HML</h2>
+          <p><code>A network-related or instance-specific error occurred while establishing a connection to SQL Server.</code></p>
+          <p>O servidor pode estar fora do ar. Os outros módulos continuam funcionando.</p>
+          <div class="acoes"><button type="button" class="botao secundario pequeno">Tentar de novo</button></div>
+        </div>
+      </div>
+      <div class="aviso"><div><strong>Lista de aplicações indisponível</strong>Informe o AppID no campo numérico; a consulta funciona normalmente.</div></div>
+      <div class="aviso erro"><div><strong>Você não tem acesso ao AuditLog de produção</strong>Peça o recurso <span class="mono">AuditLogPRD.CanSelect</span> no UserManager.</div></div>
+    </section>
+
+    <section class="ds-secao" aria-labelledby="t-codigo">
+      <h2 id="t-codigo">Código</h2>
+      <div class="copiavel">
+        <button type="button" class="botao secundario pequeno" data-copiar-de="demoStack">Copiar</button>
+        <pre class="codigo escuro" id="demoStack" data-original="System.InvalidOperationException: O modelo de documento não foi encontrado."><span class="st-tipo">System.InvalidOperationException:</span> O modelo de documento não foi encontrado.
+   <span class="st-at">at</span> <span class="st-ns">Tcmrj.Etcm.Documentos.GeradorPdf.</span><span class="st-metodo">Gerar</span>(<span class="st-tipo-param">Despacho</span> <span class="st-param">despacho</span>) <span class="st-at">in</span> <span class="st-arquivo">D:\src\etcm\Documentos\GeradorPdf.cs</span>:<span class="st-linha-rotulo">line</span> 84</pre>
+      </div>
+      <div class="copiavel">
+        <button type="button" class="botao secundario pequeno" data-copiar-de="demoJson">Copiar</button>
+        <pre class="codigo" id="demoJson" data-original='{"Usuario":"ana.souza","DespachoId":18834,"Reprocessar":true}'>{
+  <span class="json-chave">"Usuario"</span>: <span class="json-texto">"ana.souza"</span>,
+  <span class="json-chave">"DespachoId"</span>: <span class="json-numero">18834</span>,
+  <span class="json-chave">"Reprocessar"</span>: <span class="json-literal">true</span>
+}</pre>
+      </div>
+    </section>
+
+    <footer class="rodape">
+      <span>Regras completas em <span class="mono">DESIGN.md</span>; tokens em <span class="mono">design/siat.css</span>. Dados das telas são fictícios.</span>
+    </footer>
+  </main>
+</div>
+
+<script src="siat.js"></script>
+<script>
+  const $ = id => document.getElementById(id);
+  const CORES = [
+    ['brand', 'Marca', 'Títulos, links, item ativo'], ['action', 'Ação', 'Botão primário, foco'],
+    ['accent', 'Acento', 'Decoração, nunca sob texto'], ['ink', 'Tinta', 'Texto principal'],
+    ['muted', 'Suave', 'Texto auxiliar'], ['field', 'Campo', 'Borda de campos (3:1)'],
+    ['line', 'Linha', 'Divisórias'], ['soft', 'Fundo suave', 'Cabeçalho de tabela, realce'],
+    ['canvas', 'Fundo', 'Fundo da página'], ['surface', 'Superfície', 'Painéis e campos'],
+    ['sidebar', 'Menu', 'Menu lateral'], ['ok', 'Ok', 'Enviado, sem pendências'],
+    ['warn', 'Aviso', 'Divergência'], ['bad', 'Erro', 'Falha'],
+    ['env-dsv', 'DSV', 'Desenvolvimento'], ['env-hml', 'HML', 'Homologação'],
+    ['env-prd', 'PRD', 'Produção'], ['env-cont', 'CONT', 'Contingência'],
+  ];
+  $('cores').innerHTML = CORES.map(([token, nome, uso]) =>
+    `<div class="amostra"><i style="background:var(--color-${token})"></i><span><strong>${nome}</strong><code>--color-${token}</code>${uso}</span></div>`).join('');
+
+  SIAT.seletorServidor($('seletorDemo'), 'TCMBD4\\HML');
+  SIAT.contexto($('ctxDsv'), SIAT.servidor('TCMBD3\\DEV'), 'MailQueue');
+  SIAT.contexto($('ctxHml'), SIAT.servidor('TCMBD4\\HML'), 'MailQueue');
+  SIAT.contexto($('ctxPrd'), SIAT.servidor('TCMBD'), 'AuditLog');
+  $('demoAtualizar').innerHTML = SIAT.icone('atualizar', 14) + 'Atualizar agora';
+  $('demoCopiar').outerHTML = SIAT.botaoCopiar('APPPRD01', 'máquina');
+  $('demoIconeBusca').outerHTML = SIAT.icone('busca', 16);
+  $('esqueletoDemo').innerHTML = SIAT.esqueleto(3);
+  $('demoSeg').addEventListener('click', ev => {
+    const b = ev.target.closest('button');
+    if (b) $('demoSeg').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b));
+  });
+
+  const demo = SIAT.listaExpansivel({
+    raiz: $('listaDemo'),
+    id: m => m.id,
+    linha: m => ({ busca: m.assunto, celulas: `<span><span class="pilula ${m.ok ? 'ok">Enviado' : 'info">Na fila'}</span></span><span class="cel-texto">${SIAT.esc(m.assunto)}</span><span class="cel-suave direita num">${m.quando}</span>` }),
+    detalhe: (m, painel) => { painel.innerHTML = `<dl class="campos"><dt>Assunto</dt><dd>${SIAT.esc(m.assunto)}</dd><dt>MessageId</dt><dd><span class="mono">${m.id}</span> ${SIAT.botaoCopiar(m.id, 'MessageId')}</dd></dl>`; },
+  });
+  demo.mostrar([
+    { id: 'hml-009041-a3f0c2e1', assunto: 'Chamado 48213 atribuído a você', ok: true, quando: 'hoje 14:26' },
+    { id: 'hml-009040-a3f1c2e1', assunto: 'Intimação eletrônica: processo 040/100.512/2026', ok: false, quando: 'hoje 14:13' },
+  ], 'hml-009041-a3f0c2e1');
+</script>
+</body>
+</html>

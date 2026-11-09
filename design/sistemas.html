@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sistemas · SIAT</title>
+<script>(function(){var t='system';try{t=localStorage.getItem('siat-tema')||t}catch(e){}document.documentElement.dataset.theme=t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light'})()</script>
+<link rel="stylesheet" href="siat.css">
+<style>
+  .tabela-sistemas { table-layout: fixed; min-width: 1080px; }
+  .tabela-sistemas .col-sistema { width: 15%; }
+  .tabela-sistemas .col-obs { width: 14%; }
+  .tabela-sistemas th .amb { margin-right: 6px; }
+</style>
+</head>
+<body data-pagina="sistemas">
+<a class="pular" href="#conteudo">Ir para o conteúdo</a>
+<div class="app">
+  <main class="conteudo" id="conteudo" tabindex="-1">
+    <header class="cabecalho">
+      <div>
+        <h1>Sistemas</h1>
+        <p class="sub">Onde cada sistema roda: URL, máquina e caminho por ambiente.</p>
+      </div>
+      <div class="cabecalho-acoes">
+        <span class="status">Catálogo lido do GitLab às <span id="lidoAs"></span></span>
+        <button type="button" class="botao secundario pequeno" id="atualizar"></button>
+      </div>
+    </header>
+
+    <section class="painel" aria-label="Catálogo de sistemas">
+      <div class="barra">
+        <label class="busca">
+          <span class="so-leitor">Buscar sistemas</span>
+          <span id="iconeBusca"></span>
+          <input class="entrada" id="busca" type="search" data-busca placeholder="Sistema, máquina, URL ou caminho" autocomplete="off">
+          <kbd aria-hidden="true">/</kbd>
+        </label>
+        <span class="contador" id="contador" aria-live="polite"></span>
+      </div>
+      <div class="tabela-rolagem">
+        <table class="tabela tabela-sistemas">
+          <thead>
+            <tr>
+              <th class="col-sistema">Sistema</th>
+              <th data-amb="dsv"><span class="amb">DSV</span>Desenvolvimento</th>
+              <th data-amb="hml"><span class="amb">HML</span>Homologação</th>
+              <th data-amb="prd"><span class="amb">PRD</span>Produção</th>
+              <th data-amb="cont"><span class="amb">CONT</span>Contingência</th>
+              <th class="col-obs">Observação</th>
+            </tr>
+          </thead>
+          <tbody id="listagem"></tbody>
+        </table>
+      </div>
+      <div class="estado" id="vazio" hidden>
+        <h2>Nenhum sistema encontrado</h2>
+        <p>A busca procura todos os termos em nome, URL, máquina, caminho e observação.</p>
+        <div class="acoes"><button type="button" class="botao secundario pequeno" id="limpar">Limpar busca</button></div>
+      </div>
+    </section>
+
+    <footer class="rodape">
+      <span>Fonte: <span class="mono">sistemas.json</span> no GitLab. Para corrigir um dado, edite esse arquivo.</span>
+    </footer>
+  </main>
+</div>
+
+<script src="siat.js"></script>
+<script>
+  // Dados fictícios, no formato do sistemasDb.js atual.
+  const sistemas = [
+    { Title: 'AR Digital',
+      DSV: [{ URL: 'https://dsv.tcm.exemplo/ardigital', Machine: 'APPDSV01', Path: 'D:\\Sites\\ArDigital' }],
+      HML: [{ URL: 'https://hml.tcm.exemplo/ardigital', Machine: 'APPHML01', Path: 'D:\\Sites\\ArDigital' }],
+      PRD: [{ URL: 'https://ardigital.tcm.exemplo', Machine: 'APPPRD01', Path: 'D:\\Sites\\ArDigital' },
+            { Machine: 'APPPRD02', Path: 'D:\\Sites\\ArDigital' }],
+      CONT: [{ Machine: 'APPCONT01', Path: 'D:\\Sites\\ArDigital' }] },
+    { Title: 'Chamados e Serviços',
+      DSV: [{ URL: 'https://dsv.tcm.exemplo/chamados', Machine: 'APPDSV01', Path: 'D:\\Sites\\ChamadosServicos' }],
+      HML: [{ URL: 'https://hml.tcm.exemplo/chamados', Machine: 'APPHML01', Path: 'D:\\Sites\\ChamadosServicos' }],
+      PRD: [{ URL: 'https://chamados.tcm.exemplo', Machine: 'APPPRD01', Path: 'D:\\Sites\\ChamadosServicos' }] },
+    { Title: 'Controle de Férias',
+      DSV: [{ URL: 'https://dsv.tcm.exemplo/ferias', Machine: 'APPDSV02', Path: 'D:\\Sites\\ControleFerias' }],
+      HML: [{ URL: 'https://hml.tcm.exemplo/ferias', Machine: 'APPHML02', Path: 'D:\\Sites\\ControleFerias' }],
+      PRD: [{ URL: 'https://ferias.tcm.exemplo', Machine: 'APPPRD02', Path: 'D:\\Sites\\ControleFerias' }],
+      OBS: 'Depende do SIGARH para a lotação.' },
+    { Title: 'eTCM',
+      DSV: [{ URL: 'https://dsv.tcm.exemplo/etcm', Machine: 'APPDSV01', Path: 'D:\\Sites\\eTCM' }],
+      HML: [{ URL: 'https://hml.tcm.exemplo/etcm', Machine: 'APPHML01', Path: 'D:\\Sites\\eTCM' },
+            { Machine: 'APPHML02', Path: 'D:\\Sites\\eTCM' }],
+      PRD: [{ URL: 'https://etcm.tcm.exemplo | https://etcm-interno.tcm.exemplo', Machine: 'APPPRD01', Path: 'D:\\Sites\\eTCM' },
+            { Machine: 'APPPRD02', Path: 'D:\\Sites\\eTCM' }],
+      CONT: [{ URL: 'https://etcm-cont.tcm.exemplo', Machine: 'APPCONT01', Path: 'D:\\Sites\\eTCM' }],
+      OBS: 'Balanceado entre duas máquinas em HML e PRD.' },
+    { Title: 'Portaria',
+      DSV: [{ URL: 'https://dsv.tcm.exemplo/portaria', Machine: 'APPDSV02', Path: 'D:\\Sites\\Portaria' }],
+      HML: [{ URL: 'https://hml.tcm.exemplo/portaria', Machine: 'APPHML02', Path: 'D:\\Sites\\Portaria' }],
+      PRD: [{ URL: 'https://portaria.tcm.exemplo', Machine: 'APPPRD02', Path: 'D:\\Sites\\Portaria' }] },
+    { Title: 'SCP Atos',
+      DSV: [{ URL: 'https://dsv.tcm.exemplo/scp/atos', Machine: 'APPDSV01', Path: 'D:\\Sites\\SCP\\Atos' }],
+      HML: [{ URL: 'https://hml.tcm.exemplo/scp/atos', Machine: 'APPHML01', Path: 'D:\\Sites\\SCP\\Atos' }],
+      PRD: [{ URL: 'https://scp.tcm.exemplo/atos', Machine: 'APPPRD01', Path: 'D:\\Sites\\SCP\\Atos' }],
+      OBS: 'O caminho acompanha a versão do sistema raiz (SCP).' },
+    { Title: 'SCP Multas',
+      DSV: [{ URL: 'https://dsv.tcm.exemplo/scp/multas', Machine: 'APPDSV01', Path: 'D:\\Sites\\SCP\\Multas' }],
+      HML: [{ URL: 'https://hml.tcm.exemplo/scp/multas', Machine: 'APPHML01', Path: 'D:\\Sites\\SCP\\Multas' }],
+      PRD: [{ URL: 'https://scp.tcm.exemplo/multas', Machine: 'APPPRD01', Path: 'D:\\Sites\\SCP\\Multas' }] },
+    { Title: 'SGQ',
+      DSV: [{ URL: 'https://dsv.tcm.exemplo/sgq', Machine: 'APPDSV02', Path: 'D:\\Sites\\SGQ' }],
+      HML: [{ URL: 'https://hml.tcm.exemplo/sgq', Machine: 'APPHML02', Path: 'D:\\Sites\\SGQ' }],
+      PRD: [{ URL: 'https://sgq.tcm.exemplo', Machine: 'APPPRD02', Path: 'D:\\Sites\\SGQ' }] },
+    { Title: 'SICATI',
+      DSV: [{ URL: 'https://dsv.tcm.exemplo/sicati', Machine: 'APPDSV02', Path: 'D:\\Sites\\Sicati' }],
+      HML: [{ URL: 'https://hml.tcm.exemplo/sicati', Machine: 'APPHML02', Path: 'D:\\Sites\\Sicati' }],
+      OBS: 'Ainda sem publicação em produção.' },
+    { Title: 'SIGARH',
+      DSV: [{ Machine: 'TSDSV01', Path: '\\\\TSDSV01\\Sistemas\\SIGARH' }],
+      HML: [{ Machine: 'TSHML01', Path: '\\\\TSHML01\\Sistemas\\SIGARH' }],
+      PRD: [{ Machine: 'TSPRD01', Path: '\\\\TSPRD01\\Sistemas\\SIGARH' },
+            { Machine: 'TSPRD02', Path: '\\\\TSPRD02\\Sistemas\\SIGARH' }],
+      OBS: 'Aplicação desktop (VB6), sem URL.' },
+    { Title: 'STP',
+      DSV: [{ URL: 'https://dsv.tcm.exemplo/stp', Machine: 'APPDSV01', Path: 'D:\\Sites\\STP' }],
+      HML: [{ URL: 'https://hml.tcm.exemplo/stp', Machine: 'APPHML01', Path: 'D:\\Sites\\STP' }],
+      PRD: [{ URL: 'https://stp.tcm.exemplo', Machine: 'APPPRD01', Path: 'D:\\Sites\\STP' }],
+      CONT: [{ Machine: 'APPCONT01', Path: 'D:\\Sites\\STP' }] },
+    { Title: 'UserManager',
+      DSV: [{ URL: 'https://dsv.tcm.exemplo/usermanager', Machine: 'APPDSV01', Path: 'D:\\Sites\\UserManager' }],
+      HML: [{ URL: 'https://hml.tcm.exemplo/usermanager', Machine: 'APPHML01', Path: 'D:\\Sites\\UserManager' }],
+      PRD: [{ URL: 'https://usermanager.tcm.exemplo', Machine: 'APPPRD01', Path: 'D:\\Sites\\UserManager' }],
+      OBS: 'SSO das aplicações e servidor do SIAT.' },
+  ];
+
+  const { esc, icone, botaoCopiar } = SIAT;
+  const $ = id => document.getElementById(id);
+  const VAZIO = '<span class="vazio-cel" aria-label="não configurado">–</span>';
+  const quebravel = texto => esc(texto).replace(/([\/\\_.\-])/g, '$1<wbr>');
+
+  $('iconeBusca').outerHTML = icone('busca', 16);
+  $('atualizar').innerHTML = icone('atualizar', 14) + 'Atualizar agora';
+
+  function celula(instancias) {
+    const blocos = (instancias || []).map(inst => {
+      const partes = [];
+      (inst.URL || '').split('|').map(u => u.trim()).filter(Boolean).forEach(u =>
+        partes.push(`<dt>URL</dt><dd><a href="${esc(u)}" target="_blank" rel="noopener">${quebravel(u.replace(/^https?:\/\//i, ''))}<span class="so-leitor"> (abre em nova aba)</span></a></dd>`));
+      if (inst.Machine) partes.push(`<dt>Máquina</dt><dd>${esc(inst.Machine)} ${botaoCopiar(inst.Machine, 'máquina')}</dd>`);
+      if (inst.Path) partes.push(`<dt>Caminho</dt><dd><span class="mono">${quebravel(inst.Path)}</span> ${botaoCopiar(inst.Path, 'caminho')}</dd>`);
+      return partes.length ? `<div class="instancia"><dl>${partes.join('')}</dl></div>` : '';
+    }).filter(Boolean);
+    return `<td>${blocos.join('') || VAZIO}</td>`;
+  }
+
+  sistemas.sort((a, b) => a.Title.localeCompare(b.Title, 'pt-BR'));
+  $('listagem').innerHTML = sistemas.map(s =>
+    `<tr><td class="nome">${esc(s.Title)}</td>${['DSV', 'HML', 'PRD', 'CONT'].map(a => celula(s[a])).join('')}<td>${s.OBS ? esc(s.OBS) : VAZIO}</td></tr>`).join('');
+
+  const linhas = [...$('listagem').rows];
+  linhas.forEach(tr => { tr.dataset.busca = SIAT.normaliza(tr.textContent); });
+
+  function filtrar() {
+    const termo = $('busca').value;
+    let visiveis = 0;
+    linhas.forEach(tr => { tr.hidden = !SIAT.casa(tr.dataset.busca, termo); if (!tr.hidden) visiveis++; });
+    $('vazio').hidden = visiveis > 0;
+    document.querySelector('.tabela-rolagem').hidden = visiveis === 0;
+    $('contador').textContent = termo.trim() ? `${visiveis} de ${linhas.length} sistemas` : `${linhas.length} sistemas`;
+    SIAT.url.gravar({ q: termo.trim() });
+  }
+
+  $('busca').value = SIAT.url.ler('q');
+  $('busca').addEventListener('input', filtrar);
+  $('limpar').addEventListener('click', () => { $('busca').value = ''; filtrar(); $('busca').focus(); });
+  $('atualizar').addEventListener('click', () => { $('lidoAs').textContent = SIAT.hora(); });
+  $('lidoAs').textContent = SIAT.hora();
+  filtrar();
+</script>
+</body>
+</html>

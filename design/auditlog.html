@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AuditLog · SIAT</title>
+<script>(function(){var t='system';try{t=localStorage.getItem('siat-tema')||t}catch(e){}document.documentElement.dataset.theme=t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light'})()</script>
+<link rel="stylesheet" href="siat.css">
+<style>
+  .lista { --colunas: 16px 92px 76px minmax(0, 1fr) 170px 104px; --colunas-estreito: 16px 92px minmax(0, 1fr) 92px; }
+</style>
+</head>
+<body data-pagina="auditlog">
+<a class="pular" href="#conteudo">Ir para o conteúdo</a>
+<div class="app">
+  <main class="conteudo" id="conteudo" tabindex="-1">
+    <div class="contexto" id="contexto"></div>
+
+    <header class="cabecalho">
+      <div>
+        <h1>AuditLog</h1>
+        <p class="sub">Registros de <span class="mono">AUDITORIADB · audit.Log</span>, do mais recente para o mais antigo.</p>
+      </div>
+      <span class="status" id="status" role="status"></span>
+    </header>
+
+    <form class="painel filtros" id="form" novalidate>
+      <div class="campo">
+        <span id="rotuloServidor">Servidor</span>
+        <div id="servidor" role="group" aria-labelledby="rotuloServidor"></div>
+      </div>
+      <label class="campo largo">Aplicação
+        <select id="app"><option value="">Todas as aplicações</option></select>
+      </label>
+      <label class="campo"><span>LogID <span class="dica">começa com</span></span>
+        <input id="logId" inputmode="numeric" pattern="\d*" placeholder="ex.: 4363" title="Somente dígitos">
+      </label>
+      <label class="campo curto">Quantidade
+        <input id="top" type="number" min="1" max="1000" value="50" required>
+      </label>
+      <button class="botao" id="consultar">Consultar</button>
+      <button type="button" class="botao secundario" id="cancelar" hidden title="Interrompe o comando no SQL Server">Cancelar</button>
+    </form>
+
+    <section class="painel" aria-label="Resultados">
+      <div class="progresso" id="progresso" hidden></div>
+      <div class="barra">
+        <label class="busca">
+          <span class="so-leitor">Filtrar os resultados carregados</span>
+          <span id="iconeBusca"></span>
+          <input class="entrada" id="filtro" type="search" data-busca placeholder="Filtrar os resultados carregados" autocomplete="off">
+          <kbd aria-hidden="true">/</kbd>
+        </label>
+        <span class="contador" id="contador" aria-live="polite"></span>
+        <button type="button" class="botao secundario pequeno empurra" id="exportar" disabled></button>
+      </div>
+      <div class="lista">
+        <div class="lista-cab" aria-hidden="true"><span></span><span>Tipo</span><span class="opc">LogID</span><span>Mensagem</span><span class="opc">Aplicação</span><span class="direita">Quando</span></div>
+        <div id="lista"></div>
+      </div>
+      <div class="estado" id="vazio" hidden></div>
+    </section>
+
+    <footer class="rodape">
+      <span>Fonte: <span class="mono">AUDITORIADB</span> do servidor escolhido; nomes de aplicação de <span class="mono">CSLIB_UserManager</span>.</span>
+    </footer>
+  </main>
+</div>
+
+<script src="siat.js"></script>
+<script>
+  const { esc, icone } = SIAT;
+  const $ = id => document.getElementById(id);
+
+  const APPS = { 12: 'eTCM', 18: 'SCP Atos', 23: 'Chamados e Serviços', 31: 'UserManager', 40: 'Controle de Férias' };
+  Object.entries(APPS).forEach(([id, nome]) => $('app').add(new Option(`${nome} (${id})`, id)));
+
+  // Registros fictícios.
+  const LOGS = [
+    { id: 436512, tipo: 'Error', app: 12, min: 4,
+      msg: 'Falha ao gerar o PDF do despacho 2026/18834',
+      exc: 'System.InvalidOperationException: O modelo de documento não foi encontrado.\n   at Tcmrj.Etcm.Documentos.GeradorPdf.Gerar(Despacho despacho, CancellationToken ct) in D:\\src\\etcm\\Documentos\\GeradorPdf.cs:line 84\n   at Tcmrj.Etcm.Web.Controllers.DespachoController.Baixar(Int32 id) in D:\\src\\etcm\\Web\\Controllers\\DespachoController.cs:line 131\n ---> System.IO.FileNotFoundException: Could not find file \'\\\\APPHML01\\Modelos\\despacho-v3.docx\'.\n   at System.IO.FileStream.ValidateFileHandle(SafeFileHandle handle)\n   --- End of inner exception stack trace ---',
+      evento: { RequestId: '0HN7QK2:00000A3', Usuario: 'ana.souza', DespachoId: 18834, Tentativa: 2, Reprocessar: true } },
+    { id: 436498, tipo: 'Information', app: 31, min: 11,
+      msg: 'Login efetuado por carlos.lima a partir de 10.20.4.117',
+      evento: { Usuario: 'carlos.lima', Ip: '10.20.4.117', Aplicacao: 'SIAT', Mfa: false } },
+    { id: 436471, tipo: 'Warning', app: 23, min: 26,
+      msg: 'Chamado 48213 reaberto após encerramento automático',
+      evento: { ChamadoId: 48213, MotivoEncerramento: 'Sem resposta em 5 dias', ReabertoPor: 'ana.souza' } },
+    { id: 436455, tipo: 'Information', app: 18, min: 58,
+      msg: 'Ato de pessoal 2026/3391 recebido do órgão 2100',
+      evento: { AtoId: 3391, Orgao: 2100, TamanhoBytes: 48211 } },
+    { id: 436402, tipo: 'Error', app: 40, min: 140,
+      msg: 'Tempo limite ao consultar a lotação no SIGARH',
+      exc: 'Microsoft.Data.SqlClient.SqlException: Execution Timeout Expired. The timeout period elapsed prior to completion of the operation or the server is not responding.\n   at Microsoft.Data.SqlClient.SqlCommand.ExecuteReader(CommandBehavior behavior)\n   at Tcmrj.Ferias.Dados.LotacaoRepositorio.Obter(Int32 matricula) in D:\\src\\controle-ferias\\Dados\\LotacaoRepositorio.cs:line 42',
+      evento: { Matricula: 40321, TempoMs: 30004, Servidor: 'TCMBD4\\HML' } },
+    { id: 436377, tipo: 'Information', app: 12, min: 310,
+      msg: 'Processo 040/100.512/2026 distribuído ao relator',
+      evento: { Processo: '040/100.512/2026', Relator: 'Gabinete 3', Automatico: true } },
+    { id: 436120, tipo: 'Warning', app: 31, min: 1600,
+      msg: 'Três tentativas de login inválidas para beatriz.rocha',
+      evento: { Usuario: 'beatriz.rocha', Tentativas: 3, Bloqueado: false } },
+  ].map(l => ({ ...l, quando: SIAT.haMinutos(l.min) }));
+
+  function nivel(tipo) {
+    const t = tipo.toLowerCase();
+    return /err|fatal|crit|exce/.test(t) ? 'erro' : /warn|aviso|alert/.test(t) ? 'alerta' : '';
+  }
+
+  // Realce de JSON: chaves, textos, números e literais.
+  function realcarJson(texto) {
+    const re = /("(?:\\.|[^"\\])*")(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g;
+    let html = '', ultimo = 0, m;
+    while ((m = re.exec(texto))) {
+      html += esc(texto.slice(ultimo, m.index));
+      if (m[1] !== undefined) html += m[2] ? `<span class="json-chave">${esc(m[1])}</span>${m[2]}` : `<span class="json-texto">${esc(m[1])}</span>`;
+      else if (m[3]) html += `<span class="json-literal">${m[3]}</span>`;
+      else html += `<span class="json-numero">${m[0]}</span>`;
+      ultimo = re.lastIndex;
+    }
+    return html + esc(texto.slice(ultimo));
+  }
+
+  // Stack trace .NET: tipo da exceção em destaque, método em negrito, arquivo e linha coloridos.
+  function realcarStack(texto) {
+    return texto.replace(/\r\n/g, '\n').split('\n').map(linha => {
+      let m = linha.match(/^(\s*)(?:at|em)\s+(.+?)\((.*)\)(?:\s+(?:in|em)\s+(.+?):(?:line|linha)\s+(\d+))?\s*$/);
+      if (m) {
+        const ponto = m[2].lastIndexOf('.');
+        const params = m[3].split(/,(?![^<]*>)/).filter(p => p.trim()).map(p => {
+          const t = p.trim(), sp = t.lastIndexOf(' ');
+          return sp <= 0 ? `<span class="st-param">${esc(t)}</span>`
+            : `<span class="st-tipo-param">${esc(t.slice(0, sp))}</span> <span class="st-param">${esc(t.slice(sp + 1))}</span>`;
+        }).join(', ');
+        return esc(m[1]) + '<span class="st-at">at</span> '
+          + `<span class="st-ns">${esc(m[2].slice(0, ponto + 1))}</span><span class="st-metodo">${esc(m[2].slice(ponto + 1))}</span>(${params})`
+          + (m[4] ? ` <span class="st-at">in</span> <span class="st-arquivo">${esc(m[4])}</span>:<span class="st-linha-rotulo">line</span> ${m[5]}` : '');
+      }
+      m = linha.match(/^(\s*(?:--->\s*)?)([\w.$+`]+(?:Exception|Error)[\w.$+`]*):\s*(.*)$/);
+      if (m) return `${esc(m[1])}<span class="st-tipo">${esc(m[2])}:</span> ${esc(m[3])}`;
+      return esc(linha);
+    }).join('\n');
+  }
+
+  function bloco(idPre, original, html, escuro) {
+    return `<div class="copiavel"><button type="button" class="botao secundario pequeno" data-copiar-de="${idPre}">Copiar</button>`
+      + `<pre class="codigo${escuro ? ' escuro' : ''}" id="${idPre}" data-original="${esc(original)}">${html}</pre></div>`;
+  }
+
+  function htmlCampos(l) {
+    return `<dl class="campos">
+      <dt>Mensagem</dt><dd>${esc(l.msg)}</dd>
+      <dt>Tipo</dt><dd><span class="nivel ${nivel(l.tipo)}">${esc(l.tipo)}</span></dd>
+      <dt>Data</dt><dd class="num">${SIAT.dataCompleta(l.quando)}</dd>
+      <dt>Aplicação</dt><dd>${esc(APPS[l.app])} <span class="suave">(AppID ${l.app})</span></dd>
+      <dt>LogID</dt><dd><span class="mono">${l.id}</span> ${SIAT.botaoCopiar(l.id, 'LogID')}</dd>
+    </dl>`;
+  }
+
+  const lista = SIAT.listaExpansivel({
+    raiz: $('lista'),
+    id: l => l.id,
+    linha: l => ({
+      busca: [l.id, l.msg, l.tipo, l.app, APPS[l.app]].join(' '),
+      celulas: `<span class="nivel ${nivel(l.tipo)}">${esc(l.tipo)}</span>`
+        + `<span class="mono cel-suave opc">${l.id}</span>`
+        + `<span class="cel-texto">${l.exc ? '<span class="pilula erro sem-ponto">exceção</span> ' : ''}${esc(l.msg)}</span>`
+        + `<span class="cel-suave opc">${esc(APPS[l.app])}</span>`
+        + `<span class="cel-suave direita num" title="${SIAT.dataCompleta(l.quando)}">${SIAT.quando(l.quando)}</span>`,
+    }),
+    detalhe: (l, painel) => {
+      const json = JSON.stringify(l.evento, null, 2);
+      painel.innerHTML = htmlCampos(l)
+        + (l.exc ? `<div><span class="secao-titulo">Exceção</span>${bloco('exc-' + l.id, l.exc, realcarStack(l.exc), true)}</div>` : '')
+        + `<div><span class="secao-titulo">LogEvent</span>${bloco('evt-' + l.id, json, realcarJson(json), false)}</div>`;
+    },
+    aoAbrir: id => SIAT.url.gravar({ sel: id }),
+  });
+
+  let ultima = null;
+  const seletor = SIAT.seletorServidor($('servidor'), SIAT.url.ler('servidor') || 'TCMBD', consultar);
+  const consulta = SIAT.consulta({ status: $('status'), progresso: $('progresso'), consultar: $('consultar'), cancelar: $('cancelar') });
+
+  $('iconeBusca').outerHTML = icone('busca', 16);
+  $('exportar').innerHTML = icone('baixar', 14) + 'Exportar HTML';
+  $('app').value = SIAT.url.ler('app');
+  $('logId').value = SIAT.url.ler('logId');
+  $('top').value = SIAT.url.ler('top') || 50;
+
+  function filtrar() {
+    const total = lista.itens().length;
+    const visiveis = lista.filtrar($('filtro').value);
+    $('contador').textContent = !total ? '' : $('filtro').value.trim() ? `${visiveis} de ${total} logs` : `${total} logs`;
+  }
+
+  function mostrar(logs, v, duracao) {
+    ultima = { v, logs };
+    const tem = logs.length > 0;
+    document.querySelector('.lista').hidden = !tem;
+    $('vazio').hidden = tem;
+    $('exportar').disabled = !tem;
+    if (!tem) {
+      const filtros = [v.app && `AppID ${v.app} (${APPS[v.app]})`, v.logId && `LogID começando com ${v.logId}`].filter(Boolean);
+      const acoes = [];
+      if (v.logId) acoes.push('<button type="button" class="botao secundario pequeno" data-acao="sem-logid">Remover filtro de LogID</button>');
+      if (v.app) acoes.push('<button type="button" class="botao secundario pequeno" data-acao="todas-apps">Todas as aplicações</button>');
+      $('vazio').innerHTML = `<h2>Nenhum log encontrado</h2>
+        <p>${esc(filtros.join(', ') || 'Sem filtros')}, em <span class="mono">${esc(v.servidor.nome)}</span>.</p>
+        ${acoes.length ? `<div class="acoes">${acoes.join('')}</div>` : ''}`;
+    }
+    lista.mostrar(logs, SIAT.url.ler('sel'));
+    filtrar();
+    $('status').textContent = `${logs.length} log(s) · ${SIAT.segundos(duracao)} · consultado às ${SIAT.hora()}`;
+  }
+
+  function consultar() {
+    if (!$('form').reportValidity()) return;
+    const v = { servidor: seletor.valor(), app: $('app').value, logId: $('logId').value.trim(), top: $('top').value };
+    SIAT.contexto($('contexto'), v.servidor, 'AuditLog');
+    SIAT.url.gravar({ servidor: v.servidor.nome, app: v.app, logId: v.logId, top: v.top === '50' ? '' : v.top });
+    if (!ultima) { $('lista').innerHTML = SIAT.esqueleto(6); $('vazio').hidden = true; }
+    consulta.iniciar('Consultando ' + v.servidor.nome, 1100, duracao => {
+      mostrar(LOGS.filter(l => (!v.app || String(l.app) === v.app) && String(l.id).startsWith(v.logId)).slice(0, Number(v.top)), v, duracao);
+    });
+  }
+
+  $('form').addEventListener('submit', ev => { ev.preventDefault(); SIAT.url.gravar({ sel: '' }); consultar(); });
+  $('filtro').addEventListener('input', filtrar);
+  $('vazio').addEventListener('click', ev => {
+    const acao = ev.target.closest('[data-acao]')?.dataset.acao;
+    if (acao === 'sem-logid') $('logId').value = '';
+    else if (acao === 'todas-apps') $('app').value = '';
+    else return;
+    consultar();
+  });
+  $('exportar').addEventListener('click', () => {
+    const { v, logs } = ultima;
+    SIAT.exportar('auditlog.html', 'AuditLog · ' + v.servidor.nome,
+      `${logs.length} log(s), limite ${v.top}, consultado em ${SIAT.dataCompleta(new Date())}`,
+      logs.map(l => `<section><h2>${esc(l.msg)}</h2>${htmlCampos(l).replace(/<button[\s\S]*?<\/button>/g, '')}`
+        + (l.exc ? `<pre>${esc(l.exc)}</pre>` : '') + `<pre>${esc(JSON.stringify(l.evento, null, 2))}</pre></section>`));
+  });
+
+  consultar();
+</script>
+</body>
+</html>

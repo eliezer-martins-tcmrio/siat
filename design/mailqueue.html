@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MailQueue · SIAT</title>
+<script>(function(){var t='system';try{t=localStorage.getItem('siat-tema')||t}catch(e){}document.documentElement.dataset.theme=t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light'})()</script>
+<link rel="stylesheet" href="siat.css">
+<style>
+  .lista { --colunas: 16px 84px minmax(0, 1fr) 230px 104px; --colunas-estreito: 16px 84px minmax(0, 1fr) 92px; }
+</style>
+</head>
+<body data-pagina="mailqueue">
+<a class="pular" href="#conteudo">Ir para o conteúdo</a>
+<div class="app">
+  <main class="conteudo" id="conteudo" tabindex="-1">
+    <div class="contexto" id="contexto"></div>
+
+    <header class="cabecalho">
+      <div>
+        <h1>MailQueue</h1>
+        <p class="sub">E-mails enfileirados pelos sistemas, do mais recente para o mais antigo.</p>
+      </div>
+      <span class="status" id="status" role="status"></span>
+    </header>
+
+    <form class="painel filtros" id="form" novalidate>
+      <div class="campo">
+        <span id="rotuloServidor">Servidor</span>
+        <div id="servidor" role="group" aria-labelledby="rotuloServidor"></div>
+      </div>
+      <label class="campo">SMTP
+        <select id="smtp">
+          <option value="">Todos os SMTPs</option>
+          <option value="1">1 · Notificações</option>
+          <option value="2">2 · Comunicações processuais</option>
+          <option value="3">3 · RH</option>
+        </select>
+      </label>
+      <label class="campo largo">Buscar no banco
+        <input id="texto" type="search" placeholder="Assunto, corpo, destinatário ou MessageId">
+      </label>
+      <label class="campo curto">Quantidade
+        <input id="top" type="number" min="1" max="1000" value="50" required>
+      </label>
+      <button class="botao" id="consultar">Consultar</button>
+      <button type="button" class="botao secundario" id="cancelar" hidden title="Interrompe o comando no SQL Server">Cancelar</button>
+    </form>
+
+    <section class="painel" aria-label="Resultados">
+      <div class="progresso" id="progresso" hidden></div>
+      <div class="barra">
+        <label class="busca">
+          <span class="so-leitor">Filtrar os resultados carregados</span>
+          <span id="iconeBusca"></span>
+          <input class="entrada" id="filtro" type="search" data-busca placeholder="Filtrar os resultados carregados" autocomplete="off">
+          <kbd aria-hidden="true">/</kbd>
+        </label>
+        <span class="contador" id="contador" aria-live="polite"></span>
+        <button type="button" class="botao secundario pequeno empurra" id="exportar" disabled></button>
+      </div>
+      <div class="lista">
+        <div class="lista-cab" aria-hidden="true"><span></span><span>Situação</span><span>Assunto</span><span class="opc">Para</span><span class="direita">Postado</span></div>
+        <div id="lista"></div>
+      </div>
+      <div class="estado" id="vazio" hidden></div>
+    </section>
+
+    <footer class="rodape">
+      <span>Fonte: banco <span class="mono">MailQueue</span> do servidor escolhido, lido pela conta de serviço somente de leitura.</span>
+    </footer>
+  </main>
+</div>
+
+<script src="siat.js"></script>
+<script>
+  const { esc, icone } = SIAT;
+  const $ = id => document.getElementById(id);
+
+  // E-mails fictícios. Fora de PRD, os sistemas prefixam o assunto com o ambiente.
+  const BASE = [
+    { smtp: 1, assunto: 'Chamado 48213 atribuído a você', para: 'ana.souza@tcm.exemplo', min: 6, enviado: true,
+      corpo: '<p>Olá, Ana.</p><p>O chamado <b>48213</b> (Impressora do 7º andar sem toner) foi atribuído a você.</p><p>Chamados e Serviços</p>' },
+    { smtp: 2, assunto: 'Intimação eletrônica: processo 040/100.512/2026', para: 'protocolo@orgao.exemplo; juridico@orgao.exemplo; gabinete@orgao.exemplo', min: 19, enviado: false,
+      corpo: '<p>Fica o jurisdicionado intimado do despacho proferido no processo <b>040/100.512/2026</b>.</p><p>O prazo para manifestação é de 15 dias.</p>' },
+    { smtp: 3, assunto: 'Férias aprovadas: 04/01/2027 a 18/01/2027', para: 'carlos.lima@tcm.exemplo', min: 47, enviado: true,
+      corpo: '<p>Carlos, o seu período de férias foi aprovado pela chefia imediata.</p>' },
+    { smtp: 1, assunto: 'Redefinição de senha do UserManager', para: 'beatriz.rocha@tcm.exemplo', min: 95, enviado: true,
+      corpo: 'Recebemos um pedido de redefinição de senha.\nSe não foi você, ignore esta mensagem.', texto: true },
+    { smtp: 2, assunto: 'Ato de pessoal 2026/3391 recebido', para: 'rh@orgao.exemplo', min: 180, enviado: true,
+      corpo: '<p>O ato de pessoal <b>2026/3391</b> foi recebido e aguarda análise.</p>' },
+    { smtp: 1, assunto: '', para: '', min: 260, enviado: false,
+      corpo: '<p>Mensagem de teste gerada pelo agendador.</p>' },
+    { smtp: 2, assunto: 'Multa 2026/0087: guia de recolhimento disponível', para: 'financeiro@orgao.exemplo; controladoria@orgao.exemplo', min: 1500, enviado: true,
+      corpo: '<p>A guia de recolhimento da multa <b>2026/0087</b> está disponível no sistema.</p>' },
+    { smtp: 3, assunto: 'Lembrete: recadastramento anual termina em 30/11', para: 'todos-servidores@tcm.exemplo', min: 2900, enviado: true,
+      corpo: '<p>O recadastramento anual termina em <b>30/11/2026</b>.</p><p>Acesse o SIGARH para concluir.</p>' },
+  ];
+  function mensagensDe(servidor) {
+    const prefixo = servidor.amb === 'prd' ? '' : `[${servidor.amb.toUpperCase()}] `;
+    return BASE.map((m, i) => ({
+      ...m,
+      assunto: m.assunto ? prefixo + m.assunto : '',
+      id: `${servidor.amb}-${String(9041 - i).padStart(6, '0')}-a3f${i}c2e1`,
+      postado: SIAT.haMinutos(m.min),
+      enviadoEm: m.enviado ? SIAT.haMinutos(m.min - 1) : null,
+    }));
+  }
+
+  const situacao = m => m.enviado ? '<span class="pilula ok">Enviado</span>' : '<span class="pilula info">Na fila</span>';
+  const ausente = texto => `<span class="suave">${texto}</span>`;
+  function paraCurto(m) {
+    const dest = m.para.split(';').map(s => s.trim()).filter(Boolean);
+    if (!dest.length) return ausente('(sem destinatários)');
+    return esc(dest[0]) + (dest.length > 1 ? ` <span class="suave">+${dest.length - 1}</span>` : '');
+  }
+  // O corpo vai num iframe com sandbox vazio: sem scripts e sem acesso a esta página.
+  function srcdoc(m) {
+    const corpo = m.texto ? `<pre style="white-space:pre-wrap;font:inherit;margin:0">${esc(m.corpo)}</pre>` : m.corpo;
+    return '<!doctype html><meta charset="utf-8"><base target="_blank"><style>body{margin:0;padding:12px;font:14px "Segoe UI",Arial,sans-serif;color:#222;background:#fff}</style>' + corpo;
+  }
+  function htmlCampos(m) {
+    return `<dl class="campos">
+      <dt>Assunto</dt><dd>${m.assunto ? esc(m.assunto) : ausente('(sem assunto)')}</dd>
+      <dt>Para</dt><dd>${m.para ? esc(m.para) : ausente('(sem destinatários)')}</dd>
+      <dt>Situação</dt><dd>${situacao(m)}</dd>
+      <dt>Postado em</dt><dd class="num">${SIAT.dataCompleta(m.postado)}</dd>
+      <dt>Data de envio</dt><dd class="num">${m.enviadoEm ? SIAT.dataCompleta(m.enviadoEm) : ausente('não enviado')}</dd>
+      <dt>MessageId</dt><dd><span class="mono">${esc(m.id)}</span> ${SIAT.botaoCopiar(m.id, 'MessageId')}</dd>
+    </dl>`;
+  }
+
+  const lista = SIAT.listaExpansivel({
+    raiz: $('lista'),
+    id: m => m.id,
+    linha: m => ({
+      busca: [m.assunto, m.para, m.id, m.corpo.replace(/<[^>]+>/g, ' ')].join(' '),
+      celulas: `<span>${situacao(m)}</span>`
+        + `<span class="cel-texto">${m.assunto ? esc(m.assunto) : ausente('(sem assunto)')}</span>`
+        + `<span class="cel-suave opc">${paraCurto(m)}</span>`
+        + `<span class="cel-suave direita num" title="${SIAT.dataCompleta(m.postado)}">${SIAT.quando(m.postado)}</span>`,
+    }),
+    detalhe: (m, painel) => {
+      painel.innerHTML = htmlCampos(m) + '<div><span class="secao-titulo">Corpo</span><iframe class="corpo-email" sandbox title="Corpo da mensagem"></iframe></div>';
+      painel.querySelector('iframe').srcdoc = srcdoc(m);
+    },
+    aoAbrir: id => SIAT.url.gravar({ sel: id }),
+  });
+
+  let ultima = null;
+  const seletor = SIAT.seletorServidor($('servidor'), SIAT.url.ler('servidor') || 'TCMBD4\\HML', consultar);
+  const consulta = SIAT.consulta({ status: $('status'), progresso: $('progresso'), consultar: $('consultar'), cancelar: $('cancelar') });
+
+  $('iconeBusca').outerHTML = icone('busca', 16);
+  $('exportar').innerHTML = icone('baixar', 14) + 'Exportar HTML';
+  $('smtp').value = SIAT.url.ler('smtp');
+  $('texto').value = SIAT.url.ler('texto');
+  $('top').value = SIAT.url.ler('top') || 50;
+
+  function filtrar() {
+    const total = lista.itens().length;
+    const visiveis = lista.filtrar($('filtro').value);
+    $('contador').textContent = !total ? '' : $('filtro').value.trim() ? `${visiveis} de ${total} e-mails` : `${total} e-mails`;
+  }
+
+  function mostrar(mensagens, v, duracao) {
+    ultima = { v, mensagens };
+    const tem = mensagens.length > 0;
+    document.querySelector('.lista').hidden = !tem;
+    $('vazio').hidden = tem;
+    $('exportar').disabled = !tem;
+    if (!tem) {
+      const acoes = [];
+      if (v.texto) acoes.push('<button type="button" class="botao secundario pequeno" data-acao="sem-texto">Remover busca</button>');
+      if (v.smtp) acoes.push('<button type="button" class="botao secundario pequeno" data-acao="todos-smtps">Todos os SMTPs</button>');
+      $('vazio').innerHTML = `<h2>Nenhum e-mail encontrado</h2>
+        <p>${v.smtp ? 'SMTP ' + esc(v.smtp) : 'Todos os SMTPs'}${v.texto ? `, contendo "${esc(v.texto)}"` : ''}, em <span class="mono">${esc(v.servidor.nome)}</span>.</p>
+        ${acoes.length ? `<div class="acoes">${acoes.join('')}</div>` : ''}`;
+    }
+    lista.mostrar(mensagens, SIAT.url.ler('sel'));
+    filtrar();
+    $('status').textContent = `${mensagens.length} e-mail(s) · ${SIAT.segundos(duracao)} · consultado às ${SIAT.hora()}`;
+  }
+
+  function consultar() {
+    if (!$('form').reportValidity()) return;
+    const v = { servidor: seletor.valor(), smtp: $('smtp').value, texto: $('texto').value.trim(), top: $('top').value };
+    SIAT.contexto($('contexto'), v.servidor, 'MailQueue');
+    SIAT.url.gravar({ servidor: v.servidor.nome, smtp: v.smtp, texto: v.texto, top: v.top === '50' ? '' : v.top });
+    if (!ultima) { $('lista').innerHTML = SIAT.esqueleto(6); $('vazio').hidden = true; }
+    consulta.iniciar('Consultando ' + v.servidor.nome, 900, duracao => {
+      const mensagens = mensagensDe(v.servidor)
+        .filter(m => !v.smtp || String(m.smtp) === v.smtp)
+        .filter(m => SIAT.casa(SIAT.normaliza([m.assunto, m.para, m.id, m.corpo].join(' ')), v.texto))
+        .slice(0, Number(v.top));
+      mostrar(mensagens, v, duracao);
+    });
+  }
+
+  $('form').addEventListener('submit', ev => { ev.preventDefault(); SIAT.url.gravar({ sel: '' }); consultar(); });
+  $('filtro').addEventListener('input', filtrar);
+  $('vazio').addEventListener('click', ev => {
+    const acao = ev.target.closest('[data-acao]')?.dataset.acao;
+    if (acao === 'sem-texto') $('texto').value = '';
+    else if (acao === 'todos-smtps') $('smtp').value = '';
+    else return;
+    consultar();
+  });
+  $('exportar').addEventListener('click', () => {
+    const { v, mensagens } = ultima;
+    SIAT.exportar('mailqueue.html', 'MailQueue · ' + v.servidor.nome,
+      `${mensagens.length} e-mail(s), limite ${v.top}, consultado em ${SIAT.dataCompleta(new Date())}`,
+      mensagens.map(m => `<section><h2>${esc(m.assunto || '(sem assunto)')}</h2>${htmlCampos(m).replace(/<button[\s\S]*?<\/button>/g, '')}<iframe sandbox srcdoc="${esc(srcdoc(m))}"></iframe></section>`));
+  });
+
+  consultar();
+</script>
+</body>
+</html>

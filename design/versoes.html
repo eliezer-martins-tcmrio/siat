@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Versões publicadas · SIAT</title>
+<script>(function(){var t='system';try{t=localStorage.getItem('siat-tema')||t}catch(e){}document.documentElement.dataset.theme=t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light'})()</script>
+<link rel="stylesheet" href="siat.css">
+<style>
+  .tabela-versoes { min-width: 860px; }
+  .tabela-versoes th, .tabela-versoes td { white-space: nowrap; }
+  .tabela-versoes td.nome { white-space: normal; min-width: 220px; }
+  .tabela-versoes thead tr:nth-child(2) th { top: 39px; font-weight: 400; }
+  .legenda { display: flex; flex-wrap: wrap; gap: 6px 20px; padding: 12px 18px; font-size: 12px; color: var(--color-muted); align-items: center; }
+</style>
+</head>
+<body data-pagina="versoes">
+<a class="pular" href="#conteudo">Ir para o conteúdo</a>
+<div class="app">
+  <main class="conteudo" id="conteudo" tabindex="-1">
+    <header class="cabecalho">
+      <div>
+        <h1>Versões publicadas</h1>
+        <p class="sub">Versão de cada sistema em DSV, HML e PRD, nas duas máquinas de cada ambiente.</p>
+      </div>
+      <div class="cabecalho-acoes">
+        <span class="status" id="status" role="status"></span>
+        <button type="button" class="botao secundario pequeno" id="cancelar" hidden>Cancelar</button>
+        <button type="button" class="botao secundario pequeno" id="atualizar"></button>
+      </div>
+    </header>
+
+    <dl class="resumo" id="resumo"></dl>
+
+    <section class="painel" aria-label="Versões por sistema">
+      <div class="progresso" id="progresso" hidden></div>
+      <div class="barra">
+        <label class="busca">
+          <span class="so-leitor">Filtrar por sistema</span>
+          <span id="iconeBusca"></span>
+          <input class="entrada" id="busca" type="search" data-busca placeholder="Filtrar por sistema" autocomplete="off">
+          <kbd aria-hidden="true">/</kbd>
+        </label>
+        <div class="segmentado" id="filtros" role="group" aria-label="Filtrar por situação"></div>
+      </div>
+      <div class="tabela-rolagem">
+        <table class="tabela tabela-versoes">
+          <thead>
+            <tr>
+              <th rowspan="2">Sistema</th>
+              <th colspan="2" class="divisa" data-amb="dsv"><span class="amb">DSV</span></th>
+              <th colspan="2" class="divisa" data-amb="hml"><span class="amb">HML</span></th>
+              <th colspan="2" class="divisa" data-amb="prd"><span class="amb">PRD</span></th>
+            </tr>
+            <tr>
+              <th class="divisa">Máquina 1</th><th>Máquina 2</th>
+              <th class="divisa">Máquina 1</th><th>Máquina 2</th>
+              <th class="divisa">Máquina 1</th><th>Máquina 2</th>
+            </tr>
+          </thead>
+          <tbody id="listagem"></tbody>
+        </table>
+      </div>
+      <div class="estado" id="vazio" hidden>
+        <h2>Nenhum sistema neste filtro</h2>
+        <p id="vazioTexto"></p>
+        <div class="acoes"><button type="button" class="botao secundario pequeno" id="limpar">Ver todos</button></div>
+      </div>
+      <div class="legenda">
+        <span><span class="versao">1.4.2</span> versão publicada</span>
+        <span><span class="versao diverge">1.4.2</span> difere da outra máquina do ambiente</span>
+        <span><span class="pilula erro">Erro</span> falha ao ler o arquivo de versão</span>
+        <span><span class="vazio-cel">–</span> não configurado</span>
+        <span>Abra a linha para ver o caminho consultado.</span>
+      </div>
+    </section>
+
+    <footer class="rodape">
+      <span>Endereços: <span class="mono">CSLIB_UserManager.dbo.Apps_VersionAddresses</span> (registros ativos). O resultado fica em cache por 5 minutos.</span>
+    </footer>
+  </main>
+</div>
+
+<script src="siat.js"></script>
+<script>
+  // Dados fictícios. Cada célula: [versão ou "ERROR: mensagem", caminho consultado].
+  const p = (maq, sis) => `\\\\${maq}\\Sites\\${sis}\\VERSAO.TXT`;
+  const par = (sis, amb, v1, v2) => [[v1, v1 == null ? '' : p(`APP${amb}01`, sis)], [v2, v2 == null ? '' : p(`APP${amb}02`, sis)]];
+  const sistemas = [
+    ['AR Digital', 'ArDigital', ['2.3.0', null], ['2.3.0', null], ['2.2.4', '2.2.4']],
+    ['Chamados e Serviços', 'ChamadosServicos', ['1.18.2', null], ['1.18.2', null], ['1.18.0', null]],
+    ['Controle de Férias', 'ControleFerias', ['3.1.0', null], ['3.0.7', null], ['3.0.7', null]],
+    ['eTCM', 'eTCM', ['5.12.0', null], ['5.11.3', '5.11.2'], ['5.11.1', '5.11.1']],
+    ['Portaria', 'Portaria', ['1.4.2', null], ['1.4.2', null], ['1.4.2', null]],
+    ['SCP Atos', 'SCP\\Atos', ['4.7.1', null], ['4.7.0', null], ['4.6.5', '4.6.5']],
+    ['SCP Multas', 'SCP\\Multas', ['4.7.1', null], ['ERROR: Não foi possível localizar uma parte do caminho.', null], ['4.6.5', '4.6.5']],
+    ['SGQ', 'SGQ', ['2.0.3', null], ['2.0.3', null], ['2.0.1', null]],
+    ['SICATI', 'Sicati', ['0.9.0', null], ['0.8.4', null], [null, null]],
+    ['SIGARH', 'SIGARH', ['7.25.0', null], ['7.24.3', null], ['7.24.1', '7.23.9']],
+    ['STP', 'STP', ['6.2.0', null], ['6.2.0', '6.2.0'], ['6.1.8', 'ERROR: Tempo limite de 5 s esgotado ao ler o arquivo.']],
+    ['UserManager', 'UserManager', ['3.9.1', null], ['3.9.1', null], ['3.9.0', null]],
+  ].map(([nome, pasta, dsv, hml, prd]) => ({ nome, celulas: [...par(pasta, 'DSV', ...dsv), ...par(pasta, 'HML', ...hml), ...par(pasta, 'PRD', ...prd)] }));
+
+  const { esc, icone } = SIAT;
+  const $ = id => document.getElementById(id);
+  const ehErro = c => String(c[0] || '').startsWith('ERROR:');
+  const diverge = (a, b) => a[0] != null && b[0] != null && !ehErro(a) && !ehErro(b) && a[0] !== b[0];
+
+  sistemas.forEach(s => {
+    s.div = [0, 2, 4].map(i => diverge(s.celulas[i], s.celulas[i + 1]));
+    s.temDiv = s.div.some(Boolean);
+    s.temErro = s.celulas.some(ehErro);
+  });
+
+  $('iconeBusca').outerHTML = icone('busca', 16);
+  $('atualizar').innerHTML = icone('atualizar', 14) + 'Atualizar agora';
+
+  function celulaVersao(c, i, divergente) {
+    const classe = i % 2 === 0 ? ' class="divisa"' : '';
+    if (c[0] == null) return `<td${classe}><span class="vazio-cel" aria-label="não configurado">–</span></td>`;
+    if (ehErro(c)) return `<td${classe}><span class="pilula erro">Erro</span></td>`;
+    return `<td${classe}><span class="versao${divergente ? ' diverge' : ''}">${esc(c[0])}</span>${divergente ? '<span class="so-leitor"> (difere da outra máquina)</span>' : ''}</td>`;
+  }
+
+  function detalhe(s) {
+    const rotulos = ['DSV', 'DSV', 'HML', 'HML', 'PRD', 'PRD'];
+    const linhas = s.celulas.map((c, i) => {
+      if (c[0] == null) return '';
+      const amb = rotulos[i];
+      return `<span data-amb="${amb.toLowerCase()}"><span class="amb">${amb}</span></span><span class="suave">Máquina ${i % 2 + 1}</span>`
+        + `<span><span class="mono">${esc(c[1])}</span> ${SIAT.botaoCopiar(c[1], 'caminho')}</span>`
+        + (ehErro(c) ? `<span class="erro-msg">${esc(c[0].slice(6).trim())}</span>` : '');
+    }).join('');
+    return `<div class="caminhos">${linhas}</div>`;
+  }
+
+  function desenhar() {
+    $('listagem').innerHTML = sistemas.map((s, n) => `
+      <tr class="linha-expansivel" data-n="${n}">
+        <td class="nome"><button type="button" class="expansor" aria-expanded="false" aria-label="Caminhos consultados de ${esc(s.nome)}">${icone('seta', 15)}</button>${esc(s.nome)}</td>
+        ${s.celulas.map((c, i) => celulaVersao(c, i, s.div[Math.floor(i / 2)])).join('')}
+      </tr>
+      <tr class="linha-detalhe" hidden><td colspan="7">${detalhe(s)}</td></tr>`).join('');
+
+    const total = sistemas.length, erros = sistemas.filter(s => s.temErro).length, divs = sistemas.filter(s => s.temDiv).length;
+    const ok = sistemas.filter(s => !s.temErro && !s.temDiv).length;
+    $('resumo').innerHTML = [
+      ['Sistemas', total, ''],
+      ['Sem pendências', ok, 'var(--color-ok)'],
+      ['Com divergência', divs, 'var(--color-warn)'],
+      ['Com erro', erros, 'var(--color-bad)'],
+    ].map(([rotulo, valor, cor]) => `<div><dt>${cor ? `<span class="marcador" style="background:${cor}"></span>` : ''}${rotulo}</dt><dd>${valor}</dd></div>`).join('');
+
+    $('filtros').innerHTML = [['todos', 'Todos', total], ['div', 'Com divergência', divs], ['erro', 'Com erro', erros]]
+      .map(([id, rotulo, qtd]) => `<button type="button" data-filtro="${id}" aria-pressed="${id === filtro}">${rotulo}<span class="num">${qtd}</span></button>`).join('');
+    aplicar();
+  }
+
+  let filtro = ['div', 'erro'].includes(SIAT.url.ler('filtro')) ? SIAT.url.ler('filtro') : 'todos';
+
+  function aplicar() {
+    const termo = $('busca').value;
+    let visiveis = 0;
+    $('listagem').querySelectorAll('.linha-expansivel').forEach(tr => {
+      const s = sistemas[tr.dataset.n];
+      const ok = SIAT.casa(SIAT.normaliza(s.nome), termo)
+        && (filtro === 'todos' || (filtro === 'div' && s.temDiv) || (filtro === 'erro' && s.temErro));
+      tr.hidden = !ok;
+      const aberto = tr.querySelector('.expansor').getAttribute('aria-expanded') === 'true';
+      tr.nextElementSibling.hidden = !ok || !aberto;
+      if (ok) visiveis++;
+    });
+    $('vazio').hidden = visiveis > 0;
+    document.querySelector('.tabela-rolagem').hidden = visiveis === 0;
+    const nomes = { todos: 'nenhum sistema', div: 'nenhum sistema com divergência', erro: 'nenhum sistema com erro' };
+    $('vazioTexto').textContent = termo.trim() ? `Não há ${nomes[filtro]} com "${termo.trim()}" no nome.` : `Não há ${nomes[filtro]} nesta leitura.`;
+    SIAT.url.gravar({ q: termo.trim(), filtro: filtro === 'todos' ? '' : filtro });
+  }
+
+  $('filtros').addEventListener('click', ev => {
+    const botao = ev.target.closest('[data-filtro]');
+    if (!botao) return;
+    filtro = botao.dataset.filtro;
+    $('filtros').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b === botao));
+    aplicar();
+  });
+  $('listagem').addEventListener('click', ev => {
+    if (ev.target.closest('.copiar, a')) return;
+    const tr = ev.target.closest('.linha-expansivel');
+    if (!tr) return;
+    const botao = tr.querySelector('.expansor');
+    const abrir = botao.getAttribute('aria-expanded') !== 'true';
+    botao.setAttribute('aria-expanded', abrir);
+    tr.nextElementSibling.hidden = !abrir;
+  });
+  $('busca').value = SIAT.url.ler('q');
+  $('busca').addEventListener('input', aplicar);
+  $('limpar').addEventListener('click', () => {
+    $('busca').value = ''; filtro = 'todos';
+    $('filtros').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.filtro === 'todos'));
+    aplicar();
+  });
+
+  const consulta = SIAT.consulta({ status: $('status'), progresso: $('progresso'), consultar: $('atualizar'), cancelar: $('cancelar') });
+  function ler() {
+    consulta.iniciar('Lendo 26 arquivos de versão', 1400, duracao => {
+      $('status').textContent = `Gerado às ${SIAT.hora()} em ${SIAT.segundos(duracao)}`;
+    });
+  }
+  $('atualizar').addEventListener('click', ler);
+
+  desenhar();
+  $('status').textContent = `Gerado às ${SIAT.hora()} em 1,3 s`;
+</script>
+</body>
+</html>
