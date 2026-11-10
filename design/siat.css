@@ -12,16 +12,18 @@
   --color-accent: oklch(63.8% 0.101 222.4);
   --color-accent-soft: oklch(94.9% 0.016 221.1);
   --color-accent-ink: oklch(38.5% 0.072 230.9);
-  --color-ink: oklch(24.5% 0.041 247.3);
-  --color-muted: oklch(48.5% 0.043 244);
-  --color-line: oklch(90.5% 0.016 245.1);
+  --color-ink: oklch(22.5% 0.005 250);
+  --color-muted: oklch(47% 0.01 250);
+  --color-line: oklch(93.1% 0.009 242.8);
   --color-field: oklch(60% 0.035 244);
-  --color-soft: oklch(96.2% 0.008 241.7);
-  --color-canvas: oklch(97.5% 0.005 247.9);
+  --color-soft: oklch(97.7% 0.004 236.5);
+  --color-canvas: oklch(100% 0 0);
   --color-surface: oklch(99.6% 0.002 248);
-  --color-sidebar: oklch(30.1% 0.072 247.8);
-  --color-sidebar-ink: oklch(89.8% 0.025 238.4);
-  --color-sidebar-strong: oklch(99% 0.004 248);
+  --color-sidebar: oklch(98.1% 0.003 247.9);
+  --color-sidebar-ink: oklch(38% 0.008 250);
+  --color-sidebar-strong: oklch(30.1% 0.072 247.8);
+  --color-sidebar-line: oklch(92.1% 0.011 243.7);
+  --color-sidebar-active: oklch(94.7% 0.016 227);
   --color-track: oklch(93.5% 0.012 240);
   --color-warn: oklch(47% 0.11 65);
   --color-warn-soft: oklch(96.5% 0.035 84);
@@ -67,15 +69,18 @@
   --color-on-action: oklch(23.2% 0.043 237.7);
   --color-accent-soft: oklch(34.2% 0.054 233.3);
   --color-accent-ink: oklch(83.1% 0.06 227.3);
-  --color-ink: oklch(94.1% 0.014 238);
-  --color-muted: oklch(75.7% 0.032 242.1);
-  --color-line: oklch(37.3% 0.051 246.4);
+  --color-ink: oklch(93.5% 0.004 250);
+  --color-muted: oklch(74% 0.008 250);
+  --color-line: oklch(30.7% 0.036 249.1);
   --color-field: oklch(58% 0.04 244);
-  --color-soft: oklch(32% 0.046 247.1);
-  --color-canvas: oklch(21.6% 0.032 247.8);
-  --color-surface: oklch(26.1% 0.039 245.5);
-  --color-sidebar: oklch(19.1% 0.031 247.7);
-  --color-sidebar-ink: oklch(75.7% 0.032 242.1);
+  --color-soft: oklch(24.6% 0.033 249.3);
+  --color-canvas: oklch(18.7% 0.023 249.1);
+  --color-surface: oklch(22.1% 0.028 247);
+  --color-sidebar: oklch(21.7% 0.029 249.3);
+  --color-sidebar-ink: oklch(77% 0.008 250);
+  --color-sidebar-strong: oklch(95.4% 0.011 234.8);
+  --color-sidebar-line: oklch(30.6% 0.032 247.2);
+  --color-sidebar-active: oklch(29.6% 0.042 235.9);
   --color-track: oklch(34% 0.045 246);
   --color-warn: oklch(84.4% 0.12 83.7);
   --color-warn-soft: oklch(29.7% 0.05 80.3);
@@ -161,23 +166,26 @@ a { color: var(--color-brand); text-underline-offset: 2px; }
   display: flex; flex-direction: column; gap: 18px;
   padding: 20px 12px 16px;
   background: var(--color-sidebar); color: var(--color-sidebar-ink);
+  border-right: 1px solid var(--color-sidebar-line);
   overflow-y: auto;
 }
-.menu :focus-visible { outline-color: var(--color-sidebar-strong); }
 
 .marca {
   display: flex; align-items: center; gap: 10px; padding: 0 6px;
   color: var(--color-sidebar-strong); font-weight: 700; font-size: 15px;
   text-decoration: none; letter-spacing: 0.01em;
 }
-.marca small { display: block; font-size: 11px; font-weight: 400; color: var(--color-sidebar-ink); letter-spacing: 0; }
+.marca img { display: block; height: 20px; width: auto; }
+.marca .logo-escuro, :root[data-theme="dark"] .marca .logo-claro { display: none; }
+:root[data-theme="dark"] .marca .logo-escuro { display: block; }
+.marca > span { padding-left: 10px; border-left: 1px solid var(--color-sidebar-line); line-height: 20px; }
 
 .menu-nav { display: flex; flex-direction: column; gap: 14px; }
 .menu-grupo { display: flex; flex-direction: column; gap: 2px; }
 .menu-titulo {
   padding: 0 12px 4px; font-size: 11px; font-weight: 600;
   letter-spacing: 0.06em; text-transform: uppercase;
-  color: oklch(from var(--color-sidebar-ink) l c h / 0.72);
+  color: var(--color-muted);
 }
 .menu-item {
   display: flex; align-items: center; gap: 10px;
@@ -186,21 +194,21 @@ a { color: var(--color-brand); text-underline-offset: 2px; }
   transition: background-color 150ms, color 150ms;
 }
 .menu-item svg { flex: none; }
-a.menu-item:hover { background: oklch(100% 0 0 / 0.08); color: var(--color-sidebar-strong); }
+a.menu-item:hover { background: oklch(from var(--color-sidebar-strong) l c h / 0.06); color: var(--color-sidebar-strong); }
 .menu-item:focus-visible { outline-offset: -3px; }
 .menu-item[aria-current="page"] {
-  background: oklch(100% 0 0 / 0.12); color: var(--color-sidebar-strong); font-weight: 600;
+  background: var(--color-sidebar-active); color: var(--color-sidebar-strong); font-weight: 600;
   box-shadow: inset 3px 0 0 var(--color-accent);
 }
 .menu-item[aria-disabled="true"] { opacity: 0.62; cursor: default; }
 .menu-fase {
   margin-left: auto; padding: 0 6px; border-radius: 999px;
-  border: 1px solid oklch(100% 0 0 / 0.22); font-size: 11px; line-height: 17px;
+  border: 1px solid var(--color-sidebar-line); font-size: 11px; line-height: 17px;
 }
 
 .menu-rodape {
   margin-top: auto; display: flex; flex-direction: column; gap: 6px;
-  padding: 12px 6px 0; border-top: 1px solid oklch(100% 0 0 / 0.15);
+  padding: 12px 6px 0; border-top: 1px solid var(--color-sidebar-line);
   font-size: 12px;
 }
 .menu-rodape a, .menu-rodape button {
@@ -209,7 +217,7 @@ a.menu-item:hover { background: oklch(100% 0 0 / 0.08); color: var(--color-sideb
   background: none; color: var(--color-sidebar-ink); text-decoration: none; text-align: left;
   transition: background-color 150ms, color 150ms;
 }
-.menu-rodape a:hover, .menu-rodape button:hover { background: oklch(100% 0 0 / 0.08); color: var(--color-sidebar-strong); }
+.menu-rodape a:hover, .menu-rodape button:hover { background: oklch(from var(--color-sidebar-strong) l c h / 0.06); color: var(--color-sidebar-strong); }
 .conta { display: flex; align-items: center; gap: 8px; padding: 6px 0 2px; color: var(--color-sidebar-strong); }
 .conta strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .conta span span { color: var(--color-sidebar-ink); }
@@ -217,7 +225,7 @@ a.menu-item:hover { background: oklch(100% 0 0 / 0.08); color: var(--color-sideb
 .avatar {
   flex: none; width: 28px; height: 28px; border-radius: 50%;
   display: grid; place-items: center;
-  background: oklch(100% 0 0 / 0.15); font-size: 11px; font-weight: 600;
+  background: var(--color-sidebar-active); font-size: 11px; font-weight: 600;
 }
 
 .conteudo {
@@ -237,6 +245,7 @@ a.menu-item:hover { background: oklch(100% 0 0 / 0.08); color: var(--color-sideb
   .menu {
     position: static; width: auto; height: auto; gap: 8px;
     padding: 12px 16px 8px; overflow: visible;
+    border-right: 0; border-bottom: 1px solid var(--color-sidebar-line);
   }
   .menu-nav { flex-direction: row; gap: 2px; overflow-x: auto; margin: 0 -8px; padding: 0 8px; }
   .menu-grupo { flex-direction: row; }
@@ -250,7 +259,7 @@ a.menu-item:hover { background: oklch(100% 0 0 / 0.08); color: var(--color-sideb
 /* ---------- Cabeçalho de página ---------- */
 
 .cabecalho { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; }
-.cabecalho h1 { font-size: 22px; line-height: 1.25; font-weight: 600; color: var(--color-brand); letter-spacing: -0.005em; }
+.cabecalho h1 { font-size: 22px; line-height: 1.25; font-weight: 600; color: var(--color-ink); letter-spacing: -0.005em; }
 .cabecalho h1:focus { outline: none; }
 .cabecalho .sub { margin-top: 2px; color: var(--color-muted); font-size: 13px; max-width: 72ch; }
 .cabecalho-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
@@ -549,7 +558,7 @@ pre.codigo.escuro { background: var(--color-code-bg); border-color: var(--color-
 /* ---------- Página do sistema de design ---------- */
 
 .ds-secao { display: flex; flex-direction: column; gap: 12px; padding-top: 12px; }
-.ds-secao > h2 { font-size: 16px; font-weight: 600; color: var(--color-brand); }
+.ds-secao > h2 { font-size: 16px; font-weight: 600; color: var(--color-ink); }
 .ds-secao > p { color: var(--color-muted); max-width: 72ch; }
 .ds-bloco { padding: 18px; display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: center; }
 .ds-rotulo { flex-basis: 100%; font-size: 12px; font-weight: 600; color: var(--color-muted); }
@@ -564,7 +573,7 @@ pre.codigo.escuro { background: var(--color-code-bg); border-color: var(--color-
 .telas { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
 .telas a { display: block; padding: 14px 18px; text-decoration: none; box-shadow: -1px 0 0 var(--color-line), 0 -1px 0 var(--color-line); transition: background-color 150ms; }
 .telas a:hover { background: var(--color-soft); }
-.telas strong { display: block; color: var(--color-brand); }
+.telas strong { display: block; color: var(--color-ink); }
 .telas span { color: var(--color-muted); font-size: 13px; }
 
 @media (prefers-reduced-motion: reduce) {

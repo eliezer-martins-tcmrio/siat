@@ -4,16 +4,24 @@ Referência visual: [design/index.html](design/index.html) (tokens e componentes
 
 ## Direção
 
-Continuidade com o `gestao-copilot`, mais o ambiente em primeiro plano.
+Identidade do TCMRio em versão contida, mais o ambiente em primeiro plano. Tokens com os mesmos nomes do `gestao-copilot`.
 
 - Painel de trabalho sóbrio, usado em sequência durante um atendimento, em monitor de escritório. Tema claro, escuro e do sistema, aplicado antes da primeira pintura.
-- Menu lateral em azul `#083050` com acento `#3499b8`; conteúdo em superfícies claras levemente azuladas, painéis de borda fina. Sem degradês.
+- Cores da marca do TCMRio: marinho `#083050` e celeste `#3499b8`. O marinho fica só no que é clicável (ação primária, links) e no item ativo do menu; o celeste, na barra do item ativo e em decoração.
+- Texto em grafite neutro, quase sem matiz, inclusive nos títulos: `ink` para corpo e títulos, `muted` para o auxiliar. Nada de texto azulado.
+- Menu lateral claro, separado do conteúdo por uma borda fina, sem bloco de cor. Conteúdo em fundo branco, painéis de borda fina. Sem degradês.
 - Cor forte só para duas coisas: ambiente (DSV, HML, PRD, Contingência) e estado (ok, aviso, erro).
 - Densidade maior apenas nas listas de resultado (13px); o resto segue 14px.
 
 ## Navegação
 
-Menu lateral de 208px, fixo, em grupos: **Catálogo** (Sistemas, Versões), **Visor** (MailQueue, AuditLog), **Conhecimento** (Documentação), **Gestão** (Copilot, Builds). Item ativo com fundo claro translúcido e barra de acento à esquerda. Cada item só aparece para quem tem o recurso do UserManager. Rodapé: Tema, conta e Sair. Abaixo de 768px o menu vira barra superior com rolagem horizontal.
+Menu lateral de 208px, fixo, em grupos: **Catálogo** (Sistemas, Versões), **Visor** (MailQueue, AuditLog), **Conhecimento** (Documentação), **Gestão** (Copilot, Builds). Item ativo com fundo `sidebar-active` (celeste bem claro), texto em marinho e barra de acento à esquerda. Cada item só aparece para quem tem o recurso do UserManager. Rodapé: Tema, conta e Sair. Abaixo de 768px o menu vira barra superior com rolagem horizontal.
+
+## Marca
+
+Logo simplificado do TCMRio (sigla) no topo do menu, com 20px de altura, seguido de "SIAT" após um divisor fino. Versão positiva no tema claro (`design/img/tcmrio-sigla.png`) e negativa no escuro (`design/img/tcmrio-sigla-negativo.png`), conforme o manual de marca. Não alterar cores nem proporções do logo.
+
+Do restante da identidade, o SIAT usa só o marinho e o celeste. Areia, coral, gradientes, ondas e Lato/Merriweather ficam de fora: são para peças de comunicação, e coral competiria com o vermelho de PRD e de erro.
 
 ## Ambientes
 
@@ -32,7 +40,7 @@ Cada um tem `-soft` (fundo) e `-line` (borda); PRD tem também `-solid`. Os comp
 
 ## Tokens
 
-Mesmos nomes do `gestao-copilot`, em OKLCH, redefinidos em `:root[data-theme="dark"]`: `brand`, `action`/`on-action`, `accent` (decoração, nunca sob texto), `accent-soft`/`accent-ink`, `ink`, `muted`, `line`, `field` (borda de campos, 3:1), `soft`, `canvas`, `surface`, `sidebar`/`sidebar-ink`, `track`, `warn`, `bad`, `ok` (cada um com `-soft`), `neutral-soft`. Novos no SIAT: `env-*`, `warn-line`, `bad-line`, `code-*`. Raios: `--radius-card` 10px, `--radius-control` 7px.
+Mesmos nomes do `gestao-copilot`, em OKLCH, redefinidos em `:root[data-theme="dark"]`: `brand`, `action`/`on-action`, `accent` (decoração, nunca sob texto), `accent-soft`/`accent-ink`, `ink`, `muted`, `line`, `field` (borda de campos, 3:1), `soft`, `canvas`, `surface`, `sidebar`/`sidebar-ink`/`sidebar-strong`, `track`, `warn`, `bad`, `ok` (cada um com `-soft`), `neutral-soft`. Novos no SIAT: `sidebar-line` (borda do menu), `sidebar-active` (fundo do item ativo), `env-*`, `warn-line`, `bad-line`, `code-*`. No tema claro, `canvas` e `surface` são brancos e os painéis se distinguem pela borda; no escuro, o menu fica em azul-noite próximo do fundo. Raios: `--radius-card` 10px, `--radius-control` 7px.
 
 ## Tipografia
 

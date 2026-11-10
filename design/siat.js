@@ -107,15 +107,10 @@ const SIAT = (function () {
     const menu = document.createElement('aside');
     menu.className = 'menu';
     menu.innerHTML = `
-      <a class="marca" href="sistemas.html">
-        <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true">
-          <rect width="28" height="28" rx="7" fill="oklch(100% 0 0 / 0.12)"/>
-          <rect x="6" y="6" width="7" height="7" rx="1.5" fill="var(--color-accent)"/>
-          <rect x="15" y="6" width="7" height="7" rx="1.5" fill="oklch(100% 0 0 / 0.55)"/>
-          <rect x="6" y="15" width="7" height="7" rx="1.5" fill="oklch(100% 0 0 / 0.55)"/>
-          <rect x="15" y="15" width="7" height="7" rx="1.5" fill="oklch(100% 0 0 / 0.9)"/>
-        </svg>
-        <span>SIAT<small>Apoio Técnico</small></span>
+      <a class="marca" href="sistemas.html" aria-label="SIAT, Sistema Integrado de Apoio Técnico do TCMRio">
+        <img class="logo-claro" src="img/tcmrio-sigla.png" width="109" height="20" alt="">
+        <img class="logo-escuro" src="img/tcmrio-sigla-negativo.png" width="109" height="20" alt="">
+        <span>SIAT</span>
       </a>
       <nav class="menu-nav" aria-label="Navegação principal">${grupos}</nav>
       <div class="menu-rodape">
