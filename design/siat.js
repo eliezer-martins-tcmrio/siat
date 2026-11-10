@@ -79,7 +79,7 @@ const SIAT = (function () {
       { id: 'sistemas', rotulo: 'Sistemas', href: 'sistemas.html' },
       { id: 'versoes', rotulo: 'Versões', href: 'versoes.html' },
     ] },
-    { titulo: 'Visor', itens: [
+    { titulo: 'Consultas', itens: [
       { id: 'mailqueue', rotulo: 'MailQueue', href: 'mailqueue.html' },
       { id: 'auditlog', rotulo: 'AuditLog', href: 'auditlog.html' },
     ] },
