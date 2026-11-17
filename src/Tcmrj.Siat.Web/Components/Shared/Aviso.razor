@@ -1,0 +1,37 @@
+@* Aviso (DESIGN.md, Estados): a página continua utilizável. O estado nunca é só cor: há título e texto. *@
+<div class="@Classe" role="@(Variante == VarianteAviso.Erro ? "alert" : "status")">
+    <LucideIcon Name="@Icone" Size="16" aria-hidden="true" focusable="false" />
+    <div>
+        @if (!string.IsNullOrWhiteSpace(Titulo))
+        {
+            <strong>@Titulo</strong>
+        }
+        @ChildContent
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public VarianteAviso Variante { get; set; } = VarianteAviso.Atencao;
+
+    /// <summary>Primeira linha, em negrito.</summary>
+    [Parameter]
+    public string? Titulo { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    private string Classe => Variante switch
+    {
+        VarianteAviso.Info => "aviso info",
+        VarianteAviso.Erro => "aviso erro",
+        _ => "aviso",
+    };
+
+    private string Icone => Variante switch
+    {
+        VarianteAviso.Info => "info",
+        VarianteAviso.Erro => "circle-x",
+        _ => "triangle-alert",
+    };
+}

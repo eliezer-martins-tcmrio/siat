@@ -1,0 +1,35 @@
+@* Estado vazio (DESIGN.md, Estados): diz o que foi procurado e oferece a saída.
+   Ponto de extensão: Acoes (por exemplo, "Remover filtros"). *@
+<div class="estado" role="status">
+    <h2>@Titulo</h2>
+    @if (ChildContent is not null)
+    {
+        <p>@ChildContent</p>
+    }
+    else if (!string.IsNullOrWhiteSpace(Mensagem))
+    {
+        <p>@Mensagem</p>
+    }
+    @if (Acoes is not null)
+    {
+        <div class="acoes">@Acoes</div>
+    }
+</div>
+
+@code {
+    /// <summary>Título do estado; padrão "Nenhum resultado encontrado".</summary>
+    [Parameter]
+    public string Titulo { get; set; } = "Nenhum resultado encontrado";
+
+    /// <summary>O que foi procurado (texto simples).</summary>
+    [Parameter]
+    public string? Mensagem { get; set; }
+
+    /// <summary>O que foi procurado, com marcação; substitui <see cref="Mensagem"/>.</summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Saídas oferecidas (botões).</summary>
+    [Parameter]
+    public RenderFragment? Acoes { get; set; }
+}

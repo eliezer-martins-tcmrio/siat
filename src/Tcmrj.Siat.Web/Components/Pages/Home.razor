@@ -1,0 +1,48 @@
+@page "/"
+@inject IAutorizacaoConsultaService AutorizacaoConsulta
+@inject NavigationManager Navigation
+
+@* Página inicial (FR-006): vai para a primeira ferramenta de Consultas permitida (MailQueue, depois AuditLog);
+   sem nenhuma, explica a quem pedir acesso. Só exige autenticação (contracts/rotas-ui.md). *@
+@if (semAcesso)
+{
+    <CabecalhoPagina Titulo="SIAT" Descricao="Sistema Integrado de Apoio Técnico do TCMRio." />
+
+    <div class="painel">
+        <div class="estado">
+            <h2>Você não tem acesso às ferramentas do SIAT</h2>
+            <p>
+                Para usar o MailQueue e o AuditLog, peça a sua inclusão no grupo <strong>Consultas</strong>
+                do SIAT no SIA. Depois de liberado, recarregue a página.
+            </p>
+        </div>
+    </div>
+}
+else
+{
+    <PageTitle>SIAT</PageTitle>
+}
+
+@code {
+    private static readonly (Modulo Modulo, string Rota)[] Ferramentas =
+    [
+        (Modulo.MailQueue, Navegacao.RotaMailQueue),
+        (Modulo.AuditLog, Navegacao.RotaAuditLog),
+    ];
+
+    private bool semAcesso;
+
+    protected override async Task OnInitializedAsync()
+    {
+        foreach (var (modulo, rota) in Ferramentas)
+        {
+            if (await AutorizacaoConsulta.PodeAcessarModuloAsync(modulo))
+            {
+                Navigation.NavigateTo(rota, replace: true);
+                return;
+            }
+        }
+
+        semAcesso = true;
+    }
+}

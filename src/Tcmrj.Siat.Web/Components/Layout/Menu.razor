@@ -1,0 +1,71 @@
+@inject IAuthorizationService Autorizacao
+
+@* Cada item aparece para quem tem ao menos uma das políticas do módulo (Modulo.Politicas(): DSV/HML e PRD);
+   a seção some quando nenhum item aparece (FR-003). A autorização real é feita na página e na consulta (FR-004). *@
+<nav class="menu-nav" aria-label="Navegação principal">
+    @if (itensConsultas.Count > 0)
+    {
+        <div class="menu-grupo" role="group" aria-label="Consultas">
+            <span class="menu-titulo" aria-hidden="true">Consultas</span>
+            @foreach (var item in itensConsultas)
+            {
+                <NavLink class="menu-item" href="@item.Rota" Match="NavLinkMatch.Prefix" data-modulo="@item.Modulo.ToString()">
+                    <LucideIcon Name="@item.Icone" Size="17" aria-hidden="true" focusable="false" />
+                    @item.Rotulo
+                </NavLink>
+            }
+        </div>
+    }
+</nav>
+
+@code {
+    private static readonly ItemMenu[] ItensConsultas =
+    [
+        new(Modulo.MailQueue, "MailQueue", Navegacao.RotaMailQueue, "mail"),
+        new(Modulo.AuditLog, "AuditLog", Navegacao.RotaAuditLog, "list"),
+    ];
+
+    [CascadingParameter]
+    private Task<AuthenticationState>? EstadoAutenticacao { get; set; }
+
+    private Task<AuthenticationState>? estadoAvaliado;
+    private IReadOnlyList<ItemMenu> itensConsultas = [];
+
+    // Avalia uma vez por estado de autenticação (o estado muda no login, no logout e no fim da sessão).
+    protected override async Task OnParametersSetAsync()
+    {
+        if (EstadoAutenticacao is null || ReferenceEquals(EstadoAutenticacao, estadoAvaliado))
+        {
+            return;
+        }
+
+        estadoAvaliado = EstadoAutenticacao;
+        var usuario = (await EstadoAutenticacao).User;
+
+        var visiveis = new List<ItemMenu>(ItensConsultas.Length);
+        foreach (var item in ItensConsultas)
+        {
+            if (await TemAlgumaPoliticaAsync(usuario, item.Modulo))
+            {
+                visiveis.Add(item);
+            }
+        }
+
+        itensConsultas = visiveis;
+    }
+
+    private async Task<bool> TemAlgumaPoliticaAsync(ClaimsPrincipal usuario, Modulo modulo)
+    {
+        foreach (var politica in modulo.Politicas())
+        {
+            if ((await Autorizacao.AuthorizeAsync(usuario, politica)).Succeeded)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private sealed record ItemMenu(Modulo Modulo, string Rotulo, string Rota, string Icone);
+}

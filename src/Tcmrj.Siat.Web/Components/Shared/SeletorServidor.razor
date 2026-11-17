@@ -1,0 +1,85 @@
+@* Seletor de servidor (DESIGN.md, Ambientes; FR-007/FR-008): lista fechada agrupada por ambiente,
+   com a etiqueta do ambiente dentro do controle. Não existe campo de servidor livre.
+   Mostra só os grupos recebidos: quem filtra os servidores permitidos é a feature ListarPermitidos. *@
+@if (!TemServidores)
+{
+    <div class="campo">
+        <span>@RotuloEfetivo</span>
+        <p class="aviso info" role="status">Não há servidores configurados.</p>
+    </div>
+}
+else
+{
+    <div class="campo">
+        <label for="@Id">@RotuloEfetivo</label>
+        <div class="seletor-servidor" data-amb="@selecionado?.DataAmb">
+            @if (selecionado is not null)
+            {
+                <span class="amb" id="@($"{Id}-amb")">@selecionado.AmbienteDescricao</span>
+            }
+            <select id="@Id" value="@(selecionado?.Chave ?? string.Empty)" @onchange="AoMudarAsync"
+                    aria-describedby="@(selecionado is null ? null : $"{Id}-amb")" disabled="@Desabilitado">
+                @if (selecionado is null)
+                {
+                    <option value="" selected>Escolha o servidor</option>
+                }
+                @foreach (var grupo in Grupos.Where(g => g.Servidores.Count > 0))
+                {
+                    <optgroup label="@grupo.AmbienteDescricao">
+                        @foreach (var servidor in grupo.Servidores)
+                        {
+                            <option value="@servidor.Chave" selected="@(servidor == selecionado)">@servidor.Nome</option>
+                        }
+                    </optgroup>
+                }
+            </select>
+        </div>
+    </div>
+}
+
+@code {
+    /// <summary>Servidores permitidos ao usuário, agrupados por ambiente, na ordem em que devem aparecer.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<GrupoServidoresVM> Grupos { get; set; } = [];
+
+    /// <summary>Chave do servidor escolhido (parâmetro <c>servidor</c> da URL).</summary>
+    [Parameter]
+    public string? Valor { get; set; }
+
+    [Parameter]
+    public EventCallback<string?> ValorChanged { get; set; }
+
+    /// <summary>Rótulo do campo; padrão "Servidor".</summary>
+    [Parameter]
+    public string? Rotulo { get; set; }
+
+    /// <summary>Id do &lt;select&gt;; padrão "servidor".</summary>
+    [Parameter]
+    public string Id { get; set; } = "servidor";
+
+    [Parameter]
+    public bool Desabilitado { get; set; }
+
+    private ServidorVM? selecionado;
+
+    private string RotuloEfetivo => string.IsNullOrWhiteSpace(Rotulo) ? "Servidor" : Rotulo;
+
+    private bool TemServidores => Grupos.Any(g => g.Servidores.Count > 0);
+
+    // Uma chave que não está nos grupos (inexistente ou não permitida) não é selecionada.
+    protected override void OnParametersSet() =>
+        selecionado = Valor is null
+            ? null
+            : Grupos.SelectMany(g => g.Servidores).FirstOrDefault(s => string.Equals(s.Chave, Valor, StringComparison.Ordinal));
+
+    private async Task AoMudarAsync(ChangeEventArgs e)
+    {
+        var chave = e.Value?.ToString();
+        var novo = string.IsNullOrEmpty(chave)
+            ? null
+            : Grupos.SelectMany(g => g.Servidores).FirstOrDefault(s => string.Equals(s.Chave, chave, StringComparison.Ordinal));
+
+        selecionado = novo;
+        await ValorChanged.InvokeAsync(novo?.Chave);
+    }
+}

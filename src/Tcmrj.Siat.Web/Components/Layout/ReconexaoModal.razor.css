@@ -1,0 +1,99 @@
+/* Cada texto e botão só aparece no estado correspondente (classes postas pelo blazor.web.js). */
+.reconexao-primeira,
+.reconexao-repetida,
+.reconexao-falhou,
+.reconexao-pausada,
+.reconexao-retomada-falhou,
+.reconexao-animacao {
+    display: none;
+}
+
+#components-reconnect-modal.components-reconnect-show .reconexao-primeira,
+#components-reconnect-modal.components-reconnect-show .reconexao-animacao,
+#components-reconnect-modal.components-reconnect-retrying .reconexao-repetida,
+#components-reconnect-modal.components-reconnect-retrying .reconexao-animacao,
+#components-reconnect-modal.components-reconnect-failed .reconexao-falhou,
+#components-reconnect-modal.components-reconnect-paused .reconexao-pausada,
+#components-reconnect-modal.components-reconnect-resume-failed .reconexao-retomada-falhou {
+    display: block;
+}
+
+#components-reconnect-modal.components-reconnect-failed button.reconexao-falhou,
+#components-reconnect-modal.components-reconnect-paused button.reconexao-pausada,
+#components-reconnect-modal.components-reconnect-resume-failed button.reconexao-retomada-falhou {
+    display: inline-flex;
+}
+
+/* Em "retrying" o primeiro texto some (o blazor.web.js mantém só a classe retrying). */
+#components-reconnect-modal.components-reconnect-retrying .reconexao-primeira {
+    display: none;
+}
+
+#components-reconnect-modal {
+    width: min(420px, calc(100vw - 32px));
+    padding: 0;
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-card);
+    background: var(--color-surface);
+    color: var(--color-ink);
+    box-shadow: 0 8px 24px oklch(0% 0 0 / 0.18);
+}
+
+#components-reconnect-modal::backdrop {
+    background: oklch(20% 0.02 250 / 0.45);
+}
+
+.reconexao {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 24px 24px 22px;
+    text-align: center;
+}
+
+.reconexao h2 {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.reconexao p {
+    color: var(--color-muted);
+    font-size: 14px;
+}
+
+.reconexao-acoes {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 6px;
+}
+
+.reconexao-animacao {
+    position: relative;
+    width: 40px;
+    height: 40px;
+}
+
+.reconexao-animacao span {
+    position: absolute;
+    inset: 0;
+    border: 3px solid var(--color-accent);
+    border-radius: 50%;
+    opacity: 1;
+    animation: reconexao-pulso 1.5s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+}
+
+.reconexao-animacao span:nth-child(2) {
+    animation-delay: -0.5s;
+}
+
+@keyframes reconexao-pulso {
+    from { scale: 0; opacity: 1; }
+    to { scale: 1; opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .reconexao-animacao span { animation: none; opacity: 0.6; }
+}

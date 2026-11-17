@@ -19,6 +19,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Lista fechada de servidores, lida com reloadOnChange (R6); vai junto na saída e na publicação. -->
+    <Content Update="servidores.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="Tcmrj.Siat.Test" />
     <InternalsVisibleTo Include="Tcmrj.Siat.Test.Interface" />
   </ItemGroup>

@@ -42,4 +42,25 @@ public static class Erros
             CodigoCancelada,
             "A consulta foi cancelada.");
     }
+
+    public static class Filtros
+    {
+        public const string CodigoQuantidadeNaoNumerica = "filtros.quantidade-nao-numerica";
+
+        public const string CodigoTextoMuitoLongo = "filtros.texto-muito-longo";
+
+        public const string CodigoLogIdInvalido = "filtros.logid-invalido";
+
+        public static Erro QuantidadeNaoNumerica => new(
+            CodigoQuantidadeNaoNumerica,
+            "Informe um número entre 1 e 1000 na quantidade.");
+
+        public static Erro TextoMuitoLongo(int maximo) => new(
+            CodigoTextoMuitoLongo,
+            $"O texto de busca deve ter no máximo {maximo} caracteres.");
+
+        public static Erro LogIdInvalido => new(
+            CodigoLogIdInvalido,
+            "Informe apenas dígitos no LogID.");
+    }
 }

@@ -1,0 +1,25 @@
+@* Bloco de código (DESIGN.md, Código): monoespaçado, com Copiar. Escuro nos dois temas por padrão
+   (stack trace); com Escuro="false" segue o tema da página (JSON realçado).
+   O conteúdo exibido pode ser o texto simples ou um RenderFragment com o realce; o Copiar sempre copia o texto. *@
+<div class="copiavel">
+    <BotaoCopiar Texto="@Texto" Rotulo="@Rotulo" ComTexto="true" />
+    <pre class="@(Escuro ? "codigo escuro" : "codigo")" tabindex="0" role="@(string.IsNullOrWhiteSpace(Rotulo) ? null : "region")" aria-label="@Rotulo">@if (ChildContent is not null){@ChildContent}else{@Texto}</pre>
+</div>
+
+@code {
+    /// <summary>Texto original: é o que vai para a área de transferência e o que aparece sem realce.</summary>
+    [Parameter, EditorRequired]
+    public string Texto { get; set; } = string.Empty;
+
+    /// <summary>Conteúdo realçado; quando ausente, mostra <see cref="Texto"/>.</summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Bloco escuro nos dois temas (padrão). Falso: bloco no tema da página.</summary>
+    [Parameter]
+    public bool Escuro { get; set; } = true;
+
+    /// <summary>O que o bloco contém (por exemplo, "stack trace"), para o leitor de tela e o botão Copiar.</summary>
+    [Parameter]
+    public string? Rotulo { get; set; }
+}

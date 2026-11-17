@@ -1,0 +1,92 @@
+@implements IDisposable
+@inject IJSRuntime JS
+
+@* Copiar (DESIGN.md): botão sempre visível ao lado do valor, com confirmação por 1,5 s.
+   A confirmação também é anunciada ao leitor de tela pela região aria-live. *@
+@if (ComTexto)
+{
+    <button type="button" class="botao secundario pequeno" aria-label="@NomeAcessivel" @onclick="CopiarAsync">
+        @(situacao switch { Situacao.Copiado => "Copiado", Situacao.Falhou => "Falhou", _ => "Copiar" })
+    </button>
+}
+else
+{
+    <button type="button" class="@(situacao == Situacao.Copiado ? "copiar copiado" : "copiar")"
+            aria-label="@NomeAcessivel" title="Copiar" @onclick="CopiarAsync">
+        <LucideIcon Name="@(situacao == Situacao.Copiado ? "check" : "copy")" Size="13" aria-hidden="true" focusable="false" />
+    </button>
+}
+<span class="so-leitor" aria-live="polite">@anuncio</span>
+
+@code {
+    private static readonly TimeSpan TempoConfirmacao = TimeSpan.FromSeconds(1.5);
+
+    /// <summary>Texto copiado para a área de transferência.</summary>
+    [Parameter, EditorRequired]
+    public string Texto { get; set; } = string.Empty;
+
+    /// <summary>O que é copiado, para o nome acessível ("Copiar {Rotulo}").</summary>
+    [Parameter]
+    public string? Rotulo { get; set; }
+
+    /// <summary>Botão com o texto "Copiar" (blocos de código) em vez do ícone (valores em linha).</summary>
+    [Parameter]
+    public bool ComTexto { get; set; }
+
+    private enum Situacao
+    {
+        Pronto,
+        Copiado,
+        Falhou,
+    }
+
+    private Situacao situacao = Situacao.Pronto;
+    private string? anuncio;
+    private CancellationTokenSource? espera;
+
+    private string NomeAcessivel => string.IsNullOrWhiteSpace(Rotulo) ? "Copiar" : $"Copiar {Rotulo}";
+
+    private async Task CopiarAsync()
+    {
+        bool copiou;
+        try
+        {
+            copiou = await JS.InvokeAsync<bool>("siat.copiar", Texto);
+        }
+        catch (JSException)
+        {
+            copiou = false;
+        }
+        catch (JSDisconnectedException)
+        {
+            return;
+        }
+
+        situacao = copiou ? Situacao.Copiado : Situacao.Falhou;
+        anuncio = copiou ? "Copiado" : "Não foi possível copiar";
+
+        espera?.Cancel();
+        espera?.Dispose();
+        espera = new CancellationTokenSource();
+        var token = espera.Token;
+        StateHasChanged();
+
+        try
+        {
+            await Task.Delay(TempoConfirmacao, token);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        situacao = Situacao.Pronto;
+        anuncio = null;
+    }
+
+    public void Dispose()
+    {
+        espera?.Cancel();
+        espera?.Dispose();
+    }
+}

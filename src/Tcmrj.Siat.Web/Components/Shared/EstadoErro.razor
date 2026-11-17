@@ -1,0 +1,70 @@
+@* Estado de erro (DESIGN.md): mensagem da origem e o que conferir. A falha fica na página;
+   o resto da aplicação continua funcionando (FR-019). *@
+<div class="estado erro" role="alert">
+    <h2>
+        @if (!string.IsNullOrWhiteSpace(Titulo))
+        {
+            @Titulo
+        }
+        else if (!string.IsNullOrWhiteSpace(Servidor))
+        {
+            <text>Não foi possível consultar <span class="mono">@Servidor</span></text>
+        }
+        else
+        {
+            <text>Não foi possível concluir a consulta</text>
+        }
+    </h2>
+    @if (!string.IsNullOrWhiteSpace(Motivo))
+    {
+        <p><code>@Motivo</code></p>
+    }
+    @if (ChildContent is not null)
+    {
+        <p>@ChildContent</p>
+    }
+    else if (!string.IsNullOrWhiteSpace(Orientacao))
+    {
+        <p>@Orientacao</p>
+    }
+    @if (AoTentarDeNovo.HasDelegate || Acoes is not null)
+    {
+        <div class="acoes">
+            @if (AoTentarDeNovo.HasDelegate)
+            {
+                <button type="button" class="botao secundario pequeno" @onclick="AoTentarDeNovo">Tentar de novo</button>
+            }
+            @Acoes
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>Nome do servidor consultado (exibido em monoespaçado no título).</summary>
+    [Parameter]
+    public string? Servidor { get; set; }
+
+    /// <summary>Motivo ou mensagem da origem do erro.</summary>
+    [Parameter]
+    public string? Motivo { get; set; }
+
+    /// <summary>Título próprio; sem ele, "Não foi possível consultar {Servidor}".</summary>
+    [Parameter]
+    public string? Titulo { get; set; }
+
+    /// <summary>O que conferir.</summary>
+    [Parameter]
+    public string? Orientacao { get; set; } = "O servidor pode estar fora do ar ou lento. Os outros módulos continuam funcionando.";
+
+    /// <summary>Orientação com marcação; substitui <see cref="Orientacao"/>.</summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Quando informado, mostra o botão "Tentar de novo".</summary>
+    [Parameter]
+    public EventCallback AoTentarDeNovo { get; set; }
+
+    /// <summary>Outras ações, depois de "Tentar de novo".</summary>
+    [Parameter]
+    public RenderFragment? Acoes { get; set; }
+}

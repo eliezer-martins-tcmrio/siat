@@ -1,0 +1,66 @@
+@inject IJSRuntime JS
+
+@* Alterna sistema → claro → escuro, como o botão Tema do protótipo (design/siat.js).
+   A escolha fica no localStorage ("siat-tema") e é aplicada por window.siat.definirTema. *@
+<button type="button" class="seletor-tema" title="Alternar o tema: sistema, claro ou escuro"
+        aria-label="@($"Tema: {Rotulo(tema)}. Mudar para {Rotulo(Proximo(tema))}")" @onclick="AlternarAsync">
+    <LucideIcon Name="@Icone(tema)" Size="14" aria-hidden="true" focusable="false" />
+    <span>Tema: @Rotulo(tema)</span>
+</button>
+
+@code {
+    private static readonly string[] Ordem = ["sistema", "claro", "escuro"];
+
+    private string tema = "sistema";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        try
+        {
+            var salvo = await JS.InvokeAsync<string>("siat.temaSalvo");
+            if (Ordem.Contains(salvo) && salvo != tema)
+            {
+                tema = salvo;
+                StateHasChanged();
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+            // Circuito encerrado antes de o tema ser lido: nada a fazer.
+        }
+    }
+
+    private async Task AlternarAsync()
+    {
+        var proximo = Proximo(tema);
+        try
+        {
+            tema = await JS.InvokeAsync<string>("siat.definirTema", proximo);
+        }
+        catch (JSDisconnectedException)
+        {
+            // Sem conexão: o tema não pode ser aplicado no navegador.
+        }
+    }
+
+    private static string Proximo(string atual) => Ordem[(Array.IndexOf(Ordem, atual) + 1) % Ordem.Length];
+
+    private static string Rotulo(string valor) => valor switch
+    {
+        "claro" => "Claro",
+        "escuro" => "Escuro",
+        _ => "Sistema",
+    };
+
+    private static string Icone(string valor) => valor switch
+    {
+        "claro" => "sun",
+        "escuro" => "moon",
+        _ => "sun-moon",
+    };
+}

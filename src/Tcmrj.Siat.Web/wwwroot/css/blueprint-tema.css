@@ -1,0 +1,72 @@
+/* SIAT: tema do Blazor Blueprint a partir dos tokens de siat.css.
+   O Blueprint segue as variáveis do shadcn/ui (--background, --primary, ...) e ativa o escuro
+   pela classe "dark" em <html>; o siat.css usa data-theme="dark". O script inline de App.razor
+   e o siat.js aplicam os dois juntos, e este arquivo só aponta as variáveis do Blueprint para os
+   tokens do SIAT, que já trocam de valor com o tema. Carregar depois de siat.css. */
+
+:root {
+  --radius: 0.4375rem; /* = --radius-control (7px) */
+
+  --background: var(--color-canvas);
+  --foreground: var(--color-ink);
+  --card: var(--color-surface);
+  --card-foreground: var(--color-ink);
+  --popover: var(--color-surface);
+  --popover-foreground: var(--color-ink);
+
+  /* Marinho só no que é clicável. */
+  --primary: var(--color-action);
+  --primary-foreground: var(--color-on-action);
+  --secondary: var(--color-soft);
+  --secondary-foreground: var(--color-ink);
+  --muted: var(--color-soft);
+  --muted-foreground: var(--color-muted);
+  /* "accent" do Blueprint é fundo de hover/seleção, não decoração: usa o fundo suave. */
+  --accent: var(--color-soft);
+  --accent-foreground: var(--color-ink);
+  --destructive: var(--color-bad);
+  --destructive-foreground: var(--color-canvas);
+
+  --border: var(--color-line);
+  --input: var(--color-field); /* borda de campo com contraste 3:1 */
+  --ring: var(--color-action);
+
+  --sidebar: var(--color-sidebar);
+  --sidebar-foreground: var(--color-sidebar-ink);
+  --sidebar-primary: var(--color-sidebar-strong);
+  --sidebar-primary-foreground: var(--color-sidebar);
+  --sidebar-accent: var(--color-sidebar-active);
+  --sidebar-accent-foreground: var(--color-sidebar-strong);
+  --sidebar-border: var(--color-sidebar-line);
+  --sidebar-ring: var(--color-action);
+
+  /* Alertas do Blueprint com as cores de estado do SIAT. */
+  --alert-info: var(--color-accent-ink);
+  --alert-info-bg: var(--color-accent-soft);
+  --alert-info-foreground: var(--color-ink);
+  --alert-success: var(--color-ok);
+  --alert-success-bg: var(--color-ok-soft);
+  --alert-success-foreground: var(--color-ink);
+  --alert-warning: var(--color-warn);
+  --alert-warning-bg: var(--color-warn-soft);
+  --alert-warning-foreground: var(--color-ink);
+  --alert-danger: var(--color-bad);
+  --alert-danger-bg: var(--color-bad-soft);
+
+  --chart-1: var(--color-action);
+  --chart-2: var(--color-accent);
+  --chart-3: var(--color-ok);
+  --chart-4: var(--color-warn);
+  --chart-5: var(--color-bad);
+
+  --bb-card-shadow: var(--shadow-card);
+}
+
+/* Escuro: os tokens do SIAT já mudaram em :root[data-theme="dark"]; aqui só o que o Blueprint
+   define fora das variáveis acima. A classe "dark" sem data-theme (ou o contrário) não deve
+   acontecer, mas os dois seletores cobrem o intervalo entre o script inline e o siat.js. */
+:root.dark,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bb-menu-shadow: 0 4px 12px oklch(0% 0 0 / 0.4);
+}

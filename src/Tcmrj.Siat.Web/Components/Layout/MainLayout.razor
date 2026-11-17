@@ -1,0 +1,59 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject NavigationManager Navigation
+@inject ITcmrjInatividade Inatividade
+
+@* Estrutura de design/index.html: menu lateral fixo (marca, navegação, rodapé) e conteúdo.
+   Abaixo de 768px o siat.css transforma o menu em barra superior. *@
+<button type="button" class="pular" @onclick="IrParaConteudoAsync">Ir para o conteúdo</button>
+
+<div class="app">
+    <aside class="menu">
+        <Marca />
+        <Menu />
+        <RodapeMenu />
+    </aside>
+
+    <main class="conteudo" id="conteudo" tabindex="-1" @ref="conteudo">
+        @* Um erro não tratado numa página fica nela: o menu continua funcionando. *@
+        <ErrorBoundary @ref="limiteDeErro">
+            <ChildContent>
+                @Body
+            </ChildContent>
+            <ErrorContent>
+                <div class="painel">
+                    <div class="estado erro" role="alert">
+                        <h2>Ocorreu um erro inesperado nesta página</h2>
+                        <p>O erro foi registrado. Os outros módulos continuam funcionando.</p>
+                        <div class="acoes">
+                            <button type="button" class="botao secundario pequeno" @onclick="RecarregarPagina">Recarregar a página</button>
+                        </div>
+                    </div>
+                </div>
+            </ErrorContent>
+        </ErrorBoundary>
+    </main>
+</div>
+
+@* Necessário para os componentes sobrepostos do Blazor Blueprint (diálogo, popover, dica). *@
+<BbPortalHost />
+
+@code {
+    private ElementReference conteudo;
+    private ErrorBoundary? limiteDeErro;
+
+    protected override void OnInitialized() => Navigation.LocationChanged += AoMudarLocal;
+
+    // A cada navegação o layout recebe um novo Body: sai do estado de erro da página anterior.
+    protected override void OnParametersSet() => limiteDeErro?.Recover();
+
+    // Toda navegação conta como interação e renova o prazo do logout por inatividade
+    // (README do Tcmrj.Autenticacao.AspNetCore.Oidc, seção 5).
+    private void AoMudarLocal(object? sender, LocationChangedEventArgs e) => Inatividade.Interagir();
+
+    private async Task IrParaConteudoAsync() => await conteudo.FocusAsync();
+
+    private void RecarregarPagina() => Navigation.Refresh(forceReload: true);
+
+    public void Dispose() => Navigation.LocationChanged -= AoMudarLocal;
+}

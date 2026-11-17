@@ -1,0 +1,20 @@
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.JSInterop
+@inject IJSRuntime JS
+
+@* O circuito virou anônimo (inatividade), mas o cookie e a sessão no SIA seguem vivos: ir para o Login
+   reautenticaria na hora. Por isso envia o POST de Account/Logout, uma única vez, depois da renderização. *@
+<form @ref="formulario" action="Account/Logout" method="post">
+    <AntiforgeryToken />
+</form>
+
+@code {
+    private ElementReference formulario;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Equivale a formulario.submit() no navegador.
+        if (firstRender)
+            await JS.InvokeVoidAsync("HTMLFormElement.prototype.submit.call", formulario);
+    }
+}

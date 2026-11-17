@@ -1,0 +1,33 @@
+@* Tela de reconexão do circuito, no formato do ReconnectModal do .NET 10: o blazor.web.js procura
+   o elemento com id "components-reconnect-modal", troca as classes components-reconnect-show,
+   -retrying, -failed, -rejected, -paused e -resume-failed, preenche os spans
+   components-seconds-to-next-attempt / components-reconnect-current-attempt e dispara o evento
+   "components-reconnect-state-changed", tratado em ReconexaoModal.razor.js.
+   Renderizado de forma estática em App.razor, fora do circuito. *@
+
+<script type="module" src="@Assets["Components/Layout/ReconexaoModal.razor.js"]"></script>
+
+<dialog id="components-reconnect-modal" aria-labelledby="reconexao-titulo" aria-describedby="reconexao-texto" data-nosnippet>
+    <div class="reconexao" role="status" aria-live="polite">
+        <div class="reconexao-animacao" aria-hidden="true"><span></span><span></span></div>
+        <h2 id="reconexao-titulo">Conexão com o SIAT interrompida</h2>
+        <div id="reconexao-texto">
+            <p class="reconexao-primeira">Reconectando ao servidor…</p>
+            <p class="reconexao-repetida">
+                Não foi possível reconectar. Nova tentativa em <span id="components-seconds-to-next-attempt"></span> s.
+            </p>
+            <p class="reconexao-falhou">
+                Não foi possível reconectar. Tente de novo ou recarregue a página; a URL refaz a consulta.
+            </p>
+            <p class="reconexao-pausada">A sessão foi pausada pelo servidor.</p>
+            <p class="reconexao-retomada-falhou">
+                Não foi possível retomar a sessão. Recarregue a página; a URL refaz a consulta.
+            </p>
+        </div>
+        <div class="reconexao-acoes">
+            <button type="button" id="components-reconnect-button" class="botao reconexao-falhou">Tentar de novo</button>
+            <button type="button" id="components-resume-button" class="botao reconexao-pausada">Retomar</button>
+            <button type="button" id="siat-reconnect-reload" class="botao secundario reconexao-falhou reconexao-retomada-falhou">Recarregar a página</button>
+        </div>
+    </div>
+</dialog>

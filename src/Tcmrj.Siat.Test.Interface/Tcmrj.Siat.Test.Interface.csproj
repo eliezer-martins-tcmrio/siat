@@ -4,7 +4,8 @@
     <OutputType>Exe</OutputType>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
-    <NoWarn>$(NoWarn);CA1707;CA1515;CA2007</NoWarn>
+    <!-- CA1873: falso positivo nos It.IsAny<>() das configurações do Moq para ILogger.Log. -->
+    <NoWarn>$(NoWarn);CA1707;CA1515;CA2007;CA1873</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

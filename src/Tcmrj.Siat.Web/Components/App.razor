@@ -1,11 +1,53 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="/" />
-    <title>SIAT</title>
+    @* Aplica o tema salvo antes da primeira pintura (sem clarão do tema errado). Mesma lógica de
+       window.siat.aplicarTema em js/siat.js: chave "siat-tema", valores claro/escuro/sistema
+       (aceita também light/dark/system); data-theme para o siat.css e a classe "dark" para o Blueprint. *@
+    <script>
+        (function () {
+            var t = 'sistema';
+            try { t = localStorage.getItem('siat-tema') || t; } catch (e) { }
+            t = ({ light: 'claro', dark: 'escuro', system: 'sistema' })[t] || t;
+            var escuro = t === 'escuro' || (t !== 'claro' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            var raiz = document.documentElement;
+            raiz.dataset.theme = escuro ? 'dark' : 'light';
+            if (escuro) { raiz.classList.add('dark'); }
+        })();
+    </script>
+    <link rel="stylesheet" href="@Assets["_content/BlazorBlueprint.Components/blazorblueprint.css"]" />
+    <link rel="stylesheet" href="@Assets["css/siat.css"]" />
+    <link rel="stylesheet" href="@Assets["css/blueprint-tema.css"]" />
+    <link rel="stylesheet" href="@Assets["Tcmrj.Siat.Web.styles.css"]" />
+    <HeadOutlet @rendermode="semPrerender" />
 </head>
+
 <body>
+    <Routes @rendermode="semPrerender" />
+
+    @* Fora do circuito: precisa existir quando a conexão cai. *@
+    <ReconexaoModal />
+
+    @* Exibido pelo blazor.web.js quando uma exceção não tratada encerra o circuito. *@
+    <div id="blazor-error-ui" role="alert" data-nosnippet>
+        Ocorreu um erro inesperado e a conexão com o servidor foi encerrada.
+        <a href="" class="reload" onclick="location.reload(); return false;">Recarregar a página</a>
+        <button type="button" class="dismiss" aria-label="Fechar"
+                onclick="document.getElementById('blazor-error-ui').style.display = 'none'">&times;</button>
+    </div>
+
     <script src="_framework/blazor.web.js"></script>
+    <script src="@Assets["js/siat.js"]"></script>
 </body>
+
 </html>
+
+@code {
+    // Sem prerender os métodos de ciclo de vida rodam uma única vez, já no circuito interativo,
+    // e o JS interop fica disponível desde o início (research.md R8).
+    private static readonly IComponentRenderMode semPrerender = new InteractiveServerRenderMode(prerender: false);
+}

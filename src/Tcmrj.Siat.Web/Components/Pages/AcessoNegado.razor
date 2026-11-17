@@ -1,0 +1,29 @@
+@page "/acesso-negado"
+
+@* Acesso negado: página própria e componente usado pelas telas quando o usuário não tem o recurso
+   (por exemplo, MailQueue sem MailQueue.CanSelect nem MailQueuePRD.CanSelect, ou servidor de PRD sem o recurso de PRD). *@
+<CabecalhoPagina Titulo="Acesso negado" />
+
+<Aviso Variante="VarianteAviso.Erro" Titulo="@TituloEfetivo">
+    @if (!string.IsNullOrWhiteSpace(Recurso))
+    {
+        <text>Peça o recurso <span class="mono">@Recurso</span> no UserManager. </text>
+    }
+    else
+    {
+        <text>Peça acesso ao grupo <strong>Consultas</strong> do SIAT no SIA. </text>
+    }
+    Depois de liberado, recarregue a página.
+</Aviso>
+
+@code {
+    /// <summary>O que foi negado (por exemplo, "Você não tem acesso ao AuditLog de produção").</summary>
+    [Parameter]
+    public string? Mensagem { get; set; }
+
+    /// <summary>Recurso do UserManager que falta (por exemplo, "AuditLogPRD.CanSelect").</summary>
+    [Parameter]
+    public string? Recurso { get; set; }
+
+    private string TituloEfetivo => string.IsNullOrWhiteSpace(Mensagem) ? "Você não tem acesso a esta página" : Mensagem;
+}

@@ -1,0 +1,1 @@
+SELECT Id, Name FROM CSLIB_UserManager.dbo.Apps ORDER BY Name

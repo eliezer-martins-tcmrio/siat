@@ -1,0 +1,38 @@
+@* Cabeçalho de página (DESIGN.md): título, uma linha de descrição, ações e status da leitura à direita.
+   Também define o título da aba do navegador. *@
+<PageTitle>@($"{Titulo} · SIAT")</PageTitle>
+
+<header class="cabecalho">
+    <div>
+        <h1 tabindex="-1">@Titulo</h1>
+        @if (!string.IsNullOrWhiteSpace(Descricao))
+        {
+            <p class="sub">@Descricao</p>
+        }
+    </div>
+    @if (Status is not null || Acoes is not null)
+    {
+        <div class="cabecalho-acoes">
+            @Status
+            @Acoes
+        </div>
+    }
+</header>
+
+@code {
+    /// <summary>Título da página (h1) e da aba.</summary>
+    [Parameter, EditorRequired]
+    public string Titulo { get; set; } = string.Empty;
+
+    /// <summary>Uma linha sobre o que a página mostra.</summary>
+    [Parameter]
+    public string? Descricao { get; set; }
+
+    /// <summary>Status da leitura (por exemplo, "Consultado às 14:32 · 0,8 s"), à direita.</summary>
+    [Parameter]
+    public RenderFragment? Status { get; set; }
+
+    /// <summary>Ações da página, à direita do status.</summary>
+    [Parameter]
+    public RenderFragment? Acoes { get; set; }
+}

@@ -1,0 +1,142 @@
+@typeparam TItem
+
+@* Lista expansível (DESIGN.md): linha em grade que abre o detalhe no lugar; a linha aberta vai para a URL (sel).
+   - Uma linha aberta por vez. O detalhe só é renderizado com a linha aberta (R10: não pesa a lista nem o circuito).
+   - Selecionado que não está em Itens é ignorado (data-model, Estado da tela).
+   - Cada linha é um botão com aria-expanded e data-linha (chave), para a navegação por ↑/↓ do siat.js.
+   - Linha deve renderizar só conteúdo de frase (span), pois fica dentro de um <button>.
+   As colunas vêm de --colunas / --colunas-estreito (parâmetros Colunas e ColunasEstreito). *@
+<div class="lista" style="@Estilo">
+    @if (Cabecalho is not null)
+    {
+        <div class="lista-cab" aria-hidden="true"><span></span>@Cabecalho</div>
+    }
+    <div class="lista-itens" role="list" aria-label="@Rotulo">
+        @for (var i = 0; i < Itens.Count; i++)
+        {
+            var item = Itens[i];
+            var chave = Chave(item);
+            var aberto = string.Equals(chave, aberta, StringComparison.Ordinal);
+            var idLinha = $"{IdBase}-linha-{i}";
+            var idDetalhe = $"{IdBase}-detalhe-{i}";
+            <div class="item" role="listitem" @key="chave">
+                <button type="button" class="item-linha" id="@idLinha" data-linha="@chave"
+                        aria-expanded="@(aberto ? "true" : "false")" aria-controls="@(aberto ? idDetalhe : null)"
+                        @onclick="() => AlternarAsync(item, chave)">
+                    @Seta
+                    @Linha(item)
+                </button>
+                @if (aberto)
+                {
+                    <div class="item-detalhe" id="@idDetalhe" role="region" aria-labelledby="@idLinha">
+                        @Detalhe(item)
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    // Seta do Lucide (chevron-right) em SVG fixo: evita um componente de ícone por linha em listas de até 1000 itens.
+    private static readonly MarkupString Seta = new(
+        "<svg class=\"seta\" width=\"15\" height=\"15\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" " +
+        "stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\"><path d=\"m9 18 6-6-6-6\"/></svg>");
+
+    /// <summary>Itens na ordem de exibição.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<TItem> Itens { get; set; } = [];
+
+    /// <summary>Chave única do item (MessageId, LogID); é o valor de <c>sel</c> na URL.</summary>
+    [Parameter, EditorRequired]
+    public Func<TItem, string> Chave { get; set; } = default!;
+
+    /// <summary>Colunas da linha (spans, dentro do botão).</summary>
+    [Parameter, EditorRequired]
+    public RenderFragment<TItem> Linha { get; set; } = default!;
+
+    /// <summary>Detalhe do item, renderizado só com a linha aberta.</summary>
+    [Parameter, EditorRequired]
+    public RenderFragment<TItem> Detalhe { get; set; } = default!;
+
+    /// <summary>Chave da linha aberta (parâmetro <c>sel</c>). Use com <c>@bind-Selecionado</c>.</summary>
+    [Parameter]
+    public string? Selecionado { get; set; }
+
+    [Parameter]
+    public EventCallback<string?> SelecionadoChanged { get; set; }
+
+    /// <summary>Chamado quando o usuário abre uma linha (não quando fecha, nem quando ela abre pelo <c>sel</c> da URL).</summary>
+    [Parameter]
+    public EventCallback<TItem> AoAbrir { get; set; }
+
+    /// <summary>Cabeçalho das colunas (spans), exceto a coluna da seta.</summary>
+    [Parameter]
+    public RenderFragment? Cabecalho { get; set; }
+
+    /// <summary>Valor de <c>--colunas</c> (grid-template-columns, incluindo a coluna da seta).</summary>
+    [Parameter]
+    public string? Colunas { get; set; }
+
+    /// <summary>Valor de <c>--colunas-estreito</c>, abaixo de 900px.</summary>
+    [Parameter]
+    public string? ColunasEstreito { get; set; }
+
+    /// <summary>Nome acessível da lista (por exemplo, "E-mails").</summary>
+    [Parameter]
+    public string? Rotulo { get; set; }
+
+    /// <summary>Prefixo dos ids das linhas e detalhes; padrão "lista".</summary>
+    [Parameter]
+    public string IdBase { get; set; } = "lista";
+
+    private string? aberta;
+    private IReadOnlyList<TItem>? itensAplicados;
+    private string? selecionadoAplicado;
+
+    private string? Estilo
+    {
+        get
+        {
+            var partes = new List<string>(2);
+            if (!string.IsNullOrWhiteSpace(Colunas))
+            {
+                partes.Add($"--colunas: {Colunas}");
+            }
+
+            if (!string.IsNullOrWhiteSpace(ColunasEstreito))
+            {
+                partes.Add($"--colunas-estreito: {ColunasEstreito}");
+            }
+
+            return partes.Count == 0 ? null : string.Join("; ", partes);
+        }
+    }
+
+    // Reaplica o Selecionado quando ele ou o resultado mudam; fora isso, vale o que o usuário abriu.
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(Itens, itensAplicados) && string.Equals(Selecionado, selecionadoAplicado, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        itensAplicados = Itens;
+        selecionadoAplicado = Selecionado;
+        aberta = Selecionado is not null && Itens.Any(i => string.Equals(Chave(i), Selecionado, StringComparison.Ordinal))
+            ? Selecionado
+            : null;
+    }
+
+    private async Task AlternarAsync(TItem item, string chave)
+    {
+        var abrir = !string.Equals(chave, aberta, StringComparison.Ordinal);
+        aberta = abrir ? chave : null;
+
+        await SelecionadoChanged.InvokeAsync(aberta);
+        if (abrir)
+        {
+            await AoAbrir.InvokeAsync(item);
+        }
+    }
+}

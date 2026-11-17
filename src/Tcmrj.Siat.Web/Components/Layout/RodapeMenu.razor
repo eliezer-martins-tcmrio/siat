@@ -1,0 +1,71 @@
+@* Rodapé do menu: tema, conta e Sair (DESIGN.md, Navegação). *@
+<div class="menu-rodape">
+    <SeletorTema />
+
+    <div class="conta">
+        <span class="avatar" aria-hidden="true">@iniciais</span>
+        <span>
+            <strong title="@nomeExibido">@nomeExibido</strong>
+            @if (complemento is not null)
+            {
+                <span>@complemento</span>
+            }
+        </span>
+    </div>
+
+    @* O logout só aceita POST com token antiforgery (contracts/rotas-ui.md). *@
+    <form action="Account/Logout" method="post">
+        <AntiforgeryToken />
+        <button type="submit">
+            <LucideIcon Name="log-out" Size="14" aria-hidden="true" focusable="false" />
+            Sair
+        </button>
+    </form>
+</div>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? EstadoAutenticacao { get; set; }
+
+    private string nomeExibido = "Usuário";
+    private string? complemento;
+    private string iniciais = string.Empty;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (EstadoAutenticacao is null)
+        {
+            return;
+        }
+
+        var usuario = (await EstadoAutenticacao).User;
+        var nome = usuario.GetUserName();
+        var matricula = usuario.GetMatricula();
+        var textoMatricula = matricula is null ? null : $"Matrícula {matricula.Value.ToString(CultureInfo.InvariantCulture)}";
+
+        // O nome pode não vir do SIA: nesse caso a matrícula assume o lugar dele.
+        if (!string.IsNullOrWhiteSpace(nome))
+        {
+            nomeExibido = nome.Trim();
+            complemento = textoMatricula;
+            iniciais = Iniciais(nomeExibido);
+        }
+        else
+        {
+            nomeExibido = textoMatricula ?? "Usuário";
+            complemento = null;
+            iniciais = string.Empty;
+        }
+    }
+
+    private static string Iniciais(string nome)
+    {
+        var partes = nome.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return partes.Length switch
+        {
+            0 => string.Empty,
+            1 => partes[0][..1].ToUpperInvariant(),
+            _ => string.Concat(partes[0][..1], partes[^1][..1]).ToUpperInvariant(),
+        };
+    }
+}

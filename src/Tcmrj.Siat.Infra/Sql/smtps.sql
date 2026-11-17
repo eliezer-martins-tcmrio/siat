@@ -1,0 +1,1 @@
+SELECT SmtpId, Description FROM dbo.SMTPs ORDER BY SmtpId

@@ -1,0 +1,43 @@
+@* Faixa de contexto (DESIGN.md, Ambientes; FR-009): primeira coisa da página em toda tela que consulta
+   um servidor, fixa ao rolar. O siat.css pinta pelo data-amb: DSV e HML em fundo suave, PRD em fundo sólido.
+   Ponto de extensão: o parâmetro Aviso substitui o texto da direita (por padrão, o nome do ambiente ou,
+   em PRD, o aviso de registro em log). *@
+<div class="contexto" data-amb="@Servidor.DataAmb" role="region" aria-label="Servidor consultado">
+    <span class="amb">@Servidor.AmbienteDescricao</span>
+    <span>
+        Consultando <strong class="mono">@Servidor.Nome</strong>@if (!string.IsNullOrWhiteSpace(Modulo))
+        {<text> · @Modulo</text>}
+    </span>
+    <span class="contexto-aviso">
+        @if (Aviso is not null)
+        {
+            @Aviso
+        }
+        else
+        {
+            @AvisoPadrao
+        }
+    </span>
+</div>
+
+@code {
+    /// <summary>Servidor consultado; define o <c>data-amb</c> (dsv, hml, prd).</summary>
+    [Parameter, EditorRequired]
+    public ServidorVM Servidor { get; set; } = default!;
+
+    /// <summary>Nome do módulo exibido após o servidor (por exemplo, "MailQueue").</summary>
+    [Parameter]
+    public string? Modulo { get; set; }
+
+    /// <summary>Texto da direita; substitui o padrão por ambiente.</summary>
+    [Parameter]
+    public RenderFragment? Aviso { get; set; }
+
+    private string AvisoPadrao => Servidor.Ambiente switch
+    {
+        Ambiente.Dsv => "Desenvolvimento",
+        Ambiente.Hml => "Homologação",
+        Ambiente.Prd => "Produção: esta consulta fica registrada em log com o seu usuário.",
+        _ => Servidor.AmbienteDescricao,
+    };
+}

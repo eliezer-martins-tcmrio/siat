@@ -1,0 +1,32 @@
+/* Aviso de erro não tratado do Blazor (blazor.web.js muda o display para block). */
+#blazor-error-ui {
+    display: none;
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: 1000;
+    padding: 12px 48px 12px 20px;
+    background: var(--color-bad-soft);
+    color: var(--color-ink);
+    border-top: 1px solid var(--color-bad-line);
+    box-shadow: 0 -1px 3px oklch(0% 0 0 / 0.15);
+    font-size: 14px;
+}
+
+#blazor-error-ui .reload {
+    margin-left: 8px;
+    font-weight: 600;
+}
+
+#blazor-error-ui .dismiss {
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    translate: 0 -50%;
+    width: 32px;
+    height: 32px;
+    border: 0;
+    border-radius: var(--radius-control);
+    background: none;
+    font-size: 20px;
+    line-height: 1;
+}

@@ -1,0 +1,36 @@
+@* Estado carregando (DESIGN.md, Estados): barra de progresso, texto e esqueleto estático.
+   Feito para ficar dentro de um .painel. Ponto de extensão: Acoes (por exemplo, Cancelar) à direita do texto. *@
+<div class="progresso" aria-hidden="true"></div>
+<div class="barra">
+    <span class="status" role="status">@Mensagem</span>
+    @if (Acoes is not null)
+    {
+        <span class="empurra">@Acoes</span>
+    }
+</div>
+@if (Linhas > 0)
+{
+    <div class="esqueleto" aria-hidden="true">
+        @for (var i = 0; i < Linhas; i++)
+        {
+            var (a, b, c) = Larguras[i % Larguras.Length];
+            <div><span style="width:@(a)px"></span><span style="width:@(b)%"></span><span style="width:@(c)%; margin-left:auto"></span></div>
+        }
+    </div>
+}
+
+@code {
+    private static readonly (int, int, int)[] Larguras = [(70, 46, 18), (70, 58, 14), (70, 38, 22), (70, 52, 16), (70, 44, 20), (70, 60, 12)];
+
+    /// <summary>Texto do estado; padrão "Consultando…".</summary>
+    [Parameter]
+    public string Mensagem { get; set; } = "Consultando…";
+
+    /// <summary>Linhas do esqueleto (0 para nenhuma).</summary>
+    [Parameter]
+    public int Linhas { get; set; } = 3;
+
+    /// <summary>Ações à direita do texto (por exemplo, Cancelar).</summary>
+    [Parameter]
+    public RenderFragment? Acoes { get; set; }
+}
