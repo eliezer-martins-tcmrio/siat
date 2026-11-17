@@ -36,10 +36,15 @@ de quem fez a alteração.
 
 ### III. Segurança e menor privilégio (INEGOCIÁVEL)
 
-- A autenticação DEVE ocorrer apenas pelo SSO do UserManager de PRD
-  (`Tcmrj.Autenticacao.AspNetCore`).
-- Toda página e toda operação DEVEM exigir um recurso do UserManager, verificado no servidor;
-  esconder o item na interface não é controle de acesso.
+- A autenticação DEVE ocorrer apenas pelo SSO do UserManager de PRD (SIA), por OpenID Connect
+  (fluxo authorization code com PKCE), com o cliente OIDC cadastrado no `OpenIddictApplications`
+  do UserManager pelo script do `dbchange`.
+- A leitura das claims DEVE usar `Tcmrj.Autenticacao.AspNetCore` e a autorização por recurso DEVE
+  usar `Tcmrj.Autorizacao.App`, como no SiCATI.
+- Toda página que exibe dados e toda operação DEVEM exigir um recurso do UserManager, verificado
+  no servidor; esconder o item na interface não é controle de acesso. Páginas que não exibem dados
+  (a página inicial que só encaminha ou informa a falta de acesso, e o logout) exigem apenas
+  usuário autenticado; o login é anônimo.
 - Dados de produção DEVEM ter recursos próprios, separados dos recursos de DSV/HML.
 - O acesso a SQL Server e a compartilhamentos de rede DEVE usar uma conta de serviço somente de
   leitura.
@@ -115,7 +120,8 @@ deixa o usuário sem resposta.
 - DEVE ser preferida a solução mais simples que atende ao requisito.
 - NÃO DEVEM existir camadas, abstrações ou dependências que não resolvam um problema presente.
 - As bibliotecas internas do Tribunal (`Tcmrj.Autenticacao.AspNetCore`, `Tcmrj.Autorizacao.App`,
-  `Tcmrj.CoreLib.*`) DEVEM ser reaproveitadas em vez de reimplementadas.
+  `Tcmrj.CoreLib.*`) DEVEM ser reaproveitadas em vez de reimplementadas; só se escreve código
+  próprio para o que elas não cobrem, com o motivo registrado no plano.
 
 **Justificativa**: cada camada, abstração ou dependência a mais é código para entender, testar e
 manter atualizado. Reaproveitar as bibliotecas internas mantém o SIAT alinhado aos demais
@@ -128,6 +134,22 @@ sistemas do Tribunal e evita reimplementar o que já está em uso.
 - **Implantação**: instância única, sem separação por ambiente; o ambiente é atributo do servidor
   consultado.
 - **Integrações**: GitLab, Jenkins e GitHub apenas pelas APIs HTTP oficiais.
+- **Estrutura da solução**: segue o projeto-modelo do Tribunal (`Domain`, `Infra`, `App`, `Web`,
+  `Test`, com features no padrão do modelo e scripts de banco em `dbchange`), exceto que o projeto
+  `Web` é um Blazor Web App em vez de ASP.NET Core MVC.
+
+## Dependências
+
+- Os pacotes internos `Tcmrj.*` DEVEM estar na última versão estável publicada no feed interno
+  (TCMRIO INTERNO) no momento da entrega.
+- Os demais pacotes DEVEM estar na última versão estável compatível com a plataforma (.NET 10);
+  pacotes do ASP.NET Core e do EF Core seguem o último patch da 10.0.
+- Só são permitidos pacotes com licença gratuita para uso comercial (por exemplo MIT, Apache-2.0,
+  BSD). Pacotes com licença paga ou restrita (como FluentAssertions 8 ou superior) NÃO DEVEM ser
+  usados; quando houver, usa-se a alternativa gratuita (como AwesomeAssertions).
+- Versões pré-lançamento (`-preview`, `-rc`, `-prerelease`) NÃO DEVEM ser usadas.
+- Toda versão DEVE ser fixada no `.csproj`; a atualização é revista a cada entrega, e a troca de
+  versão principal (MAJOR) de um pacote DEVE ser registrada no plano da feature.
 
 ## Governança
 
@@ -146,5 +168,7 @@ sistemas do Tribunal e evita reimplementar o que já está em uso.
 | Versão | Data       | Motivo              |
 |--------|------------|---------------------|
 | 1.0.0  | 2026-11-09 | Ratificação inicial |
+| 1.1.0  | 2026-11-10 | Autenticação por OIDC no SIA (padrão do SiCATI); estrutura do projeto-modelo com Web em Blazor; nova seção Dependências (últimas versões, só licenças gratuitas) |
+| 1.1.1  | 2026-11-17 | Princípio III: a exigência de recurso do UserManager vale para páginas que exibem dados e para toda operação; páginas sem dados (inicial, logout) exigem só autenticação e o login é anônimo. PATCH: explicita a intenção original, que a redação anterior tornava impossível de cumprir (o próprio login não pode exigir recurso) |
 
-**Versão**: 1.0.0 | **Ratificada em**: 2026-11-09 | **Última emenda**: 2026-11-09
+**Versão**: 1.1.1 | **Ratificada em**: 2026-11-09 | **Última emenda**: 2026-11-17
