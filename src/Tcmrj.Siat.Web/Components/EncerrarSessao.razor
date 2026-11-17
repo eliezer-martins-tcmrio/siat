@@ -13,8 +13,9 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        // Equivale a formulario.submit() no navegador.
+        // formulario.submit() no navegador (siat.js). O identificador "HTMLFormElement.prototype.submit.call" do README do pacote
+        // não funciona no Blazor: o resolvedor de JS interop recusa o segmento "prototype".
         if (firstRender)
-            await JS.InvokeVoidAsync("HTMLFormElement.prototype.submit.call", formulario);
+            await JS.InvokeVoidAsync("siat.enviarFormulario", formulario);
     }
 }

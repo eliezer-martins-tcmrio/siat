@@ -11,5 +11,5 @@ public static partial class Mensagens
 
     /// <summary>Aviso exibido quando a lista de aplicações não carrega e a tela passa a pedir o AppID.</summary>
     public static string AplicacoesIndisponiveis(string motivo) =>
-        $"A lista de aplicações não pôde ser carregada: {motivo} Informe o AppID no campo numérico ou deixe em branco para todas as aplicações.";
+        $"A lista de aplicações não pôde ser carregada: {Frase(motivo)} Informe o AppID no campo numérico ou deixe em branco para consultar todas as aplicações.";
 }

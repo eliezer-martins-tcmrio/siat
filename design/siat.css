@@ -472,7 +472,7 @@ a.menu-item:hover { background: oklch(from var(--color-sidebar-strong) l c h / 0
 .expansor svg { transition: rotate 150ms cubic-bezier(0.25, 1, 0.5, 1); }
 [aria-expanded="true"] > svg, [aria-expanded="true"] .seta { rotate: 90deg; }
 
-/* ---------- Lista expansível de resultados (Visor) ---------- */
+/* ---------- Lista expansível de resultados (Consultas) ---------- */
 
 .lista { font-size: 13px; }
 .lista-cab, .item-linha {

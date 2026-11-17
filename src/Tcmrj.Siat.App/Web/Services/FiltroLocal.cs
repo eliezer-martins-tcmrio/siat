@@ -66,11 +66,22 @@ public static class FiltroLocal
             return string.Empty;
         }
 
+        var unidadeDoTotal = Singular(total, unidade);
         var totalTexto = total.ToString(Cultura);
         return filtrando
-            ? $"{visiveis.ToString(Cultura)} de {totalTexto} {unidade}"
-            : $"{totalTexto} {unidade}";
+            ? $"{visiveis.ToString(Cultura)} de {totalTexto} {unidadeDoTotal}"
+            : $"{totalTexto} {unidadeDoTotal}";
     }
+
+    /// <summary>"1 e-mail", "2 e-mails": quantidade e unidade no número certo (a unidade vem no plural).</summary>
+    public static string Quantidade(int quantidade, string unidade) =>
+        $"{quantidade.ToString(Cultura)} {Singular(quantidade, unidade)}";
+
+    private static string Singular(int quantidade, string unidade) =>
+        quantidade != 1 ? unidade
+        : unidade.EndsWith("ns", StringComparison.Ordinal) ? string.Concat(unidade.AsSpan(0, unidade.Length - 2), "m")
+        : unidade.EndsWith('s') ? unidade[..^1]
+        : unidade;
 }
 
 /// <summary>

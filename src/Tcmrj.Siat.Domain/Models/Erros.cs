@@ -24,7 +24,7 @@ public static class Erros
 
         public static Erro ServidorNaoEncontrado => new(
             CodigoServidorNaoEncontrado,
-            "Servidor não encontrado na lista");
+            "Servidor não encontrado na lista de servidores consultáveis.");
 
         public static Erro ServidorIndisponivel(string servidor, string motivo) => new(
             CodigoServidorIndisponivel,
@@ -32,11 +32,11 @@ public static class Erros
 
         public static Erro TempoEsgotado(string servidor) => new(
             CodigoTempoEsgotado,
-            $"A consulta ao servidor {servidor} excedeu o tempo limite.");
+            $"A consulta ao servidor {servidor} excedeu o tempo limite. Tente de novo ou use filtros para reduzir o resultado.");
 
         public static Erro BancoInacessivel(string servidor, string banco) => new(
             CodigoBancoInacessivel,
-            $"O banco {banco} do servidor {servidor} não está acessível.");
+            $"O banco {banco} do servidor {servidor} não está acessível. Confira se ele existe nesse servidor e se a conta de serviço do SIAT pode lê-lo.");
 
         public static Erro Cancelada => new(
             CodigoCancelada,

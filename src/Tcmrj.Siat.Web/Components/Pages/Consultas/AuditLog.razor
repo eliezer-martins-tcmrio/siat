@@ -1,4 +1,5 @@
 @page "/consultas/auditlog"
+@attribute [Authorize]
 @implements IDisposable
 @using CSharpFunctionalExtensions
 @using FluentValidation
@@ -284,7 +285,7 @@ else
             $"Consulta cancelada após {consultas.Duracao.TotalSeconds.ToString("0.0", PtBr)} s · " +
             (consultas.Resultado is null ? "nenhum resultado anterior" : "mostrando o resultado anterior"),
         _ when consultas.Resultado is { } resultado =>
-            $"{resultado.Itens.Count} log(s) · {consultas.Duracao.TotalSeconds.ToString("0.0", PtBr)} s · consultado às {resultado.ConsultadoEm.ToLocalTime().ToString("HH:mm", PtBr)}",
+            $"{Servicos.FiltroLocal.Quantidade(resultado.Itens.Count, "logs")} · {consultas.Duracao.TotalSeconds.ToString("0.0", PtBr)} s · consultado às {resultado.ConsultadoEm.ToLocalTime().ToString("HH:mm", PtBr)}",
         _ => null,
     };
 

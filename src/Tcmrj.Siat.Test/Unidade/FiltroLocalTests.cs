@@ -78,8 +78,20 @@ public sealed class FiltroLocalTests
     [InlineData(0, 12, true, "logs", "0 de 12 logs")]
     [InlineData(0, 0, false, "logs", "")]
     [InlineData(0, 0, true, "logs", "")]
+    [InlineData(1, 1, false, "e-mails", "1 e-mail")]
+    [InlineData(0, 1, true, "logs", "0 de 1 log")]
+    [InlineData(1, 1, false, "itens", "1 item")]
     public void Contador_mostra_X_de_Y(int visiveis, int total, bool filtrando, string unidade, string esperado) =>
         FiltroLocal.Contador(visiveis, total, filtrando, unidade).Should().Be(esperado);
+
+    [Theory]
+    [InlineData(0, "e-mails", "0 e-mails")]
+    [InlineData(1, "e-mails", "1 e-mail")]
+    [InlineData(1, "logs", "1 log")]
+    [InlineData(2, "logs", "2 logs")]
+    [InlineData(1, "itens", "1 item")]
+    public void Quantidade_usa_a_unidade_no_numero_certo(int quantidade, string unidade, string esperado) =>
+        FiltroLocal.Quantidade(quantidade, unidade).Should().Be(esperado);
 
     [Fact]
     public void Filtro_de_lista_devolve_a_mesma_instancia_enquanto_nada_muda()

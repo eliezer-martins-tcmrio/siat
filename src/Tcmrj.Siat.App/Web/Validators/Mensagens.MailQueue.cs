@@ -12,5 +12,5 @@ public static partial class Mensagens
 
     /// <summary>Aviso exibido quando a lista de SMTPs não carrega; a consulta continua possível com todos os SMTPs.</summary>
     public static string SmtpsIndisponiveis(string motivo) =>
-        $"A lista de SMTPs não pôde ser carregada: {motivo} A consulta continua possível com todos os SMTPs.";
+        $"A lista de SMTPs não pôde ser carregada: {Frase(motivo)} A consulta continua possível com todos os SMTPs.";
 }
