@@ -20,4 +20,6 @@ public sealed record ServidorVM(string Chave, string Nome, Ambiente Ambiente)
 public sealed record GrupoServidoresVM(Ambiente Ambiente, IReadOnlyList<ServidorVM> Servidores)
 {
     public string AmbienteDescricao => Ambiente.Descricao();
+
+    public string DataAmb => Ambiente.DataAmb();
 }

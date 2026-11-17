@@ -1,5 +1,6 @@
 @* Estado vazio (DESIGN.md, Estados): diz o que foi procurado e oferece a saída.
-   Ponto de extensão: Acoes (por exemplo, "Remover filtros"). *@
+   Com filtros preenchidos (TemFiltros) e AoRemoverFiltros, oferece "Remover filtros" com um clique
+   (história 4, cenário 5). Ponto de extensão: Acoes (saídas próprias do módulo), antes de "Remover filtros". *@
 <div class="estado" role="status">
     <h2>@Titulo</h2>
     @if (ChildContent is not null)
@@ -10,9 +11,15 @@
     {
         <p>@Mensagem</p>
     }
-    @if (Acoes is not null)
+    @if (Acoes is not null || MostrarRemoverFiltros)
     {
-        <div class="acoes">@Acoes</div>
+        <div class="acoes">
+            @Acoes
+            @if (MostrarRemoverFiltros)
+            {
+                <button type="button" class="botao secundario pequeno" data-remover-filtros @onclick="AoRemoverFiltros">Remover filtros</button>
+            }
+        </div>
     }
 </div>
 
@@ -32,4 +39,14 @@
     /// <summary>Saídas oferecidas (botões).</summary>
     [Parameter]
     public RenderFragment? Acoes { get; set; }
+
+    /// <summary>Verdadeiro quando a consulta que veio vazia tinha filtros preenchidos.</summary>
+    [Parameter]
+    public bool TemFiltros { get; set; }
+
+    /// <summary>Consulta de novo sem os filtros; com <see cref="TemFiltros"/>, mostra "Remover filtros".</summary>
+    [Parameter]
+    public EventCallback AoRemoverFiltros { get; set; }
+
+    private bool MostrarRemoverFiltros => TemFiltros && AoRemoverFiltros.HasDelegate;
 }

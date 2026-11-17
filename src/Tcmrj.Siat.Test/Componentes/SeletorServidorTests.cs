@@ -100,4 +100,13 @@ public sealed class SeletorServidorTests : BunitContext
 
         recebido.Should().Be("tcmbd4-hml");
     }
+
+    [Fact]
+    public void Grupo_de_PRD_vem_marcado_para_o_destaque_e_os_demais_nao_levam_o_destaque()
+    {
+        var seletor = Renderizar([new(Ambiente.Dsv, [Dev]), new(Ambiente.Prd, [Prd])], valor: "tcmbd");
+
+        seletor.FindAll("optgroup").Select(g => g.GetAttribute("data-amb")).Should().Equal("dsv", "prd");
+        seletor.Find(".seletor-servidor").GetAttribute("data-amb").Should().Be("prd");
+    }
 }

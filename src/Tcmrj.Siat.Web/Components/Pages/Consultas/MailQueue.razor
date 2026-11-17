@@ -8,6 +8,8 @@
 @using Tcmrj.Siat.App.Web.ViewModels.MailQueue
 @using Tcmrj.Siat.Domain.Models
 @using Tcmrj.Siat.Web.Services
+@using Servicos = Tcmrj.Siat.App.Web.Services
+@using ExportarMailQueue = Tcmrj.Siat.App.Web.Features.MailQueue.Exportar
 @using ListarSmtpsMailQueue = Tcmrj.Siat.App.Web.Features.MailQueue.ListarSmtps
 @using PesquisarMailQueue = Tcmrj.Siat.App.Web.Features.MailQueue.Pesquisar
 @inject IAutorizacaoConsultaService AutorizacaoConsulta
@@ -16,6 +18,7 @@
 @inject IInteracao Interacao
 @inject IValidator<PesquisarMailQueue.Query> Validador
 @inject TimeProvider Relogio
+@inject IJSRuntime JS
 
 @* Consultas › MailQueue (história 1; design/mailqueue.html; Visor wwwroot/mailqueue.html).
    - Acesso: no OnInitializedAsync, qualquer das duas políticas do módulo; sem nenhuma, AcessoNegado. Cada consulta é
@@ -23,9 +26,11 @@
    - URL: servidor, smtp, texto, qtd e sel ([SupplyParameterFromQuery]). Abrir a URL refaz a consulta; consultar grava a
      URL com Navegacao.MailQueue (replace: false); abrir ou fechar uma linha troca só o sel (replace: true).
    - Ao escolher o servidor, a lista de SMTPs e a consulta rodam em paralelo.
-   - Estados Ociosa, Consultando, ComResultado e ComErro (data-model). Uma consulta por vez: cada uma tem o seu
-     CancellationTokenSource (consultaAtual), que chega ao SqlClient; a nova cancela a anterior e só a última é aplicada.
-     Ponto de extensão da história 4: Cancelar, tempo decorrido, filtro local como componente e Exportar. *@
+   - Estados Ociosa, Consultando, ComResultado e ComErro (data-model), no ControleConsulta: uma consulta por vez, cada
+     uma com o seu CancellationTokenSource, que chega ao SqlClient; a nova cancela a anterior e só a última é aplicada.
+   - História 4: depois de 1 s, tempo decorrido e Cancelar (EstadoCarregando); cancelar volta ao resultado anterior
+     (e à URL dele). Filtro local (FiltroLocal) sobre os itens carregados. Exportar baixa o HTML autocontido montado
+     pela feature Exportar, que autoriza de novo no servidor e registra a exportação; o download é pelo siat.js. *@
 
 @if (acesso is null)
 {
@@ -44,7 +49,7 @@ else
 
     <CabecalhoPagina Titulo="MailQueue" Descricao="E-mails enfileirados pelos sistemas, do mais recente para o mais antigo.">
         <Status>
-            <span class="status" role="status">@StatusDaLeitura</span>
+            <span class="@ClasseDoStatus" role="status">@StatusDaLeitura</span>
         </Status>
     </CabecalhoPagina>
 
@@ -94,11 +99,12 @@ else
     }
 
     <section class="painel" aria-label="Resultados">
-        @if (estado == Estado.Consultando)
+        @if (consultas.Estado == Servicos.EstadoConsulta.Consultando)
         {
-            <EstadoCarregando Mensagem="@($"Consultando {servidorEmConsulta}…")" Linhas="@(resultado is null ? 6 : 0)" />
+            <EstadoCarregando Mensagem="@($"Consultando {servidorEmConsulta}…")" Linhas="@(consultas.Resultado is null ? 6 : 0)"
+                              Inicio="consultas.InicioAtual" AoCancelar="Cancelar" />
         }
-        else if (estado == Estado.ComErro && erro is not null)
+        else if (consultas.Estado == Servicos.EstadoConsulta.ComErro && consultas.Erro is { } erro)
         {
             @if (erro.Code == Erros.Consultas.CodigoAcessoNegado)
             {
@@ -115,69 +121,73 @@ else
             }
         }
 
-        @if (resultado is not null)
+        @if (consultas.Resultado is { } resultado)
         {
-            <div class="barra">
-                <label class="busca">
-                    <span class="so-leitor">Filtrar os resultados carregados</span>
-                    <LucideIcon Name="search" Size="16" aria-hidden="true" focusable="false" />
-                    <input class="entrada" id="filtro-local" type="search" data-busca placeholder="Filtrar os resultados carregados"
-                           autocomplete="off" value="@filtroLocal" @oninput="AoFiltrar" />
-                    <kbd aria-hidden="true">/</kbd>
-                </label>
-                <span class="contador" aria-live="polite">@Contador</span>
-            </div>
-
-            @if (resultado.Itens.Count == 0)
-            {
-                <EstadoVazio Titulo="Nenhum e-mail encontrado" Mensagem="@DescricaoDoVazio"
-                             Acoes="@(filtroConsultado?.TemFiltros == true ? BotaoRemoverFiltros : null)" />
-            }
-            else if (Visiveis.Count == 0)
-            {
-                <EstadoVazio Titulo="Nenhum e-mail carregado corresponde ao filtro"
-                             Mensagem="@($"Nenhum dos {resultado.Itens.Count} e-mails carregados contém \"{filtroLocal.Trim()}\".")" />
-            }
-            else
-            {
-                <ListaExpansivel TItem="MensagemVM" Itens="Visiveis" Chave="m => m.MessageId" Selecionado="@selecionado"
-                                 SelecionadoChanged="AoSelecionar" AoAbrir="AoAbrir" Rotulo="E-mails" IdBase="mensagens"
-                                 Colunas="16px 84px minmax(0, 1fr) 230px 104px" ColunasEstreito="16px 84px minmax(0, 1fr) 92px">
-                    <Cabecalho>
-                        <span>Situação</span><span>Assunto</span><span class="opc">Para</span><span class="direita">Postado</span>
-                    </Cabecalho>
-                    <Linha Context="mensagem">
-                        <span><span class="pilula @mensagem.SituacaoClasse">@mensagem.SituacaoRotulo</span></span>
-                        <span class="cel-texto">@if (mensagem.TemAssunto){@mensagem.Assunto}else{<span class="suave">@MensagemVM.SemAssunto</span>}</span>
-                        <span class="cel-suave opc">@if (mensagem.PrimeiroDestinatario is { } primeiro){@primeiro@if (mensagem.DemaisDestinatarios > 0){<text> </text><span class="suave">+@mensagem.DemaisDestinatarios</span>}}else{<span class="suave">@MensagemEnfileirada.SemDestinatarios</span>}</span>
-                        <span class="cel-suave direita num" title="@mensagem.PostadoEmCompleto">@mensagem.PostadoEmRelativo</span>
-                    </Linha>
-                    <Detalhe Context="mensagem">
-                        <dl class="campos">
-                            <dt>Assunto</dt>
-                            <dd>@if (mensagem.TemAssunto){@mensagem.Assunto}else{<span class="suave">@MensagemVM.SemAssunto</span>}</dd>
-                            <dt>Para</dt>
-                            <dd>@if (mensagem.ListaDestinatarios.Count > 0){@mensagem.Destinatarios}else{<span class="suave">@MensagemEnfileirada.SemDestinatarios</span>}</dd>
-                            <dt>Situação</dt>
-                            <dd><span class="pilula @mensagem.SituacaoClasse">@mensagem.SituacaoDescricao</span></dd>
-                            <dt>Postado em</dt>
-                            <dd class="num">@mensagem.PostadoEmCompleto</dd>
-                            <dt>Enviar após</dt>
-                            <dd class="num">@if (mensagem.EnviarAposTexto is { } enviarApos){@enviarApos}else{<span class="suave">não informado</span>}</dd>
-                            <dt>Data de envio</dt>
-                            <dd class="num">@if (mensagem.DataEnvioTexto is { } dataEnvio){@dataEnvio}else{<span class="suave">@MensagemVM.NaoEnviado</span>}</dd>
-                            <dt>MessageId</dt>
-                            <dd><span class="mono">@mensagem.MessageId</span> <BotaoCopiar Texto="@mensagem.MessageId" Rotulo="MessageId" /></dd>
-                        </dl>
-                        <div>
-                            <span class="secao-titulo">Corpo</span>
-                            <CorpoEmail Corpo="@mensagem.Corpo" EhHtml="@mensagem.EhHtml" />
-                        </div>
-                    </Detalhe>
-                </ListaExpansivel>
-            }
+            <FiltroLocal TItem="MensagemVM" Itens="resultado.Itens" TextoDe="TextoDaMensagem" @bind-Texto="filtroLocal" Unidade="e-mails">
+                <Acoes>
+                    @if (erroExportacao is not null)
+                    {
+                        <span class="status falha" role="alert">@erroExportacao</span>
+                    }
+                    <button type="button" class="botao secundario pequeno empurra" id="exportar" title="Baixa um arquivo HTML que abre sem o SIAT"
+                            disabled="@(resultado.Itens.Count == 0 || exportando)" @onclick="ExportarAsync">
+                        <LucideIcon Name="download" Size="14" aria-hidden="true" focusable="false" />
+                        Exportar HTML
+                    </button>
+                </Acoes>
+                <ChildContent Context="visiveis">
+                    @if (resultado.Itens.Count == 0)
+                    {
+                        <EstadoVazio Titulo="Nenhum e-mail encontrado" Mensagem="@DescricaoDoVazio"
+                                     TemFiltros="@(filtroDoResultado?.TemFiltros == true)" AoRemoverFiltros="RemoverFiltrosAsync" />
+                    }
+                    else if (visiveis.Count == 0)
+                    {
+                        <EstadoVazio Titulo="Nenhum e-mail carregado corresponde ao filtro"
+                                     Mensagem="@($"Nenhum dos {resultado.Itens.Count} e-mails carregados contém \"{filtroLocal?.Trim()}\".")" />
+                    }
+                    else
+                    {
+                        <ListaExpansivel TItem="MensagemVM" Itens="visiveis" Chave="m => m.MessageId" Selecionado="@selecionado"
+                                         SelecionadoChanged="AoSelecionar" AoAbrir="AoAbrir" Rotulo="E-mails" IdBase="mensagens"
+                                         Colunas="16px 84px minmax(0, 1fr) 230px 104px" ColunasEstreito="16px 84px minmax(0, 1fr) 92px">
+                            <Cabecalho>
+                                <span>Situação</span><span>Assunto</span><span class="opc">Para</span><span class="direita">Postado</span>
+                            </Cabecalho>
+                            <Linha Context="mensagem">
+                                <span><span class="pilula @mensagem.SituacaoClasse">@mensagem.SituacaoRotulo</span></span>
+                                <span class="cel-texto">@if (mensagem.TemAssunto){@mensagem.Assunto}else{<span class="suave">@MensagemVM.SemAssunto</span>}</span>
+                                <span class="cel-suave opc">@if (mensagem.PrimeiroDestinatario is { } primeiro){@primeiro@if (mensagem.DemaisDestinatarios > 0){<text> </text><span class="suave">+@mensagem.DemaisDestinatarios</span>}}else{<span class="suave">@MensagemEnfileirada.SemDestinatarios</span>}</span>
+                                <span class="cel-suave direita num" title="@mensagem.PostadoEmCompleto">@mensagem.PostadoEmRelativo</span>
+                            </Linha>
+                            <Detalhe Context="mensagem">
+                                <dl class="campos">
+                                    <dt>Assunto</dt>
+                                    <dd>@if (mensagem.TemAssunto){@mensagem.Assunto}else{<span class="suave">@MensagemVM.SemAssunto</span>}</dd>
+                                    <dt>Para</dt>
+                                    <dd>@if (mensagem.ListaDestinatarios.Count > 0){@mensagem.Destinatarios}else{<span class="suave">@MensagemEnfileirada.SemDestinatarios</span>}</dd>
+                                    <dt>Situação</dt>
+                                    <dd><span class="pilula @mensagem.SituacaoClasse">@mensagem.SituacaoDescricao</span></dd>
+                                    <dt>Postado em</dt>
+                                    <dd class="num">@mensagem.PostadoEmCompleto</dd>
+                                    <dt>Enviar após</dt>
+                                    <dd class="num">@if (mensagem.EnviarAposTexto is { } enviarApos){@enviarApos}else{<span class="suave">não informado</span>}</dd>
+                                    <dt>Data de envio</dt>
+                                    <dd class="num">@if (mensagem.DataEnvioTexto is { } dataEnvio){@dataEnvio}else{<span class="suave">@MensagemVM.NaoEnviado</span>}</dd>
+                                    <dt>MessageId</dt>
+                                    <dd><span class="mono">@mensagem.MessageId</span> <BotaoCopiar Texto="@mensagem.MessageId" Rotulo="MessageId" /></dd>
+                                </dl>
+                                <div>
+                                    <span class="secao-titulo">Corpo</span>
+                                    <CorpoEmail Corpo="@mensagem.Corpo" EhHtml="@mensagem.EhHtml" />
+                                </div>
+                            </Detalhe>
+                        </ListaExpansivel>
+                    }
+                </ChildContent>
+            </FiltroLocal>
         }
-        else if (estado != Estado.Consultando && estado != Estado.ComErro)
+        else if (consultas.Estado is Servicos.EstadoConsulta.Ociosa)
         {
             <EstadoVazio Titulo="Escolha o servidor"
                          Mensagem="Os e-mails mais recentes aparecem aqui depois da consulta. O SMTP e o texto são opcionais." />
@@ -192,15 +202,8 @@ else
 @code {
     private static readonly CultureInfo PtBr = CultureInfo.GetCultureInfo("pt-BR");
 
-    private static readonly CompareOptions SemAcentoNemCaixa = CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace;
-
-    private enum Estado
-    {
-        Ociosa,
-        Consultando,
-        ComResultado,
-        ComErro,
-    }
+    // Texto do filtro local: assunto, destinatários, MessageId e corpo sem tags.
+    private static readonly Func<MensagemVM, string?> TextoDaMensagem = m => m.TextoBusca;
 
     [SupplyParameterFromQuery(Name = Navegacao.ParametroServidor)]
     public string? ServidorParametro { get; set; }
@@ -236,92 +239,51 @@ else
     private bool carregandoSmtps;
     private CancellationTokenSource? cancelamentoSmtps;
 
-    // Consulta: um CancellationTokenSource por consulta; o da consulta em andamento fica em consultaAtual.
-    private Estado estado = Estado.Ociosa;
-    private CancellationTokenSource? consultaAtual;
+    // Consulta: estado, resultado e cancelamento (um CancellationTokenSource por consulta) no ControleConsulta.
+    private Servicos.ControleConsulta<ResultadoConsultaVM<MensagemVM>> consultas = default!;
     private string? servidorEmConsulta;
-    private ResultadoConsultaVM<MensagemVM>? resultado;
     private FiltroMailQueueVM? filtroConsultado;
-    private TimeSpan duracao;
-    private Erro? erro;
+    private FiltroMailQueueVM? filtroDoResultado;
     private string? servidorComErro;
     private string? selecionado;
 
-    // Filtro local sobre os itens carregados (assunto, destinatários, MessageId e corpo sem tags).
-    private string filtroLocal = string.Empty;
-    private (IReadOnlyList<MensagemVM> Fonte, string Termo, IReadOnlyList<MensagemVM> Itens)? filtrados;
+    // Filtro local sobre os itens carregados e exportação.
+    private string? filtroLocal;
+    private bool exportando;
+    private string? erroExportacao;
 
     private ServidorVM? ServidorEscolhido =>
         grupos.SelectMany(g => g.Servidores).FirstOrDefault(s => string.Equals(s.Chave, filtro.Servidor, StringComparison.Ordinal));
 
     private string RecursoNegado => Modulo.MailQueue.PoliticaPara(ServidorEscolhido?.Ambiente ?? Ambiente.Prd);
 
-    private string? StatusDaLeitura => estado switch
+    private string? StatusDaLeitura => consultas.Estado switch
     {
-        Estado.Consultando => null,
-        _ when resultado is not null =>
-            $"{resultado.Itens.Count} e-mail(s) · {duracao.TotalSeconds.ToString("0.0", PtBr)} s · consultado às {resultado.ConsultadoEm.ToLocalTime().ToString("HH:mm", PtBr)}",
+        Servicos.EstadoConsulta.Consultando => null,
+        _ when consultas.Cancelada =>
+            $"Consulta cancelada após {consultas.Duracao.TotalSeconds.ToString("0.0", PtBr)} s · " +
+            (consultas.Resultado is null ? "nenhum resultado anterior" : "mostrando o resultado anterior"),
+        _ when consultas.Resultado is { } resultado =>
+            $"{resultado.Itens.Count} e-mail(s) · {consultas.Duracao.TotalSeconds.ToString("0.0", PtBr)} s · consultado às {resultado.ConsultadoEm.ToLocalTime().ToString("HH:mm", PtBr)}",
         _ => null,
     };
 
-    private string Contador
-    {
-        get
-        {
-            var total = resultado?.Itens.Count ?? 0;
-            if (total == 0)
-            {
-                return string.Empty;
-            }
-
-            return string.IsNullOrWhiteSpace(filtroLocal) ? $"{total} e-mails" : $"{Visiveis.Count} de {total} e-mails";
-        }
-    }
+    private string ClasseDoStatus =>
+        consultas.Cancelada && consultas.Estado != Servicos.EstadoConsulta.Consultando ? "status alerta" : "status";
 
     private string DescricaoDoVazio
     {
         get
         {
-            var smtp = filtroConsultado?.SmtpNumerico is int id ? smtps.RotuloDe(id) : "Todos os SMTPs";
-            var texto = filtroConsultado?.TextoAparado is { } t ? $", contendo \"{t}\"" : string.Empty;
-            return $"{smtp}{texto}, em {resultado?.Servidor.Nome}.";
+            var smtp = filtroDoResultado?.SmtpNumerico is int id ? smtps.RotuloDe(id) : "Todos os SMTPs";
+            var texto = filtroDoResultado?.TextoAparado is { } t ? $", contendo \"{t}\"" : string.Empty;
+            return $"{smtp}{texto}, em {consultas.Resultado?.Servidor.Nome}.";
         }
     }
-
-    // Itens que passam pelo filtro local, sem diferenciar acentos e maiúsculas, com vários termos. A mesma lista é
-    // devolvida enquanto nada muda, para a lista expansível manter a linha aberta.
-    private IReadOnlyList<MensagemVM> Visiveis
-    {
-        get
-        {
-            if (resultado is null)
-            {
-                return [];
-            }
-
-            var termo = filtroLocal.Trim();
-            if (termo.Length == 0)
-            {
-                return resultado.Itens;
-            }
-
-            if (filtrados is { } cache && ReferenceEquals(cache.Fonte, resultado.Itens) && cache.Termo == termo)
-            {
-                return cache.Itens;
-            }
-
-            var termos = termo.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            var itens = resultado.Itens.Where(m => Contem(m.TextoBusca, termos)).ToArray();
-            filtrados = (resultado.Itens, termo, itens);
-            return itens;
-        }
-    }
-
-    private RenderFragment BotaoRemoverFiltros =>
-        @<button type="button" class="botao secundario pequeno" @onclick="RemoverFiltrosAsync">Remover filtros</button>;
 
     protected override async Task OnInitializedAsync()
     {
+        consultas = new(Relogio);
         acesso = await AutorizacaoConsulta.PodeAcessarModuloAsync(Modulo.MailQueue);
         if (acesso == true)
         {
@@ -439,24 +401,23 @@ else
             return;
         }
 
+        if (descartada)
+        {
+            return;
+        }
+
         Interacao.Interagir();
 
         // Uma consulta por vez: a nova cancela a anterior, que é interrompida no banco e descartada aqui.
-        consultaAtual?.Cancel();
-        using var cancelamento = new CancellationTokenSource();
-        consultaAtual = cancelamento;
-
-        estado = Estado.Consultando;
-        erro = null;
+        var tentativa = consultas.Iniciar();
         filtroConsultado = consulta;
         servidorEmConsulta = NomeDoServidor(consulta.Servidor);
         StateHasChanged();
 
-        var inicio = Relogio.GetTimestamp();
         Result<ResultadoConsultaVM<MensagemVM>, Erro> obtido;
         try
         {
-            obtido = await Mediator.Send(ParaQuery(consulta), cancelamento.Token);
+            obtido = await Mediator.Send(ParaQuery(consulta), tentativa.Token);
         }
         catch (OperationCanceledException)
         {
@@ -464,37 +425,103 @@ else
         }
 
         // Vale só a última: uma consulta substituída (ou a página fechada) não mexe na tela.
-        if (descartada || !ReferenceEquals(consultaAtual, cancelamento))
+        if (!consultas.Concluir(tentativa, obtido))
         {
             return;
         }
-
-        consultaAtual = null;
-        duracao = Relogio.GetElapsedTime(inicio);
 
         if (obtido.IsSuccess)
         {
-            resultado = obtido.Value;
-            estado = Estado.ComResultado;
+            filtroDoResultado = consulta;
+            erroExportacao = null;
+        }
+        else if (consultas.Cancelada)
+        {
+            // Cancelar volta ao estado anterior: o resultado anterior continua na tela, e a URL volta a ser a dele.
+            RestaurarUrlDoResultado();
+        }
+        else
+        {
+            servidorComErro = servidorEmConsulta;
+        }
+
+        if (consultas.Resultado is null)
+        {
+            filtroDoResultado = null;
+        }
+    }
+
+    private void Cancelar()
+    {
+        Interacao.Interagir();
+        consultas.Cancelar();
+    }
+
+    private void RestaurarUrlDoResultado()
+    {
+        if (filtroDoResultado is null)
+        {
             return;
         }
 
-        if (obtido.Error.Code == Erros.Consultas.CodigoCancelada)
+        chaveAplicada = ChaveDe(filtroDoResultado);
+        Navigation.NavigateTo(UrlDe(filtroDoResultado, selecionado), replace: true);
+    }
+
+    // Exporta os itens já carregados (não consulta de novo). A feature autoriza de novo no servidor e registra.
+    private async Task ExportarAsync()
+    {
+        if (exportando || consultas.Resultado is not { } atual || filtroDoResultado is not { } usado)
         {
-            // Cancelar volta ao estado anterior: o resultado anterior continua na tela.
-            estado = resultado is null ? Estado.Ociosa : Estado.ComResultado;
             return;
         }
 
-        // Acesso negado ou servidor fora da lista: nenhum dado anterior fica visível.
-        if (obtido.Error.Code is Erros.Consultas.CodigoAcessoNegado or Erros.Consultas.CodigoServidorNaoEncontrado)
+        exportando = true;
+        erroExportacao = null;
+        Interacao.Interagir();
+        try
         {
-            resultado = null;
-        }
+            var obtido = await Mediator.Send(
+                new ExportarMailQueue.Query(
+                    atual.Servidor.Chave,
+                    usado.SmtpNumerico,
+                    usado.SmtpNumerico is int smtp ? smtps.RotuloDe(smtp) : null,
+                    usado.TextoAparado,
+                    usado.QuantidadeNumerica ?? Quantidade.Padrao,
+                    filtroLocal,
+                    atual.Itens),
+                CancellationToken.None);
 
-        erro = obtido.Error;
-        servidorComErro = servidorEmConsulta;
-        estado = Estado.ComErro;
+            if (obtido.IsFailure)
+            {
+                erroExportacao = $"Exportação não realizada: {obtido.Error.Message}";
+                return;
+            }
+
+            await BaixarAsync(obtido.Value);
+        }
+        finally
+        {
+            exportando = false;
+        }
+    }
+
+    private async Task BaixarAsync(ArquivoExportado arquivo)
+    {
+        try
+        {
+            using var conteudo = new MemoryStream(arquivo.Conteudo, writable: false);
+            using var referencia = new DotNetStreamReference(conteudo);
+            await JS.InvokeVoidAsync("siat.baixarArquivo", arquivo.Nome, referencia, ArquivoExportado.TipoConteudo);
+        }
+        catch (JSDisconnectedException)
+        {
+            // A página foi fechada durante o download: nada a mostrar.
+        }
+        catch (JSException ex)
+        {
+            erroExportacao = $"Não foi possível baixar o arquivo: {ex.Message}";
+        }
     }
 
     private async Task CarregarSmtpsSeMudouAsync(string servidor)
@@ -545,12 +572,6 @@ else
 
     private void AoAbrir(MensagemVM mensagem) => Interacao.Interagir();
 
-    private void AoFiltrar(ChangeEventArgs e)
-    {
-        filtroLocal = e.Value?.ToString() ?? string.Empty;
-        Interacao.Interagir();
-    }
-
     private string? Invalido(string campo) => errosCampo.ContainsKey(campo) ? "true" : null;
 
     private string? Descrito(string campo, string id) => errosCampo.ContainsKey(campo) ? id : null;
@@ -583,13 +604,10 @@ else
 
     private static string? Vazio(string? valor) => string.IsNullOrWhiteSpace(valor) ? null : valor;
 
-    private static bool Contem(string texto, string[] termos) =>
-        termos.All(t => PtBr.CompareInfo.IndexOf(texto, t, SemAcentoNemCaixa) >= 0);
-
     public void Dispose()
     {
         descartada = true;
-        consultaAtual?.Cancel();
+        consultas?.Dispose();
         cancelamentoSmtps?.Cancel();
     }
 }

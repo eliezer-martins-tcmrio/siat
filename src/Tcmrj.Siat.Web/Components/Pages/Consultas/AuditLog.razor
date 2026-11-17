@@ -8,6 +8,8 @@
 @using Tcmrj.Siat.App.Web.ViewModels.AuditLog
 @using Tcmrj.Siat.Domain.Models
 @using Tcmrj.Siat.Web.Services
+@using Servicos = Tcmrj.Siat.App.Web.Services
+@using ExportarAuditLog = Tcmrj.Siat.App.Web.Features.AuditLog.Exportar
 @using ListarAplicacoesAuditLog = Tcmrj.Siat.App.Web.Features.AuditLog.ListarAplicacoes
 @using PesquisarAuditLog = Tcmrj.Siat.App.Web.Features.AuditLog.Pesquisar
 @inject IAutorizacaoConsultaService AutorizacaoConsulta
@@ -16,12 +18,16 @@
 @inject IInteracao Interacao
 @inject IValidator<PesquisarAuditLog.Query> Validador
 @inject TimeProvider Relogio
+@inject IJSRuntime JS
 
 @* Consultas › AuditLog (história 2; design/auditlog.html; Visor wwwroot/auditlog.html).
    Estrutura comum às páginas de consulta (T068): acesso verificado ao abrir; servidor, filtros e linha aberta na
    URL; ao escolher o servidor, a lista de aplicações e a consulta rodam em paralelo; estados Ociosa, Consultando,
-   ComResultado e ComErro; uma consulta por vez com um CancellationTokenSource que chega ao SqlClient, e "vale só a
-   última" (o resultado de uma consulta substituída é descartado). *@
+   ComResultado e ComErro (ControleConsulta); uma consulta por vez com um CancellationTokenSource que chega ao SqlClient,
+   e "vale só a última" (o resultado de uma consulta substituída é descartado).
+   História 4: depois de 1 s, tempo decorrido e Cancelar (EstadoCarregando); cancelar volta ao resultado anterior (e à
+   URL dele). Filtro local (FiltroLocal) sobre os itens carregados. Exportar baixa o HTML autocontido montado pela
+   feature Exportar, que autoriza de novo no servidor e registra a exportação; o download é pelo siat.js. *@
 @if (acesso is null)
 {
     <PageTitle>AuditLog · SIAT</PageTitle>
@@ -39,7 +45,7 @@ else
 
     <CabecalhoPagina Titulo="AuditLog" Descricao="Registros de AUDITORIADB · audit.Log, do mais recente para o mais antigo.">
         <Status>
-            <span class="status" role="status">@StatusDaLeitura</span>
+            <span class="@ClasseDoStatus" role="status">@StatusDaLeitura</span>
         </Status>
     </CabecalhoPagina>
 
@@ -99,11 +105,12 @@ else
     }
 
     <section class="painel" aria-label="Resultados">
-        @if (estado == Estado.Consultando)
+        @if (consultas.Estado == Servicos.EstadoConsulta.Consultando)
         {
-            <EstadoCarregando Mensagem="@($"Consultando {servidorEmConsulta}…")" Linhas="@(resultado is null ? 6 : 0)" />
+            <EstadoCarregando Mensagem="@($"Consultando {servidorEmConsulta}…")" Linhas="@(consultas.Resultado is null ? 6 : 0)"
+                              Inicio="consultas.InicioAtual" AoCancelar="Cancelar" />
         }
-        else if (estado == Estado.ComErro && erro is not null)
+        else if (consultas.Estado == Servicos.EstadoConsulta.ComErro && consultas.Erro is { } erro)
         {
             @if (erro.Code == Erros.Consultas.CodigoAcessoNegado)
             {
@@ -120,84 +127,88 @@ else
             }
         }
 
-        @if (resultado is not null)
+        @if (consultas.Resultado is { } resultado)
         {
-            <div class="barra">
-                <label class="busca">
-                    <span class="so-leitor">Filtrar os resultados carregados</span>
-                    <LucideIcon Name="search" Size="16" aria-hidden="true" focusable="false" />
-                    <input class="entrada" id="filtro-local" type="search" data-busca placeholder="Filtrar os resultados carregados"
-                           autocomplete="off" value="@filtroLocal" @oninput="AoFiltrar" />
-                    <kbd aria-hidden="true">/</kbd>
-                </label>
-                <span class="contador" aria-live="polite">@Contador</span>
-            </div>
-
-            @if (resultado.Itens.Count == 0)
-            {
-                <EstadoVazio Titulo="Nenhum log encontrado" Mensagem="@DescricaoDoVazio">
-                    <Acoes>
-                        @if (!string.IsNullOrWhiteSpace(filtroConsultado?.LogId))
-                        {
-                            <button type="button" class="botao secundario pequeno" @onclick="RemoverFiltroLogIdAsync">Remover filtro de LogID</button>
-                        }
-                        @if (!string.IsNullOrWhiteSpace(filtroConsultado?.AppId))
-                        {
-                            <button type="button" class="botao secundario pequeno" @onclick="TodasAsAplicacoesAsync">Todas as aplicações</button>
-                        }
-                    </Acoes>
-                </EstadoVazio>
-            }
-            else if (Visiveis.Count == 0)
-            {
-                <EstadoVazio Titulo="Nenhum log carregado corresponde ao filtro" Mensagem="@($"Nenhum dos {resultado.Itens.Count} logs carregados contém \"{filtroLocal.Trim()}\".")" />
-            }
-            else
-            {
-                <ListaExpansivel TItem="RegistroAuditoriaVM" Itens="Visiveis" Chave="r => r.Chave" Selecionado="@selecionado"
-                                 SelecionadoChanged="AoSelecionar" AoAbrir="AoAbrir" Rotulo="Registros de log" IdBase="logs"
-                                 Colunas="16px 92px 76px minmax(0, 1fr) 170px 104px" ColunasEstreito="16px 92px minmax(0, 1fr) 92px">
-                    <Cabecalho>
-                        <span>Tipo</span><span class="opc">LogID</span><span>Mensagem</span><span class="opc">Aplicação</span><span class="direita">Data</span>
-                    </Cabecalho>
-                    <Linha Context="registro">
-                        <span class="nivel @registro.ClasseNivel">@registro.Tipo</span>
-                        <span class="mono cel-suave opc">@registro.Chave</span>
-                        <span class="cel-texto">@if (registro.TemExcecao){<span class="pilula erro sem-ponto">exceção</span>@(" ")}@registro.ResumoMensagem</span>
-                        <span class="cel-suave opc">@registro.DescricaoAplicacao(aplicacoes.NomeDe(registro.AppId))</span>
-                        <span class="cel-suave direita num" title="@DataCompleta(registro.Data)">@Quando(registro.Data)</span>
-                    </Linha>
-                    <Detalhe Context="registro">
-                        <dl class="campos">
-                            <dt>Mensagem</dt>
-                            <dd style="white-space: pre-wrap">@if (string.IsNullOrEmpty(registro.Mensagem)){<span class="suave">@RegistroAuditoriaVM.SemMensagem</span>}else{@registro.Mensagem}</dd>
-                            <dt>Tipo</dt>
-                            <dd><span class="nivel @registro.ClasseNivel">@registro.Tipo</span> <span class="suave">TypeID @registro.TipoId</span></dd>
-                            <dt>Data</dt>
-                            <dd class="num">@DataCompleta(registro.Data)</dd>
-                            <dt>Aplicação</dt>
-                            <dd>@if (aplicacoes.NomeDe(registro.AppId) is { } nomeAplicacao){@($"{nomeAplicacao} ")}<span class="suave">(AppID @registro.AppId)</span></dd>
-                            <dt>LogID</dt>
-                            <dd><span class="mono">@registro.Chave</span> <BotaoCopiar Texto="@registro.Chave" Rotulo="LogID" /></dd>
-                            <dt>LogUID</dt>
-                            <dd class="mono">@(registro.LogUid ?? "(sem LogUID)")</dd>
-                        </dl>
-                        @if (registro.TemExcecao)
-                        {
-                            <div>
-                                <span class="secao-titulo">Exceção</span>
-                                <BlocoStackTrace Texto="@(registro.Excecao!)" />
-                            </div>
-                        }
-                        <div>
-                            <span class="secao-titulo">LogEvent</span>
-                            <BlocoLogEvent Texto="@registro.LogEvent" />
-                        </div>
-                    </Detalhe>
-                </ListaExpansivel>
-            }
+            <FiltroLocal TItem="RegistroAuditoriaVM" Itens="resultado.Itens" TextoDe="textoDoRegistro" @bind-Texto="filtroLocal" Unidade="logs">
+                <Acoes>
+                    @if (erroExportacao is not null)
+                    {
+                        <span class="status falha" role="alert">@erroExportacao</span>
+                    }
+                    <button type="button" class="botao secundario pequeno empurra" id="exportar" title="Baixa um arquivo HTML que abre sem o SIAT"
+                            disabled="@(resultado.Itens.Count == 0 || exportando)" @onclick="ExportarAsync">
+                        <LucideIcon Name="download" Size="14" aria-hidden="true" focusable="false" />
+                        Exportar HTML
+                    </button>
+                </Acoes>
+                <ChildContent Context="visiveis">
+                    @if (resultado.Itens.Count == 0)
+                    {
+                        <EstadoVazio Titulo="Nenhum log encontrado" Mensagem="@DescricaoDoVazio"
+                                     TemFiltros="@(filtroDoResultado?.TemFiltros == true)" AoRemoverFiltros="RemoverFiltrosAsync">
+                            <Acoes>
+                                @* Com os dois filtros preenchidos, também é possível tirar só um deles. *@
+                                @if (!string.IsNullOrWhiteSpace(filtroDoResultado?.LogId) && !string.IsNullOrWhiteSpace(filtroDoResultado?.AppId))
+                                {
+                                    <button type="button" class="botao secundario pequeno" @onclick="RemoverFiltroLogIdAsync">Remover filtro de LogID</button>
+                                    <button type="button" class="botao secundario pequeno" @onclick="TodasAsAplicacoesAsync">Todas as aplicações</button>
+                                }
+                            </Acoes>
+                        </EstadoVazio>
+                    }
+                    else if (visiveis.Count == 0)
+                    {
+                        <EstadoVazio Titulo="Nenhum log carregado corresponde ao filtro"
+                                     Mensagem="@($"Nenhum dos {resultado.Itens.Count} logs carregados contém \"{filtroLocal?.Trim()}\".")" />
+                    }
+                    else
+                    {
+                        <ListaExpansivel TItem="RegistroAuditoriaVM" Itens="visiveis" Chave="r => r.Chave" Selecionado="@selecionado"
+                                         SelecionadoChanged="AoSelecionar" AoAbrir="AoAbrir" Rotulo="Registros de log" IdBase="logs"
+                                         Colunas="16px 92px 76px minmax(0, 1fr) 170px 104px" ColunasEstreito="16px 92px minmax(0, 1fr) 92px">
+                            <Cabecalho>
+                                <span>Tipo</span><span class="opc">LogID</span><span>Mensagem</span><span class="opc">Aplicação</span><span class="direita">Data</span>
+                            </Cabecalho>
+                            <Linha Context="registro">
+                                <span class="nivel @registro.ClasseNivel">@registro.Tipo</span>
+                                <span class="mono cel-suave opc">@registro.Chave</span>
+                                <span class="cel-texto">@if (registro.TemExcecao){<span class="pilula erro sem-ponto">exceção</span>@(" ")}@registro.ResumoMensagem</span>
+                                <span class="cel-suave opc">@registro.DescricaoAplicacao(aplicacoes.NomeDe(registro.AppId))</span>
+                                <span class="cel-suave direita num" title="@DataCompleta(registro.Data)">@Quando(registro.Data)</span>
+                            </Linha>
+                            <Detalhe Context="registro">
+                                <dl class="campos">
+                                    <dt>Mensagem</dt>
+                                    <dd style="white-space: pre-wrap">@if (string.IsNullOrEmpty(registro.Mensagem)){<span class="suave">@RegistroAuditoriaVM.SemMensagem</span>}else{@registro.Mensagem}</dd>
+                                    <dt>Tipo</dt>
+                                    <dd><span class="nivel @registro.ClasseNivel">@registro.Tipo</span> <span class="suave">TypeID @registro.TipoId</span></dd>
+                                    <dt>Data</dt>
+                                    <dd class="num">@DataCompleta(registro.Data)</dd>
+                                    <dt>Aplicação</dt>
+                                    <dd>@if (aplicacoes.NomeDe(registro.AppId) is { } nomeAplicacao){@($"{nomeAplicacao} ")}<span class="suave">(AppID @registro.AppId)</span></dd>
+                                    <dt>LogID</dt>
+                                    <dd><span class="mono">@registro.Chave</span> <BotaoCopiar Texto="@registro.Chave" Rotulo="LogID" /></dd>
+                                    <dt>LogUID</dt>
+                                    <dd class="mono">@(registro.LogUid ?? "(sem LogUID)")</dd>
+                                </dl>
+                                @if (registro.TemExcecao)
+                                {
+                                    <div>
+                                        <span class="secao-titulo">Exceção</span>
+                                        <BlocoStackTrace Texto="@(registro.Excecao!)" />
+                                    </div>
+                                }
+                                <div>
+                                    <span class="secao-titulo">LogEvent</span>
+                                    <BlocoLogEvent Texto="@registro.LogEvent" />
+                                </div>
+                            </Detalhe>
+                        </ListaExpansivel>
+                    }
+                </ChildContent>
+            </FiltroLocal>
         }
-        else if (estado != Estado.Consultando && estado != Estado.ComErro)
+        else if (consultas.Estado is Servicos.EstadoConsulta.Ociosa)
         {
             <EstadoVazio Titulo="Escolha o servidor"
                          Mensagem="Os registros mais recentes aparecem aqui depois da consulta. A aplicação e o LogID são opcionais." />
@@ -211,14 +222,6 @@ else
 
 @code {
     private static readonly CultureInfo PtBr = CultureInfo.GetCultureInfo("pt-BR");
-
-    private enum Estado
-    {
-        Ociosa,
-        Consultando,
-        ComResultado,
-        ComErro,
-    }
 
     [SupplyParameterFromQuery(Name = Navegacao.ParametroServidor)]
     public string? ServidorParametro { get; set; }
@@ -254,102 +257,64 @@ else
     private bool carregandoAplicacoes;
     private CancellationTokenSource? cancelamentoAplicacoes;
 
-    // Consulta.
-    private Estado estado = Estado.Ociosa;
-    private CancellationTokenSource? consultaAtual;
+    // Consulta: estado, resultado e cancelamento (um CancellationTokenSource por consulta) no ControleConsulta.
+    private Servicos.ControleConsulta<ResultadoConsultaVM<RegistroAuditoriaVM>> consultas = default!;
     private string? servidorEmConsulta;
-    private ResultadoConsultaVM<RegistroAuditoriaVM>? resultado;
     private FiltroAuditLogVM? filtroConsultado;
-    private TimeSpan duracao;
-    private Erro? erro;
+    private FiltroAuditLogVM? filtroDoResultado;
     private string? servidorComErro;
     private string? selecionado;
 
-    // Filtro local sobre os itens carregados.
-    private string filtroLocal = string.Empty;
-    private (IReadOnlyList<RegistroAuditoriaVM> Fonte, string Termo, IReadOnlyList<RegistroAuditoriaVM> Itens)? filtrados;
+    // Filtro local sobre os itens carregados (LogID, mensagem, tipo, AppID e nome da aplicação) e exportação.
+    // A função de texto é refeita quando a lista de aplicações muda, para o filtro passar a achar os nomes.
+    private string? filtroLocal;
+    private Func<RegistroAuditoriaVM, string?> textoDoRegistro = r => r.TextoBusca(null);
+    private bool exportando;
+    private string? erroExportacao;
 
     private ServidorVM? ServidorEscolhido =>
         grupos.SelectMany(g => g.Servidores).FirstOrDefault(s => string.Equals(s.Chave, filtro.Servidor, StringComparison.Ordinal));
 
     private string RecursoNegado => Modulo.AuditLog.PoliticaPara(ServidorEscolhido?.Ambiente ?? Ambiente.Prd);
 
-    private string? StatusDaLeitura => estado switch
+    private string? StatusDaLeitura => consultas.Estado switch
     {
-        Estado.Consultando => null,
-        _ when resultado is not null =>
-            $"{resultado.Itens.Count} log(s) · {duracao.TotalSeconds.ToString("0.0", PtBr)} s · consultado às {resultado.ConsultadoEm.ToLocalTime().ToString("HH:mm", PtBr)}",
+        Servicos.EstadoConsulta.Consultando => null,
+        _ when consultas.Cancelada =>
+            $"Consulta cancelada após {consultas.Duracao.TotalSeconds.ToString("0.0", PtBr)} s · " +
+            (consultas.Resultado is null ? "nenhum resultado anterior" : "mostrando o resultado anterior"),
+        _ when consultas.Resultado is { } resultado =>
+            $"{resultado.Itens.Count} log(s) · {consultas.Duracao.TotalSeconds.ToString("0.0", PtBr)} s · consultado às {resultado.ConsultadoEm.ToLocalTime().ToString("HH:mm", PtBr)}",
         _ => null,
     };
 
-    private string Contador
-    {
-        get
-        {
-            var total = resultado?.Itens.Count ?? 0;
-            if (total == 0)
-            {
-                return string.Empty;
-            }
-
-            return string.IsNullOrWhiteSpace(filtroLocal) ? $"{total} logs" : $"{Visiveis.Count} de {total} logs";
-        }
-    }
+    private string ClasseDoStatus =>
+        consultas.Cancelada && consultas.Estado != Servicos.EstadoConsulta.Consultando ? "status alerta" : "status";
 
     private string DescricaoDoVazio
     {
         get
         {
             var partes = new List<string>(2);
-            if (filtroConsultado?.AppIdNumerico is int app)
+            if (filtroDoResultado?.AppIdNumerico is int app)
             {
                 var nome = aplicacoes.NomeDe(app);
                 partes.Add(nome is null ? $"AppID {app}" : $"AppID {app} ({nome})");
             }
 
-            if (!string.IsNullOrWhiteSpace(filtroConsultado?.LogId))
+            if (!string.IsNullOrWhiteSpace(filtroDoResultado?.LogId))
             {
-                partes.Add($"LogID começando com {filtroConsultado.LogId.Trim()}");
+                partes.Add($"LogID começando com {filtroDoResultado.LogId.Trim()}");
             }
 
             var filtros = partes.Count == 0 ? "Sem filtros" : string.Join(", ", partes);
-            return $"{filtros}, em {resultado?.Servidor.Nome}.";
-        }
-    }
-
-    // Itens que passam pelo filtro local (LogID, mensagem, tipo, AppID e nome da aplicação), sem diferenciar
-    // acentos e maiúsculas. A mesma lista é devolvida enquanto nada muda, para a lista expansível manter a linha aberta.
-    private IReadOnlyList<RegistroAuditoriaVM> Visiveis
-    {
-        get
-        {
-            if (resultado is null)
-            {
-                return [];
-            }
-
-            var termo = filtroLocal.Trim();
-            if (termo.Length == 0)
-            {
-                return resultado.Itens;
-            }
-
-            if (filtrados is { } cache && ReferenceEquals(cache.Fonte, resultado.Itens) && cache.Termo == termo)
-            {
-                return cache.Itens;
-            }
-
-            var termos = termo.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            var itens = resultado.Itens
-                .Where(r => Contem(r.TextoBusca(aplicacoes.NomeDe(r.AppId)), termos))
-                .ToArray();
-            filtrados = (resultado.Itens, termo, itens);
-            return itens;
+            return $"{filtros}, em {consultas.Resultado?.Servidor.Nome}.";
         }
     }
 
     protected override async Task OnInitializedAsync()
     {
+        consultas = new(Relogio);
         acesso = await AutorizacaoConsulta.PodeAcessarModuloAsync(Modulo.AuditLog);
         if (acesso == true)
         {
@@ -440,6 +405,13 @@ else
         return AoConsultarAsync();
     }
 
+    private Task RemoverFiltrosAsync()
+    {
+        filtro.AppId = null;
+        filtro.LogId = null;
+        return AoConsultarAsync();
+    }
+
     private Task RefazerAsync(FiltroAuditLogVM consulta)
     {
         filtro = consulta;
@@ -462,25 +434,24 @@ else
             return;
         }
 
+        if (descartada)
+        {
+            return;
+        }
+
         Interacao.Interagir();
 
         // Uma consulta por vez: a nova cancela a anterior, que é interrompida no banco e descartada aqui.
-        consultaAtual?.Cancel();
-        using var cancelamento = new CancellationTokenSource();
-        consultaAtual = cancelamento;
-
-        estado = Estado.Consultando;
-        erro = null;
+        var tentativa = consultas.Iniciar();
         filtroConsultado = consulta;
         servidorEmConsulta = grupos.SelectMany(g => g.Servidores)
             .FirstOrDefault(s => string.Equals(s.Chave, consulta.Servidor, StringComparison.Ordinal))?.Nome ?? consulta.Servidor;
         StateHasChanged();
 
-        var inicio = Relogio.GetTimestamp();
         Result<ResultadoConsultaVM<RegistroAuditoriaVM>, Erro> obtido;
         try
         {
-            obtido = await Mediator.Send(ParaQuery(consulta), cancelamento.Token);
+            obtido = await Mediator.Send(ParaQuery(consulta), tentativa.Token);
         }
         catch (OperationCanceledException)
         {
@@ -488,37 +459,103 @@ else
         }
 
         // Vale só a última: uma consulta substituída (ou a página fechada) não mexe na tela.
-        if (descartada || !ReferenceEquals(consultaAtual, cancelamento))
+        if (!consultas.Concluir(tentativa, obtido))
         {
             return;
         }
-
-        consultaAtual = null;
-        duracao = Relogio.GetElapsedTime(inicio);
 
         if (obtido.IsSuccess)
         {
-            resultado = obtido.Value;
-            estado = Estado.ComResultado;
+            filtroDoResultado = consulta;
+            erroExportacao = null;
+        }
+        else if (consultas.Cancelada)
+        {
+            // Cancelar volta ao estado anterior: o resultado anterior continua na tela, e a URL volta a ser a dele.
+            RestaurarUrlDoResultado();
+        }
+        else
+        {
+            servidorComErro = servidorEmConsulta;
+        }
+
+        if (consultas.Resultado is null)
+        {
+            filtroDoResultado = null;
+        }
+    }
+
+    private void Cancelar()
+    {
+        Interacao.Interagir();
+        consultas.Cancelar();
+    }
+
+    private void RestaurarUrlDoResultado()
+    {
+        if (filtroDoResultado is null)
+        {
             return;
         }
 
-        if (obtido.Error.Code == Erros.Consultas.CodigoCancelada)
+        chaveAplicada = ChaveDe(filtroDoResultado);
+        Navigation.NavigateTo(UrlDe(filtroDoResultado, selecionado), replace: true);
+    }
+
+    // Exporta os itens já carregados (não consulta de novo). A feature autoriza de novo no servidor e registra.
+    private async Task ExportarAsync()
+    {
+        if (exportando || consultas.Resultado is not { } atual || filtroDoResultado is not { } usado)
         {
-            // Cancelar volta ao estado anterior: o resultado anterior continua na tela.
-            estado = resultado is null ? Estado.Ociosa : Estado.ComResultado;
             return;
         }
 
-        // Acesso negado ou servidor fora da lista: nenhum dado anterior fica visível.
-        if (obtido.Error.Code is Erros.Consultas.CodigoAcessoNegado or Erros.Consultas.CodigoServidorNaoEncontrado)
+        exportando = true;
+        erroExportacao = null;
+        Interacao.Interagir();
+        try
         {
-            resultado = null;
-        }
+            var obtido = await Mediator.Send(
+                new ExportarAuditLog.Query(
+                    atual.Servidor.Chave,
+                    usado.AppIdNumerico,
+                    Vazio(usado.LogId?.Trim()),
+                    usado.QuantidadeNumerica ?? Quantidade.Padrao,
+                    filtroLocal,
+                    atual.Itens,
+                    aplicacoes.Itens.DistinctBy(a => a.Id).ToDictionary(a => a.Id, a => a.Nome)),
+                CancellationToken.None);
 
-        erro = obtido.Error;
-        servidorComErro = servidorEmConsulta;
-        estado = Estado.ComErro;
+            if (obtido.IsFailure)
+            {
+                erroExportacao = $"Exportação não realizada: {obtido.Error.Message}";
+                return;
+            }
+
+            await BaixarAsync(obtido.Value);
+        }
+        finally
+        {
+            exportando = false;
+        }
+    }
+
+    private async Task BaixarAsync(ArquivoExportado arquivo)
+    {
+        try
+        {
+            using var conteudo = new MemoryStream(arquivo.Conteudo, writable: false);
+            using var referencia = new DotNetStreamReference(conteudo);
+            await JS.InvokeVoidAsync("siat.baixarArquivo", arquivo.Nome, referencia, ArquivoExportado.TipoConteudo);
+        }
+        catch (JSDisconnectedException)
+        {
+            // A página foi fechada durante o download: nada a mostrar.
+        }
+        catch (JSException ex)
+        {
+            erroExportacao = $"Não foi possível baixar o arquivo: {ex.Message}";
+        }
     }
 
     private async Task CarregarAplicacoesSeMudouAsync(string servidor)
@@ -555,6 +592,8 @@ else
 
         // Negado ou cancelado: sem lista (a consulta mostra o motivo). Indisponível: vazia com aviso, campo numérico.
         aplicacoes = obtidas.IsSuccess ? obtidas.Value : ListaAplicacoesVM.Vazia;
+        var lista = aplicacoes;
+        textoDoRegistro = r => r.TextoBusca(lista.NomeDe(r.AppId));
         StateHasChanged();
     }
 
@@ -568,12 +607,6 @@ else
     }
 
     private void AoAbrir(RegistroAuditoriaVM registro) => Interacao.Interagir();
-
-    private void AoFiltrar(ChangeEventArgs e)
-    {
-        filtroLocal = e.Value?.ToString() ?? string.Empty;
-        Interacao.Interagir();
-    }
 
     private string? Invalido(string campo) => errosCampo.ContainsKey(campo) ? "true" : null;
 
@@ -608,9 +641,6 @@ else
 
     private static string? Vazio(string? valor) => string.IsNullOrWhiteSpace(valor) ? null : valor;
 
-    private static bool Contem(string texto, string[] termos) =>
-        termos.All(t => PtBr.CompareInfo.IndexOf(texto, t, CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace) >= 0);
-
     private static string DataCompleta(DateTime data) => data.ToString("dd/MM/yyyy HH:mm:ss", PtBr);
 
     // "hoje 14:32" no dia corrente; "08/11 09:10" nos demais (siat.js, quando).
@@ -622,7 +652,7 @@ else
     public void Dispose()
     {
         descartada = true;
-        consultaAtual?.Cancel();
+        consultas?.Dispose();
         cancelamentoAplicacoes?.Cancel();
     }
 }

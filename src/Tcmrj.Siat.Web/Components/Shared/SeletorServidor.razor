@@ -25,7 +25,7 @@ else
                 }
                 @foreach (var grupo in Grupos.Where(g => g.Servidores.Count > 0))
                 {
-                    <optgroup label="@grupo.AmbienteDescricao">
+                    <optgroup label="@grupo.AmbienteDescricao" data-amb="@grupo.DataAmb">
                         @foreach (var servidor in grupo.Servidores)
                         {
                             <option value="@servidor.Chave" selected="@(servidor == selecionado)">@servidor.Nome</option>

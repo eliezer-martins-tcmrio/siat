@@ -1,11 +1,33 @@
+@implements IDisposable
+@inject TimeProvider Relogio
+
 @* Estado carregando (DESIGN.md, Estados): barra de progresso, texto e esqueleto estático.
-   Feito para ficar dentro de um .painel. Ponto de extensão: Acoes (por exemplo, Cancelar) à direita do texto. *@
+   Feito para ficar dentro de um .painel. Depois de 1 s (história 4, cenário 1) aparecem o tempo decorrido e, com
+   AoCancelar, o botão Cancelar, que interrompe o comando no SQL Server. O tempo vem do TimeProvider injetado
+   (testável com um relógio falso) e só passa a renderizar a cada 200 ms depois do primeiro segundo.
+   Ponto de extensão: Acoes à direita do texto. *@
+@{
+    var decorrido = Decorrido;
+    var mostrarDecorrido = decorrido >= Espera;
+    var mostrarCancelar = mostrarDecorrido && AoCancelar.HasDelegate;
+}
 <div class="progresso" aria-hidden="true"></div>
 <div class="barra">
     <span class="status" role="status">@Mensagem</span>
-    @if (Acoes is not null)
+    @if (mostrarDecorrido)
     {
-        <span class="empurra">@Acoes</span>
+        <span class="status num" data-decorrido>@($"{decorrido.TotalSeconds.ToString("0.0", PtBr)} s")</span>
+    }
+    @if (mostrarCancelar || Acoes is not null)
+    {
+        <span class="empurra">
+            @Acoes
+            @if (mostrarCancelar)
+            {
+                <button type="button" class="botao secundario pequeno" id="cancelar" title="Interrompe o comando no SQL Server"
+                        @onclick="AoCancelar">Cancelar</button>
+            }
+        </span>
     }
 </div>
 @if (Linhas > 0)
@@ -20,7 +42,17 @@
 }
 
 @code {
+    /// <summary>A partir de quando o tempo decorrido e o Cancelar aparecem.</summary>
+    public static readonly TimeSpan Espera = TimeSpan.FromSeconds(1);
+
+    private static readonly TimeSpan Intervalo = TimeSpan.FromMilliseconds(200);
+
+    private static readonly CultureInfo PtBr = CultureInfo.GetCultureInfo("pt-BR");
+
     private static readonly (int, int, int)[] Larguras = [(70, 46, 18), (70, 58, 14), (70, 38, 22), (70, 52, 16), (70, 44, 20), (70, 60, 12)];
+
+    private ITimer? timer;
+    private long inicioProprio;
 
     /// <summary>Texto do estado; padrão "Consultando…".</summary>
     [Parameter]
@@ -30,7 +62,37 @@
     [Parameter]
     public int Linhas { get; set; } = 3;
 
-    /// <summary>Ações à direita do texto (por exemplo, Cancelar).</summary>
+    /// <summary>
+    /// Início da consulta pelo <see cref="TimeProvider.GetTimestamp"/> do mesmo relógio; sem ele, conta a partir de
+    /// quando o componente apareceu.
+    /// </summary>
+    [Parameter]
+    public long? Inicio { get; set; }
+
+    /// <summary>Com delegado, mostra Cancelar depois de 1 s.</summary>
+    [Parameter]
+    public EventCallback AoCancelar { get; set; }
+
+    /// <summary>Ações à direita do texto.</summary>
     [Parameter]
     public RenderFragment? Acoes { get; set; }
+
+    private TimeSpan Decorrido => Relogio.GetElapsedTime(Inicio ?? inicioProprio);
+
+    protected override void OnInitialized()
+    {
+        inicioProprio = Relogio.GetTimestamp();
+        timer = Relogio.CreateTimer(_ => Atualizar(), null, Intervalo, Intervalo);
+    }
+
+    // Antes de 1 s nada muda na tela: não renderiza (nem gasta o circuito).
+    private void Atualizar()
+    {
+        if (Decorrido >= Espera)
+        {
+            _ = InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public void Dispose() => timer?.Dispose();
 }

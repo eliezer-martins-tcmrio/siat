@@ -1,0 +1,95 @@
+@typeparam TItem
+@using Tcmrj.Siat.Web.Services
+@using Servicos = Tcmrj.Siat.App.Web.Services
+@inject IInteracao Interacao
+@inject TimeProvider Relogio
+
+@* Filtro local dos itens já carregados (FR-020, research.md R9; DESIGN.md, Busca): sem diferenciar acentos e
+   maiúsculas, vários termos, contador "X de Y". Nunca consulta o banco.
+   - O atalho "/" (siat.js) foca o campo, marcado com data-busca; Esc no campo limpa o filtro.
+   - Filtrar conta como interação (IInteracao), no máximo uma vez a cada 5 s, para não chamar a cada tecla.
+   - ChildContent recebe os itens visíveis; a mesma lista volta enquanto nada muda (a lista expansível mantém a
+     linha aberta). Acoes fica à direita do contador (por exemplo, Exportar). *@
+<div class="barra">
+    <label class="busca">
+        <span class="so-leitor">@Rotulo</span>
+        <LucideIcon Name="search" Size="16" aria-hidden="true" focusable="false" />
+        <input class="entrada" id="@Id" type="search" data-busca placeholder="@Rotulo" autocomplete="off"
+               @bind:get="Texto" @bind:set="MudarAsync" @bind:event="oninput" @onkeydown="AoTeclarAsync" />
+        <kbd aria-hidden="true">/</kbd>
+    </label>
+    <span class="contador" aria-live="polite">@Servicos.FiltroLocal.Contador(visiveis.Count, Itens.Count, Filtrando, Unidade)</span>
+    @Acoes
+</div>
+@(ChildContent?.Invoke(visiveis))
+
+@code {
+    private static readonly TimeSpan IntervaloInteracao = TimeSpan.FromSeconds(5);
+
+    private readonly Servicos.FiltroLocal<TItem> filtro = new();
+    private IReadOnlyList<TItem> visiveis = [];
+    private long? ultimaInteracao;
+
+    /// <summary>Itens já carregados, na ordem da consulta.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<TItem> Itens { get; set; } = [];
+
+    /// <summary>Texto de cada item procurado pelo filtro. Troque a instância quando o texto mudar (por exemplo, nomes carregados depois).</summary>
+    [Parameter, EditorRequired]
+    public Func<TItem, string?> TextoDe { get; set; } = default!;
+
+    /// <summary>Texto digitado. Use com <c>@bind-Texto</c>.</summary>
+    [Parameter]
+    public string? Texto { get; set; }
+
+    [Parameter]
+    public EventCallback<string?> TextoChanged { get; set; }
+
+    /// <summary>Unidade do contador ("e-mails", "logs").</summary>
+    [Parameter]
+    public string Unidade { get; set; } = "itens";
+
+    /// <summary>Nome acessível e placeholder do campo.</summary>
+    [Parameter]
+    public string Rotulo { get; set; } = "Filtrar os resultados carregados";
+
+    [Parameter]
+    public string Id { get; set; } = "filtro-local";
+
+    /// <summary>Ações à direita do contador.</summary>
+    [Parameter]
+    public RenderFragment? Acoes { get; set; }
+
+    /// <summary>Conteúdo com os itens visíveis.</summary>
+    [Parameter]
+    public RenderFragment<IReadOnlyList<TItem>>? ChildContent { get; set; }
+
+    private bool Filtrando => !string.IsNullOrWhiteSpace(Texto);
+
+    protected override void OnParametersSet() => visiveis = filtro.Aplicar(Itens, TextoDe, Texto);
+
+    private Task AoTeclarAsync(KeyboardEventArgs e) =>
+        e.Key == "Escape" && !string.IsNullOrEmpty(Texto) ? MudarAsync(string.Empty) : Task.CompletedTask;
+
+    // @bind:get/@bind:set com oninput (e não value + @oninput): o Blazor ajusta a árvore ao valor que o navegador já
+    // tem, e uma renderização atrasada não apaga o que foi digitado depois (perdia letras com digitação rápida).
+    private async Task MudarAsync(string? valor)
+    {
+        var texto = valor ?? string.Empty;
+        Texto = texto;
+        Interagir();
+        visiveis = filtro.Aplicar(Itens, TextoDe, Texto);
+        await TextoChanged.InvokeAsync(texto);
+    }
+
+    private void Interagir()
+    {
+        if (ultimaInteracao is { } ultima && Relogio.GetElapsedTime(ultima) < IntervaloInteracao)
+        {
+            return;
+        }
+
+        ultimaInteracao = Relogio.GetTimestamp();
+        Interacao.Interagir();
+    }
+}

@@ -44,6 +44,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IFormatadorStackTrace, FormatadorStackTrace>();
         services.AddSingleton<IFormatadorLogEvent, FormatadorLogEvent>();
 
+        // Exportação em HTML autocontido (história 4; sem estado).
+        services.AddSingleton<IExportacaoHtmlService, ExportacaoHtmlService>();
+
         services.TryAddSingleton(TimeProvider.System);
 
         return builder;

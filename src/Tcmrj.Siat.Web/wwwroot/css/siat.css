@@ -379,6 +379,9 @@ a.menu-item:hover { background: oklch(from var(--color-sidebar-strong) l c h / 0
 }
 .seletor-servidor:focus-within { outline: 3px solid var(--color-action); outline-offset: 0; }
 .seletor-servidor select:focus-visible { outline: none; }
+/* Grupo de PRD destacado na lista aberta (FR-009, DESIGN.md Ambientes). */
+.seletor-servidor optgroup[data-amb="prd"] { color: var(--color-env-prd); font-weight: 700; }
+.seletor-servidor[data-amb="prd"] select { font-weight: 600; }
 
 .filtros {
   display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 14px;
