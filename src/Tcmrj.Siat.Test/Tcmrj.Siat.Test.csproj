@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <NoWarn>$(NoWarn);CA1707;CA1515;CA2007</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" Version="4.0.3" />
+    <PackageReference Include="AwesomeAssertions" Version="9.6.0" />
+    <PackageReference Include="Moq" Version="4.21.0" />
+    <PackageReference Include="Reqnroll.xunit.v3" Version="3.3.4" />
+    <PackageReference Include="bunit" Version="2.15.2" />
+    <PackageReference Include="coverlet.collector" Version="10.1.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Tcmrj.Siat.App\Tcmrj.Siat.App.csproj" />
+    <ProjectReference Include="..\Tcmrj.Siat.Domain\Tcmrj.Siat.Domain.csproj" />
+    <ProjectReference Include="..\Tcmrj.Siat.Infra\Tcmrj.Siat.Infra.csproj" />
+    <ProjectReference Include="..\Tcmrj.Siat.Web\Tcmrj.Siat.Web.csproj" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>

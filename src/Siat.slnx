@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path="Directory.Build.props" />
+  </Folder>
+  <Project Path="Tcmrj.Siat.Domain/Tcmrj.Siat.Domain.csproj" />
+  <Project Path="Tcmrj.Siat.Infra/Tcmrj.Siat.Infra.csproj" />
+  <Project Path="Tcmrj.Siat.App/Tcmrj.Siat.App.csproj" />
+  <Project Path="Tcmrj.Siat.Web/Tcmrj.Siat.Web.csproj" />
+  <Project Path="Tcmrj.Siat.Test/Tcmrj.Siat.Test.csproj" />
+  <Project Path="Tcmrj.Siat.Test.Interface/Tcmrj.Siat.Test.Interface.csproj" />
+</Solution>

@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" Version="12.2.0" />
+    <PackageReference Include="NetDevPack.SimpleMediator" Version="1.2.0" />
+    <PackageReference Include="Tcmrj.CoreLib.DBLog" Version="187.2.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Tcmrj.Siat.Test" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Tcmrj.Siat.Domain\Tcmrj.Siat.Domain.csproj" />
+  </ItemGroup>
+
+</Project>
