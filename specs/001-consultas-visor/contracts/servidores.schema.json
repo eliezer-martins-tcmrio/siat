@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "siat/servidores.schema.json",
+  "title": "Lista fechada de servidores do SIAT",
+  "description": "Arquivo servidores.json do projeto Web. A URL leva apenas a chave; o endereço nunca vem do usuário.",
+  "type": "object",
+  "required": ["Servidores"],
+  "properties": {
+    "Servidores": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["Chave", "Nome", "Endereco", "Ambiente"],
+        "additionalProperties": false,
+        "properties": {
+          "Chave": { "type": "string", "pattern": "^[a-z0-9-]{1,40}$" },
+          "Nome": { "type": "string", "minLength": 1, "maxLength": 60 },
+          "Endereco": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "Ambiente": { "enum": ["DSV", "HML", "PRD"] },
+          "BancoMailQueue": { "type": "string", "default": "MailQueue" },
+          "BancoAuditoria": { "type": "string", "default": "AUDITORIADB" }
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "Servidores": [
+        { "Chave": "tcmbd3-dev", "Nome": "TCMBD3\\DEV", "Endereco": "TCMBD3\\DEV", "Ambiente": "DSV" },
+        { "Chave": "exemplo-hml", "Nome": "Servidor de HML", "Endereco": "MAQUINA\\HML", "Ambiente": "HML" }
+      ]
+    }
+  ]
+}
