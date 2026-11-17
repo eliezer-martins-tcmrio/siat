@@ -1,0 +1,168 @@
+using System.Data;
+using System.Globalization;
+using Microsoft.Data.SqlClient;
+
+namespace Tcmrj.Visor;
+
+using Consulta = IReadOnlyDictionary<string, string>;
+using Linha = Dictionary<string, object?>;
+
+/// <summary>Consultas SQL e rotas /api/* das páginas.</summary>
+public static class Consultas
+{
+    // Atenção: as quebras de linha deste arquivo fazem parte do texto do SQL, e cada texto
+    // tem seu próprio plano em cache no servidor. Converter LF <-> CRLF muda o plano usado.
+    // Aqui OPTION (RECOMPILE) piora a busca por texto (de ~1,5 s para mais de 90 s); não use.
+    private const string SqlMensagens = """
+        SELECT TOP (@Top)
+               CONVERT(varchar(36), m.MessageId)      AS MessageId,
+               m.Subject                              AS Assunto,
+               m.DatePosted                           AS DataPostagem,
+               m.SendAfter                            AS EnviarApos,
+               m.DateSent                             AS DataEnvio,
+               ISNULL(m.Sent, 0)                      AS Enviado,
+               m.IsHTML                               AS EhHtml,
+               CAST(m.Message AS nvarchar(max))       AS Corpo,
+               ISNULL((SELECT STRING_AGG(CAST(r.Recipient AS nvarchar(max)), '; ')
+                              WITHIN GROUP (ORDER BY r.Sequencial)
+                         FROM dbo.Recipients r
+                        WHERE r.MessageId = m.MessageId), '(sem destinatários)') AS Destinatarios
+          FROM dbo.Messages m
+         WHERE (@SmtpId IS NULL OR m.SmtpId = @SmtpId)
+           AND (@Texto IS NULL
+                OR m.Subject LIKE @Texto
+                OR CAST(m.Message AS nvarchar(max)) LIKE @Texto
+                OR CONVERT(varchar(36), m.MessageId) LIKE @Texto
+                OR EXISTS (SELECT 1
+                             FROM dbo.Recipients r
+                            WHERE r.MessageId = m.MessageId
+                              AND CAST(r.Recipient AS nvarchar(max)) LIKE @Texto))
+         ORDER BY m.DatePosted DESC
+        """;
+
+    // Os filtros opcionais ("@X IS NULL OR ...") fazem um único plano em cache servir a todas
+    // as combinações, e o plano em cache para este texto travava (> 20 s até com TOP 2).
+    // OPTION (RECOMPILE) gera o plano para os valores de cada execução.
+    private const string SqlLogs = """
+        SELECT TOP (@Top)
+               l.LogID,
+               l.TypeID,
+               ISNULL(t.Type, '(tipo não cadastrado)') AS Type,
+               l.Date,
+               CAST(l.Message   AS nvarchar(max)) AS Message,
+               CONVERT(varchar(36), l.LogUID)     AS LogUID,
+               l.AppID,
+               CAST(l.Exception AS nvarchar(max)) AS Exception,
+               CAST(l.LogEvent  AS nvarchar(max)) AS LogEvent
+          FROM audit.Log l
+          LEFT JOIN audit.Log_Types t ON t.TypeID = l.TypeID
+         WHERE (@AppID IS NULL OR l.AppID = @AppID)
+           AND (@LogID IS NULL OR CAST(l.LogID AS varchar(20)) LIKE @LogID + '%')
+         ORDER BY l.LogID DESC
+        OPTION (RECOMPILE)
+        """;
+
+    public static readonly IReadOnlyDictionary<string, Func<Consulta, CancellationToken, Task<object>>> Rotas =
+        new Dictionary<string, Func<Consulta, CancellationToken, Task<object>>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["/api/mailqueue/smtps"] = async (consulta, cancelamento) =>
+            {
+                var servidor = Parametros.Texto(consulta, "servidor");
+                var smtps = await Executar(servidor, "MailQueue",
+                    "SELECT SmtpId, Description FROM dbo.SMTPs ORDER BY SmtpId", [], "ConsultarMailQueue", cancelamento);
+                return new { smtps };
+            },
+
+            ["/api/mailqueue/mensagens"] = async (consulta, cancelamento) =>
+            {
+                var servidor = Parametros.Texto(consulta, "servidor");
+                var texto = Parametros.TextoOpcional(consulta, "texto");
+                SqlParameter[] parametros =
+                [
+                    Parametro("@Top", SqlDbType.Int, Parametros.Top(consulta)),
+                    Parametro("@SmtpId", SqlDbType.Int, Parametros.Inteiro(consulta, "smtpId")),
+                    Parametro("@Texto", SqlDbType.NVarChar, texto is null ? null : Parametros.PadraoLike(texto), -1),
+                ];
+                var mensagens = await Executar(servidor, "MailQueue", SqlMensagens, parametros, "ConsultarMailQueue", cancelamento);
+                return new { mensagens };
+            },
+
+            ["/api/auditlog/apps"] = async (consulta, cancelamento) =>
+            {
+                var servidor = Parametros.Texto(consulta, "servidor");
+                try
+                {
+                    var apps = await Executar(servidor, "AUDITORIADB",
+                        "SELECT Id, Name FROM CSLIB_UserManager.dbo.Apps ORDER BY Name", [], "ConsultarAuditLog", cancelamento);
+                    return new { apps };
+                }
+                catch (Exception erro) when (!cancelamento.IsCancellationRequested)
+                {
+                    // Sem acesso ao CSLIB_UserManager: a página cai para um campo numérico.
+                    return new { apps = Array.Empty<Linha>(), aviso = erro.Message };
+                }
+            },
+
+            ["/api/auditlog/logs"] = async (consulta, cancelamento) =>
+            {
+                var servidor = Parametros.Texto(consulta, "servidor");
+                SqlParameter[] parametros =
+                [
+                    Parametro("@Top", SqlDbType.Int, Parametros.Top(consulta)),
+                    Parametro("@AppID", SqlDbType.Int, Parametros.Inteiro(consulta, "appId")),
+                    Parametro("@LogID", SqlDbType.VarChar, Parametros.LogId(consulta), 20),
+                ];
+                var logs = await Executar(servidor, "AUDITORIADB", SqlLogs, parametros, "ConsultarAuditLog", cancelamento);
+                return new { logs };
+            },
+        };
+
+    private static SqlParameter Parametro(string nome, SqlDbType tipo, object? valor, int tamanho = 0)
+    {
+        var parametro = new SqlParameter(nome, tipo) { Value = valor ?? DBNull.Value };
+        if (tamanho != 0) parametro.Size = tamanho;
+        return parametro;
+    }
+
+    /// <summary>Executa a consulta e devolve as linhas (datas em ISO local, DBNull -> null).</summary>
+    private static async Task<List<Linha>> Executar(string servidor, string banco, string sql,
+                                                    SqlParameter[] parametros, string aplicacao,
+                                                    CancellationToken cancelamento)
+    {
+        // O builder evita que um valor digitado injete atributos na connection string.
+        var builder = new SqlConnectionStringBuilder
+        {
+            DataSource = servidor,
+            InitialCatalog = banco,
+            IntegratedSecurity = true,
+            TrustServerCertificate = true,
+            ApplicationName = aplicacao,
+            ConnectTimeout = 15,
+        };
+
+        await using var conexao = new SqlConnection(builder.ConnectionString);
+        await conexao.OpenAsync(cancelamento);
+        await using var comando = conexao.CreateCommand();
+        comando.CommandText = sql;
+        comando.CommandTimeout = 60;
+        comando.Parameters.AddRange(parametros);
+
+        var linhas = new List<Linha>();
+        await using var leitor = await comando.ExecuteReaderAsync(cancelamento);
+        while (await leitor.ReadAsync(cancelamento))
+        {
+            var linha = new Linha(leitor.FieldCount);
+            for (var i = 0; i < leitor.FieldCount; i++)
+            {
+                linha[leitor.GetName(i)] = leitor.GetValue(i) switch
+                {
+                    DBNull => null,
+                    DateTime data => data.ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture),
+                    var valor => valor,
+                };
+            }
+            linhas.Add(linha);
+        }
+        return linhas;
+    }
+}

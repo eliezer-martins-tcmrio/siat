@@ -1,0 +1,628 @@
+@page "/consultas/auditlog"
+@implements IDisposable
+@using CSharpFunctionalExtensions
+@using FluentValidation
+@using NetDevPack.SimpleMediator
+@using Tcmrj.Siat.App.Web.Features.Servidores
+@using Tcmrj.Siat.App.Web.Validators
+@using Tcmrj.Siat.App.Web.ViewModels.AuditLog
+@using Tcmrj.Siat.Domain.Models
+@using Tcmrj.Siat.Web.Services
+@using ListarAplicacoesAuditLog = Tcmrj.Siat.App.Web.Features.AuditLog.ListarAplicacoes
+@using PesquisarAuditLog = Tcmrj.Siat.App.Web.Features.AuditLog.Pesquisar
+@inject IAutorizacaoConsultaService AutorizacaoConsulta
+@inject IMediator Mediator
+@inject NavigationManager Navigation
+@inject IInteracao Interacao
+@inject IValidator<PesquisarAuditLog.Query> Validador
+@inject TimeProvider Relogio
+
+@* Consultas › AuditLog (história 2; design/auditlog.html; Visor wwwroot/auditlog.html).
+   Estrutura comum às páginas de consulta (T068): acesso verificado ao abrir; servidor, filtros e linha aberta na
+   URL; ao escolher o servidor, a lista de aplicações e a consulta rodam em paralelo; estados Ociosa, Consultando,
+   ComResultado e ComErro; uma consulta por vez com um CancellationTokenSource que chega ao SqlClient, e "vale só a
+   última" (o resultado de uma consulta substituída é descartado). *@
+@if (acesso is null)
+{
+    <PageTitle>AuditLog · SIAT</PageTitle>
+}
+else if (acesso == false)
+{
+    <AcessoNegado Mensagem="Você não tem acesso ao AuditLog" Recurso="@Modulo.AuditLog.PoliticaPara(Ambiente.Dsv)" />
+}
+else
+{
+    @if (ServidorEscolhido is { } contexto)
+    {
+        <FaixaContexto Servidor="contexto" Modulo="AuditLog" />
+    }
+
+    <CabecalhoPagina Titulo="AuditLog" Descricao="Registros de AUDITORIADB · audit.Log, do mais recente para o mais antigo.">
+        <Status>
+            <span class="status" role="status">@StatusDaLeitura</span>
+        </Status>
+    </CabecalhoPagina>
+
+    <form class="painel filtros" @onsubmit="AoConsultarAsync" novalidate aria-label="Filtros do AuditLog">
+        <SeletorServidor Grupos="grupos" Valor="@filtro.Servidor" ValorChanged="AoEscolherServidorAsync" Id="servidor" />
+        @MensagemDoCampo(nameof(PesquisarAuditLog.Query.Servidor), "servidor-erro")
+
+        @if (aplicacoes.Disponivel)
+        {
+            <div class="campo largo">
+                <label for="app">Aplicação</label>
+                <select id="app" @bind="filtro.AppId" aria-busy="@(carregandoAplicacoes ? "true" : null)"
+                        aria-invalid="@Invalido(nameof(PesquisarAuditLog.Query.AppId))" aria-describedby="@Descrito(nameof(PesquisarAuditLog.Query.AppId), "app-erro")">
+                    <option value="">Todas as aplicações</option>
+                    @if (filtro.AppIdNumerico is int appForaDaLista && aplicacoes.NomeDe(appForaDaLista) is null)
+                    {
+                        <option value="@appForaDaLista">AppID @appForaDaLista</option>
+                    }
+                    @foreach (var aplicacao in aplicacoes.Itens)
+                    {
+                        <option value="@aplicacao.Id">@aplicacao.Rotulo</option>
+                    }
+                </select>
+                @MensagemDoCampo(nameof(PesquisarAuditLog.Query.AppId), "app-erro")
+            </div>
+        }
+        else
+        {
+            <div class="campo">
+                <label for="app">AppID <span class="dica">lista indisponível</span></label>
+                <input id="app" type="number" inputmode="numeric" min="1" step="1" placeholder="todas" @bind="filtro.AppId"
+                       aria-invalid="@Invalido(nameof(PesquisarAuditLog.Query.AppId))" aria-describedby="@Descrito(nameof(PesquisarAuditLog.Query.AppId), "app-erro")" />
+                @MensagemDoCampo(nameof(PesquisarAuditLog.Query.AppId), "app-erro")
+            </div>
+        }
+
+        <div class="campo">
+            <label for="logid">LogID <span class="dica">começa com</span></label>
+            <input id="logid" inputmode="numeric" maxlength="20" placeholder="ex.: 4363" autocomplete="off" @bind="filtro.LogId"
+                   aria-invalid="@Invalido(nameof(PesquisarAuditLog.Query.PrefixoLogId))" aria-describedby="@Descrito(nameof(PesquisarAuditLog.Query.PrefixoLogId), "logid-erro")" />
+            @MensagemDoCampo(nameof(PesquisarAuditLog.Query.PrefixoLogId), "logid-erro")
+        </div>
+
+        <div class="campo curto">
+            <label for="qtd">Quantidade</label>
+            <input id="qtd" type="number" min="@Quantidade.Minimo" max="@Quantidade.Maximo" @bind="filtro.Quantidade"
+                   aria-invalid="@Invalido(nameof(PesquisarAuditLog.Query.Quantidade))" aria-describedby="@Descrito(nameof(PesquisarAuditLog.Query.Quantidade), "qtd-erro")" />
+            @MensagemDoCampo(nameof(PesquisarAuditLog.Query.Quantidade), "qtd-erro")
+        </div>
+
+        <button type="submit" class="botao" id="consultar">Consultar</button>
+    </form>
+
+    @if (!aplicacoes.Disponivel)
+    {
+        <Aviso Titulo="@Mensagens.AplicacoesIndisponiveisTitulo">@aplicacoes.Aviso</Aviso>
+    }
+
+    <section class="painel" aria-label="Resultados">
+        @if (estado == Estado.Consultando)
+        {
+            <EstadoCarregando Mensagem="@($"Consultando {servidorEmConsulta}…")" Linhas="@(resultado is null ? 6 : 0)" />
+        }
+        else if (estado == Estado.ComErro && erro is not null)
+        {
+            @if (erro.Code == Erros.Consultas.CodigoAcessoNegado)
+            {
+                <EstadoErro Titulo="Acesso negado" Motivo="@erro.Message"
+                            Orientacao="@($"Para consultar servidores deste ambiente, peça o recurso {RecursoNegado} no UserManager.")" />
+            }
+            else if (erro.Code == Erros.Consultas.CodigoServidorNaoEncontrado)
+            {
+                <EstadoErro Titulo="Servidor não encontrado na lista" Orientacao="Escolha um servidor no seletor." />
+            }
+            else
+            {
+                <EstadoErro Servidor="@servidorComErro" Motivo="@erro.Message" AoTentarDeNovo="TentarDeNovoAsync" />
+            }
+        }
+
+        @if (resultado is not null)
+        {
+            <div class="barra">
+                <label class="busca">
+                    <span class="so-leitor">Filtrar os resultados carregados</span>
+                    <LucideIcon Name="search" Size="16" aria-hidden="true" focusable="false" />
+                    <input class="entrada" id="filtro-local" type="search" data-busca placeholder="Filtrar os resultados carregados"
+                           autocomplete="off" value="@filtroLocal" @oninput="AoFiltrar" />
+                    <kbd aria-hidden="true">/</kbd>
+                </label>
+                <span class="contador" aria-live="polite">@Contador</span>
+            </div>
+
+            @if (resultado.Itens.Count == 0)
+            {
+                <EstadoVazio Titulo="Nenhum log encontrado" Mensagem="@DescricaoDoVazio">
+                    <Acoes>
+                        @if (!string.IsNullOrWhiteSpace(filtroConsultado?.LogId))
+                        {
+                            <button type="button" class="botao secundario pequeno" @onclick="RemoverFiltroLogIdAsync">Remover filtro de LogID</button>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(filtroConsultado?.AppId))
+                        {
+                            <button type="button" class="botao secundario pequeno" @onclick="TodasAsAplicacoesAsync">Todas as aplicações</button>
+                        }
+                    </Acoes>
+                </EstadoVazio>
+            }
+            else if (Visiveis.Count == 0)
+            {
+                <EstadoVazio Titulo="Nenhum log carregado corresponde ao filtro" Mensagem="@($"Nenhum dos {resultado.Itens.Count} logs carregados contém \"{filtroLocal.Trim()}\".")" />
+            }
+            else
+            {
+                <ListaExpansivel TItem="RegistroAuditoriaVM" Itens="Visiveis" Chave="r => r.Chave" Selecionado="@selecionado"
+                                 SelecionadoChanged="AoSelecionar" AoAbrir="AoAbrir" Rotulo="Registros de log" IdBase="logs"
+                                 Colunas="16px 92px 76px minmax(0, 1fr) 170px 104px" ColunasEstreito="16px 92px minmax(0, 1fr) 92px">
+                    <Cabecalho>
+                        <span>Tipo</span><span class="opc">LogID</span><span>Mensagem</span><span class="opc">Aplicação</span><span class="direita">Data</span>
+                    </Cabecalho>
+                    <Linha Context="registro">
+                        <span class="nivel @registro.ClasseNivel">@registro.Tipo</span>
+                        <span class="mono cel-suave opc">@registro.Chave</span>
+                        <span class="cel-texto">@if (registro.TemExcecao){<span class="pilula erro sem-ponto">exceção</span>@(" ")}@registro.ResumoMensagem</span>
+                        <span class="cel-suave opc">@registro.DescricaoAplicacao(aplicacoes.NomeDe(registro.AppId))</span>
+                        <span class="cel-suave direita num" title="@DataCompleta(registro.Data)">@Quando(registro.Data)</span>
+                    </Linha>
+                    <Detalhe Context="registro">
+                        <dl class="campos">
+                            <dt>Mensagem</dt>
+                            <dd style="white-space: pre-wrap">@if (string.IsNullOrEmpty(registro.Mensagem)){<span class="suave">@RegistroAuditoriaVM.SemMensagem</span>}else{@registro.Mensagem}</dd>
+                            <dt>Tipo</dt>
+                            <dd><span class="nivel @registro.ClasseNivel">@registro.Tipo</span> <span class="suave">TypeID @registro.TipoId</span></dd>
+                            <dt>Data</dt>
+                            <dd class="num">@DataCompleta(registro.Data)</dd>
+                            <dt>Aplicação</dt>
+                            <dd>@if (aplicacoes.NomeDe(registro.AppId) is { } nomeAplicacao){@($"{nomeAplicacao} ")}<span class="suave">(AppID @registro.AppId)</span></dd>
+                            <dt>LogID</dt>
+                            <dd><span class="mono">@registro.Chave</span> <BotaoCopiar Texto="@registro.Chave" Rotulo="LogID" /></dd>
+                            <dt>LogUID</dt>
+                            <dd class="mono">@(registro.LogUid ?? "(sem LogUID)")</dd>
+                        </dl>
+                        @if (registro.TemExcecao)
+                        {
+                            <div>
+                                <span class="secao-titulo">Exceção</span>
+                                <BlocoStackTrace Texto="@(registro.Excecao!)" />
+                            </div>
+                        }
+                        <div>
+                            <span class="secao-titulo">LogEvent</span>
+                            <BlocoLogEvent Texto="@registro.LogEvent" />
+                        </div>
+                    </Detalhe>
+                </ListaExpansivel>
+            }
+        }
+        else if (estado != Estado.Consultando && estado != Estado.ComErro)
+        {
+            <EstadoVazio Titulo="Escolha o servidor"
+                         Mensagem="Os registros mais recentes aparecem aqui depois da consulta. A aplicação e o LogID são opcionais." />
+        }
+    </section>
+
+    <footer class="rodape">
+        <span>Fonte: <span class="mono">AUDITORIADB</span> do servidor escolhido; nomes de aplicação de <span class="mono">CSLIB_UserManager</span>.</span>
+    </footer>
+}
+
+@code {
+    private static readonly CultureInfo PtBr = CultureInfo.GetCultureInfo("pt-BR");
+
+    private enum Estado
+    {
+        Ociosa,
+        Consultando,
+        ComResultado,
+        ComErro,
+    }
+
+    [SupplyParameterFromQuery(Name = Navegacao.ParametroServidor)]
+    public string? ServidorParametro { get; set; }
+
+    [SupplyParameterFromQuery(Name = Navegacao.ParametroApp)]
+    public string? AppParametro { get; set; }
+
+    [SupplyParameterFromQuery(Name = Navegacao.ParametroLogId)]
+    public string? LogIdParametro { get; set; }
+
+    [SupplyParameterFromQuery(Name = Navegacao.ParametroQuantidade)]
+    public string? QuantidadeParametro { get; set; }
+
+    [SupplyParameterFromQuery(Name = Navegacao.ParametroSelecionado)]
+    public string? SelecionadoParametro { get; set; }
+
+    private bool? acesso;
+    private bool descartada;
+    private IReadOnlyList<GrupoServidoresVM> grupos = [];
+
+    // Formulário e validação por campo.
+    private FiltroAuditLogVM filtro = new();
+    private IReadOnlyDictionary<string, string> errosCampo = new Dictionary<string, string>();
+
+    // URL já aplicada: a bruta (para ignorar renderizações sem mudança) e a normalizada (para não refazer a consulta
+    // quando a URL muda só pelo sel ou pela forma de escrever os mesmos filtros).
+    private string? ultimaUrl;
+    private string? chaveAplicada;
+
+    // Lista de aplicações do servidor escolhido.
+    private ListaAplicacoesVM aplicacoes = ListaAplicacoesVM.Vazia;
+    private string? servidorDasAplicacoes;
+    private bool carregandoAplicacoes;
+    private CancellationTokenSource? cancelamentoAplicacoes;
+
+    // Consulta.
+    private Estado estado = Estado.Ociosa;
+    private CancellationTokenSource? consultaAtual;
+    private string? servidorEmConsulta;
+    private ResultadoConsultaVM<RegistroAuditoriaVM>? resultado;
+    private FiltroAuditLogVM? filtroConsultado;
+    private TimeSpan duracao;
+    private Erro? erro;
+    private string? servidorComErro;
+    private string? selecionado;
+
+    // Filtro local sobre os itens carregados.
+    private string filtroLocal = string.Empty;
+    private (IReadOnlyList<RegistroAuditoriaVM> Fonte, string Termo, IReadOnlyList<RegistroAuditoriaVM> Itens)? filtrados;
+
+    private ServidorVM? ServidorEscolhido =>
+        grupos.SelectMany(g => g.Servidores).FirstOrDefault(s => string.Equals(s.Chave, filtro.Servidor, StringComparison.Ordinal));
+
+    private string RecursoNegado => Modulo.AuditLog.PoliticaPara(ServidorEscolhido?.Ambiente ?? Ambiente.Prd);
+
+    private string? StatusDaLeitura => estado switch
+    {
+        Estado.Consultando => null,
+        _ when resultado is not null =>
+            $"{resultado.Itens.Count} log(s) · {duracao.TotalSeconds.ToString("0.0", PtBr)} s · consultado às {resultado.ConsultadoEm.ToLocalTime().ToString("HH:mm", PtBr)}",
+        _ => null,
+    };
+
+    private string Contador
+    {
+        get
+        {
+            var total = resultado?.Itens.Count ?? 0;
+            if (total == 0)
+            {
+                return string.Empty;
+            }
+
+            return string.IsNullOrWhiteSpace(filtroLocal) ? $"{total} logs" : $"{Visiveis.Count} de {total} logs";
+        }
+    }
+
+    private string DescricaoDoVazio
+    {
+        get
+        {
+            var partes = new List<string>(2);
+            if (filtroConsultado?.AppIdNumerico is int app)
+            {
+                var nome = aplicacoes.NomeDe(app);
+                partes.Add(nome is null ? $"AppID {app}" : $"AppID {app} ({nome})");
+            }
+
+            if (!string.IsNullOrWhiteSpace(filtroConsultado?.LogId))
+            {
+                partes.Add($"LogID começando com {filtroConsultado.LogId.Trim()}");
+            }
+
+            var filtros = partes.Count == 0 ? "Sem filtros" : string.Join(", ", partes);
+            return $"{filtros}, em {resultado?.Servidor.Nome}.";
+        }
+    }
+
+    // Itens que passam pelo filtro local (LogID, mensagem, tipo, AppID e nome da aplicação), sem diferenciar
+    // acentos e maiúsculas. A mesma lista é devolvida enquanto nada muda, para a lista expansível manter a linha aberta.
+    private IReadOnlyList<RegistroAuditoriaVM> Visiveis
+    {
+        get
+        {
+            if (resultado is null)
+            {
+                return [];
+            }
+
+            var termo = filtroLocal.Trim();
+            if (termo.Length == 0)
+            {
+                return resultado.Itens;
+            }
+
+            if (filtrados is { } cache && ReferenceEquals(cache.Fonte, resultado.Itens) && cache.Termo == termo)
+            {
+                return cache.Itens;
+            }
+
+            var termos = termo.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var itens = resultado.Itens
+                .Where(r => Contem(r.TextoBusca(aplicacoes.NomeDe(r.AppId)), termos))
+                .ToArray();
+            filtrados = (resultado.Itens, termo, itens);
+            return itens;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        acesso = await AutorizacaoConsulta.PodeAcessarModuloAsync(Modulo.AuditLog);
+        if (acesso == true)
+        {
+            grupos = await Mediator.Send(new ListarPermitidos.Query(Modulo.AuditLog), CancellationToken.None);
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (acesso != true)
+        {
+            return;
+        }
+
+        selecionado = Vazio(SelecionadoParametro);
+
+        var url = string.Join('\u001f', ServidorParametro, AppParametro, LogIdParametro, QuantidadeParametro);
+        if (url == ultimaUrl)
+        {
+            return;
+        }
+
+        ultimaUrl = url;
+        var daUrl = new FiltroAuditLogVM
+        {
+            Servidor = Vazio(ServidorParametro),
+            AppId = Vazio(AppParametro),
+            LogId = Vazio(LogIdParametro),
+            Quantidade = Vazio(QuantidadeParametro) ?? Quantidade.Padrao.ToString(CultureInfo.InvariantCulture),
+        };
+
+        var chave = ChaveDe(daUrl);
+        if (chave == chaveAplicada)
+        {
+            return;
+        }
+
+        chaveAplicada = chave;
+        filtro = daUrl;
+        if (daUrl.Servidor is null)
+        {
+            return;
+        }
+
+        // A lista de aplicações e a consulta da URL rodam juntas.
+        await Task.WhenAll(CarregarAplicacoesSeMudouAsync(daUrl.Servidor), ConsultarAsync(daUrl.Copiar()));
+    }
+
+    private async Task AoConsultarAsync()
+    {
+        var consulta = filtro.Copiar();
+        selecionado = null;
+
+        var tarefas = new List<Task>(2);
+        if (consulta.Servidor is not null)
+        {
+            tarefas.Add(CarregarAplicacoesSeMudouAsync(consulta.Servidor));
+        }
+
+        if (Validar(consulta))
+        {
+            chaveAplicada = ChaveDe(consulta);
+            Navigation.NavigateTo(UrlDe(consulta, null), replace: false);
+            tarefas.Add(ConsultarAsync(consulta));
+        }
+
+        await Task.WhenAll(tarefas);
+    }
+
+    // Escolher o servidor já consulta, como no Visor.
+    private Task AoEscolherServidorAsync(string? chave)
+    {
+        filtro.Servidor = chave;
+        return chave is null ? Task.CompletedTask : AoConsultarAsync();
+    }
+
+    private Task TentarDeNovoAsync() => filtroConsultado is null ? Task.CompletedTask : RefazerAsync(filtroConsultado.Copiar());
+
+    private Task RemoverFiltroLogIdAsync()
+    {
+        filtro.LogId = null;
+        return AoConsultarAsync();
+    }
+
+    private Task TodasAsAplicacoesAsync()
+    {
+        filtro.AppId = null;
+        return AoConsultarAsync();
+    }
+
+    private Task RefazerAsync(FiltroAuditLogVM consulta)
+    {
+        filtro = consulta;
+        return AoConsultarAsync();
+    }
+
+    private bool Validar(FiltroAuditLogVM consulta)
+    {
+        var validacao = Validador.Validate(ParaQuery(consulta));
+        errosCampo = validacao.Errors
+            .GroupBy(e => e.PropertyName, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.First().ErrorMessage, StringComparer.Ordinal);
+        return validacao.IsValid;
+    }
+
+    private async Task ConsultarAsync(FiltroAuditLogVM consulta)
+    {
+        if (!Validar(consulta))
+        {
+            return;
+        }
+
+        Interacao.Interagir();
+
+        // Uma consulta por vez: a nova cancela a anterior, que é interrompida no banco e descartada aqui.
+        consultaAtual?.Cancel();
+        using var cancelamento = new CancellationTokenSource();
+        consultaAtual = cancelamento;
+
+        estado = Estado.Consultando;
+        erro = null;
+        filtroConsultado = consulta;
+        servidorEmConsulta = grupos.SelectMany(g => g.Servidores)
+            .FirstOrDefault(s => string.Equals(s.Chave, consulta.Servidor, StringComparison.Ordinal))?.Nome ?? consulta.Servidor;
+        StateHasChanged();
+
+        var inicio = Relogio.GetTimestamp();
+        Result<ResultadoConsultaVM<RegistroAuditoriaVM>, Erro> obtido;
+        try
+        {
+            obtido = await Mediator.Send(ParaQuery(consulta), cancelamento.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            obtido = Erros.Consultas.Cancelada;
+        }
+
+        // Vale só a última: uma consulta substituída (ou a página fechada) não mexe na tela.
+        if (descartada || !ReferenceEquals(consultaAtual, cancelamento))
+        {
+            return;
+        }
+
+        consultaAtual = null;
+        duracao = Relogio.GetElapsedTime(inicio);
+
+        if (obtido.IsSuccess)
+        {
+            resultado = obtido.Value;
+            estado = Estado.ComResultado;
+            return;
+        }
+
+        if (obtido.Error.Code == Erros.Consultas.CodigoCancelada)
+        {
+            // Cancelar volta ao estado anterior: o resultado anterior continua na tela.
+            estado = resultado is null ? Estado.Ociosa : Estado.ComResultado;
+            return;
+        }
+
+        // Acesso negado ou servidor fora da lista: nenhum dado anterior fica visível.
+        if (obtido.Error.Code is Erros.Consultas.CodigoAcessoNegado or Erros.Consultas.CodigoServidorNaoEncontrado)
+        {
+            resultado = null;
+        }
+
+        erro = obtido.Error;
+        servidorComErro = servidorEmConsulta;
+        estado = Estado.ComErro;
+    }
+
+    private async Task CarregarAplicacoesSeMudouAsync(string servidor)
+    {
+        if (string.Equals(servidor, servidorDasAplicacoes, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        cancelamentoAplicacoes?.Cancel();
+        using var cancelamento = new CancellationTokenSource();
+        cancelamentoAplicacoes = cancelamento;
+        servidorDasAplicacoes = servidor;
+        carregandoAplicacoes = true;
+        aplicacoes = ListaAplicacoesVM.Vazia;
+
+        Result<ListaAplicacoesVM, Erro> obtidas;
+        try
+        {
+            obtidas = await Mediator.Send(new ListarAplicacoesAuditLog.Query(servidor), cancelamento.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        if (descartada || !ReferenceEquals(cancelamentoAplicacoes, cancelamento))
+        {
+            return;
+        }
+
+        cancelamentoAplicacoes = null;
+        carregandoAplicacoes = false;
+
+        // Negado ou cancelado: sem lista (a consulta mostra o motivo). Indisponível: vazia com aviso, campo numérico.
+        aplicacoes = obtidas.IsSuccess ? obtidas.Value : ListaAplicacoesVM.Vazia;
+        StateHasChanged();
+    }
+
+    private void AoSelecionar(string? chave)
+    {
+        selecionado = chave;
+        if (filtroConsultado is not null)
+        {
+            Navigation.NavigateTo(UrlDe(filtroConsultado, chave), replace: true);
+        }
+    }
+
+    private void AoAbrir(RegistroAuditoriaVM registro) => Interacao.Interagir();
+
+    private void AoFiltrar(ChangeEventArgs e)
+    {
+        filtroLocal = e.Value?.ToString() ?? string.Empty;
+        Interacao.Interagir();
+    }
+
+    private string? Invalido(string campo) => errosCampo.ContainsKey(campo) ? "true" : null;
+
+    private string? Descrito(string campo, string id) => errosCampo.ContainsKey(campo) ? id : null;
+
+    // Mensagem do campo inválido, ligada ao campo por aria-describedby.
+    private RenderFragment MensagemDoCampo(string campo, string id) => builder =>
+    {
+        if (errosCampo.TryGetValue(campo, out var mensagem))
+        {
+            builder.OpenElement(0, "span");
+            builder.AddAttribute(1, "class", "status falha");
+            builder.AddAttribute(2, "id", id);
+            builder.AddAttribute(3, "role", "alert");
+            builder.AddContent(4, mensagem);
+            builder.CloseElement();
+        }
+    };
+
+    private static PesquisarAuditLog.Query ParaQuery(FiltroAuditLogVM f) => new(f.Servidor, f.AppId, f.LogId, f.Quantidade);
+
+    private static string UrlDe(FiltroAuditLogVM f, string? sel) =>
+        Navegacao.AuditLog(f.Servidor, f.AppIdNumerico, Vazio(f.LogId?.Trim()), f.QuantidadeNumerica, sel);
+
+    // Filtros como ficam na URL; valores inválidos entram como vieram (não são consultados, mas contam como mudança).
+    private static string ChaveDe(FiltroAuditLogVM f)
+    {
+        var app = f.AppIdNumerico?.ToString(CultureInfo.InvariantCulture) ?? Vazio(f.AppId);
+        var qtd = f.QuantidadeNumerica?.ToString(CultureInfo.InvariantCulture) ?? Vazio(f.Quantidade);
+        return string.Join('\u001f', Vazio(f.Servidor), app, Vazio(f.LogId?.Trim()), qtd);
+    }
+
+    private static string? Vazio(string? valor) => string.IsNullOrWhiteSpace(valor) ? null : valor;
+
+    private static bool Contem(string texto, string[] termos) =>
+        termos.All(t => PtBr.CompareInfo.IndexOf(texto, t, CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace) >= 0);
+
+    private static string DataCompleta(DateTime data) => data.ToString("dd/MM/yyyy HH:mm:ss", PtBr);
+
+    // "hoje 14:32" no dia corrente; "08/11 09:10" nos demais (siat.js, quando).
+    private string Quando(DateTime data) =>
+        data.Date == Relogio.GetLocalNow().Date
+            ? $"hoje {data.ToString("HH:mm", PtBr)}"
+            : data.ToString("dd/MM HH:mm", PtBr);
+
+    public void Dispose()
+    {
+        descartada = true;
+        consultaAtual?.Cancel();
+        cancelamentoAplicacoes?.Cancel();
+    }
+}

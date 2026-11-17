@@ -1,0 +1,47 @@
+@* Corpo do e-mail isolado (R10, FR-012; DESIGN.md, Regras): iframe com sandbox vazio (sem scripts, formulários,
+   pop-ups nem acesso à página do SIAT) e srcdoc iniciado pela meta CSP, que impede carregar qualquer recurso
+   externo (só imagens data:). Altura fixa com redimensionamento vertical (.corpo-email no siat.css); o Visor media
+   a altura com allow-same-origin, que o SIAT não usa. Texto simples (IsHTML = 0) vai escapado dentro de <pre>. *@
+<iframe class="corpo-email" sandbox="" title="@Titulo" srcdoc="@Srcdoc"></iframe>
+
+@code {
+    /// <summary>Política do documento do iframe (research.md R10). Fica no início do srcdoc, antes de qualquer conteúdo.</summary>
+    public const string MetaCsp =
+        "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; img-src data:; style-src 'unsafe-inline'\">";
+
+    private const string Cabecalho =
+        MetaCsp +
+        "<meta charset=\"utf-8\"><base target=\"_blank\">" +
+        "<style>body{margin:0;padding:12px;font-family:\"Segoe UI\",Arial,sans-serif;font-size:14px;color:#222;background:#fff}</style>";
+
+    /// <summary>Corpo como veio de <c>MailQueue.dbo.Messages</c>.</summary>
+    [Parameter]
+    public string? Corpo { get; set; }
+
+    /// <summary><c>IsHTML</c>: falso exibe o corpo como texto escapado.</summary>
+    [Parameter]
+    public bool EhHtml { get; set; }
+
+    /// <summary>Nome acessível do iframe.</summary>
+    [Parameter]
+    public string Titulo { get; set; } = "Corpo da mensagem";
+
+    private string Srcdoc => MontarSrcdoc(Corpo, EhHtml);
+
+    /// <summary>Documento do iframe: CSP, estilo base e o corpo (HTML como veio, ou texto escapado em &lt;pre&gt;).</summary>
+    public static string MontarSrcdoc(string? corpo, bool ehHtml) =>
+        Cabecalho + (ehHtml
+            ? corpo ?? string.Empty
+            : $"<pre style=\"white-space:pre-wrap;margin:0;font:inherit\">{Escapar(corpo)}</pre>");
+
+    /// <summary>Escapa só o que o HTML exige; acentos ficam como estão (o documento é UTF-8).</summary>
+    private static string Escapar(string? texto) =>
+        string.IsNullOrEmpty(texto)
+            ? string.Empty
+            : texto
+                .Replace("&", "&amp;", StringComparison.Ordinal)
+                .Replace("<", "&lt;", StringComparison.Ordinal)
+                .Replace(">", "&gt;", StringComparison.Ordinal)
+                .Replace("\"", "&quot;", StringComparison.Ordinal)
+                .Replace("'", "&#39;", StringComparison.Ordinal);
+}

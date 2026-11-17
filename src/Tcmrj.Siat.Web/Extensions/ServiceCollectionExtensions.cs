@@ -36,6 +36,14 @@ public static class ServiceCollectionExtensions
         services.AddServidores(builder.Configuration);
         services.AddConsultas(builder.Configuration);
 
+        // MailQueue: repositório do banco MailQueue de cada servidor (história 1).
+        services.AddScoped<Tcmrj.Siat.Domain.Repositories.IMailQueueRepository, Tcmrj.Siat.Infra.Repositories.MailQueueRepository>();
+
+        // AuditLog: repositório do AUDITORIADB e formatadores do detalhe (sem estado).
+        services.AddScoped<Tcmrj.Siat.Domain.Repositories.IAuditLogRepository, Tcmrj.Siat.Infra.Repositories.AuditLogRepository>();
+        services.AddSingleton<IFormatadorStackTrace, FormatadorStackTrace>();
+        services.AddSingleton<IFormatadorLogEvent, FormatadorLogEvent>();
+
         services.TryAddSingleton(TimeProvider.System);
 
         return builder;

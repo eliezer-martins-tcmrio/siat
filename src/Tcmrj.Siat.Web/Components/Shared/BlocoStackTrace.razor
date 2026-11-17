@@ -1,0 +1,66 @@
+@inject IFormatadorStackTrace Formatador
+
+@* Exceção do AuditLog (R11, FR-015): stack trace com quebras de linha e realce, em bloco escuro nos dois temas,
+   com Copiar (copia o texto original). O realce vem do modelo do IFormatadorStackTrace, montado aqui como spans:
+   nunca HTML em texto. O conteúdo do <pre> é gerado em código para não ganhar espaços do markup. *@
+<BlocoCodigo Texto="@Texto" Rotulo="stack trace">@Realce</BlocoCodigo>
+
+@code {
+    /// <summary>Exceção como veio do banco.</summary>
+    [Parameter, EditorRequired]
+    public string Texto { get; set; } = string.Empty;
+
+    private IReadOnlyList<LinhaStackTrace> linhas = [];
+    private string? formatado;
+
+    protected override void OnParametersSet()
+    {
+        if (!string.Equals(formatado, Texto, StringComparison.Ordinal))
+        {
+            linhas = Formatador.Formatar(Texto);
+            formatado = Texto;
+        }
+    }
+
+    private RenderFragment Realce => builder =>
+    {
+        for (var i = 0; i < linhas.Count; i++)
+        {
+            if (i > 0)
+            {
+                builder.AddContent(0, "\n");
+            }
+
+            foreach (var trecho in linhas[i].Trechos)
+            {
+                var classe = Classe(trecho.Tipo);
+                if (classe is null)
+                {
+                    builder.AddContent(1, trecho.Texto);
+                }
+                else
+                {
+                    builder.OpenElement(2, "span");
+                    builder.AddAttribute(3, "class", classe);
+                    builder.AddContent(4, trecho.Texto);
+                    builder.CloseElement();
+                }
+            }
+        }
+    };
+
+    // Classes do siat.css (bloco de código escuro).
+    private static string? Classe(TipoTrechoStackTrace tipo) => tipo switch
+    {
+        TipoTrechoStackTrace.TipoExcecao => "st-tipo",
+        TipoTrechoStackTrace.At => "st-at",
+        TipoTrechoStackTrace.Namespace => "st-ns",
+        TipoTrechoStackTrace.Metodo => "st-metodo",
+        TipoTrechoStackTrace.TipoParametro => "st-tipo-param",
+        TipoTrechoStackTrace.Parametro => "st-param",
+        TipoTrechoStackTrace.Arquivo => "st-arquivo",
+        TipoTrechoStackTrace.RotuloLinha => "st-linha-rotulo",
+        TipoTrechoStackTrace.Separador => "st-ns",
+        _ => null,
+    };
+}

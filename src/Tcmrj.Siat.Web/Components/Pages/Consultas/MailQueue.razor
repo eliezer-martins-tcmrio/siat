@@ -1,0 +1,595 @@
+@page "/consultas/mailqueue"
+@implements IDisposable
+@using CSharpFunctionalExtensions
+@using FluentValidation
+@using NetDevPack.SimpleMediator
+@using Tcmrj.Siat.App.Web.Features.Servidores
+@using Tcmrj.Siat.App.Web.Validators
+@using Tcmrj.Siat.App.Web.ViewModels.MailQueue
+@using Tcmrj.Siat.Domain.Models
+@using Tcmrj.Siat.Web.Services
+@using ListarSmtpsMailQueue = Tcmrj.Siat.App.Web.Features.MailQueue.ListarSmtps
+@using PesquisarMailQueue = Tcmrj.Siat.App.Web.Features.MailQueue.Pesquisar
+@inject IAutorizacaoConsultaService AutorizacaoConsulta
+@inject IMediator Mediator
+@inject NavigationManager Navigation
+@inject IInteracao Interacao
+@inject IValidator<PesquisarMailQueue.Query> Validador
+@inject TimeProvider Relogio
+
+@* Consultas › MailQueue (história 1; design/mailqueue.html; Visor wwwroot/mailqueue.html).
+   - Acesso: no OnInitializedAsync, qualquer das duas políticas do módulo; sem nenhuma, AcessoNegado. Cada consulta é
+     autorizada de novo no servidor pela feature (R4).
+   - URL: servidor, smtp, texto, qtd e sel ([SupplyParameterFromQuery]). Abrir a URL refaz a consulta; consultar grava a
+     URL com Navegacao.MailQueue (replace: false); abrir ou fechar uma linha troca só o sel (replace: true).
+   - Ao escolher o servidor, a lista de SMTPs e a consulta rodam em paralelo.
+   - Estados Ociosa, Consultando, ComResultado e ComErro (data-model). Uma consulta por vez: cada uma tem o seu
+     CancellationTokenSource (consultaAtual), que chega ao SqlClient; a nova cancela a anterior e só a última é aplicada.
+     Ponto de extensão da história 4: Cancelar, tempo decorrido, filtro local como componente e Exportar. *@
+
+@if (acesso is null)
+{
+    <PageTitle>MailQueue · SIAT</PageTitle>
+}
+else if (acesso == false)
+{
+    <AcessoNegado Mensagem="Você não tem acesso à MailQueue" Recurso="@Modulo.MailQueue.PoliticaPara(Ambiente.Dsv)" />
+}
+else
+{
+    @if (ServidorEscolhido is { } contexto)
+    {
+        <FaixaContexto Servidor="contexto" Modulo="MailQueue" />
+    }
+
+    <CabecalhoPagina Titulo="MailQueue" Descricao="E-mails enfileirados pelos sistemas, do mais recente para o mais antigo.">
+        <Status>
+            <span class="status" role="status">@StatusDaLeitura</span>
+        </Status>
+    </CabecalhoPagina>
+
+    <form class="painel filtros" @onsubmit="AoConsultarAsync" novalidate aria-label="Filtros da MailQueue">
+        <SeletorServidor Grupos="grupos" Valor="@filtro.Servidor" ValorChanged="AoEscolherServidorAsync" Id="servidor" />
+        @MensagemDoCampo(nameof(PesquisarMailQueue.Query.Servidor), "servidor-erro")
+
+        <div class="campo">
+            <label for="smtp">SMTP</label>
+            <select id="smtp" value="@(filtro.Smtp ?? string.Empty)" @onchange="AoMudarSmtp"
+                    aria-busy="@(carregandoSmtps ? "true" : null)"
+                    aria-invalid="@Invalido(nameof(PesquisarMailQueue.Query.SmtpId))" aria-describedby="@Descrito(nameof(PesquisarMailQueue.Query.SmtpId), "smtp-erro")">
+                <option value="" selected="@(filtro.SmtpNumerico is null)">Todos os SMTPs</option>
+                @if (filtro.SmtpNumerico is int smtpForaDaLista && !smtps.Itens.Any(s => s.SmtpId == smtpForaDaLista))
+                {
+                    <option value="@smtpForaDaLista" selected>@smtps.RotuloDe(smtpForaDaLista)</option>
+                }
+                @foreach (var smtp in smtps.Itens)
+                {
+                    <option value="@smtp.SmtpId" selected="@(filtro.SmtpNumerico == smtp.SmtpId)">@smtp.Rotulo</option>
+                }
+            </select>
+            @MensagemDoCampo(nameof(PesquisarMailQueue.Query.SmtpId), "smtp-erro")
+        </div>
+
+        <div class="campo largo">
+            <label for="texto">Buscar no banco</label>
+            <input id="texto" type="search" placeholder="Assunto, corpo, destinatário ou MessageId" autocomplete="off"
+                   @bind="filtro.Texto" @bind:event="oninput"
+                   aria-invalid="@Invalido(nameof(PesquisarMailQueue.Query.Texto))" aria-describedby="@Descrito(nameof(PesquisarMailQueue.Query.Texto), "texto-erro")" />
+            @MensagemDoCampo(nameof(PesquisarMailQueue.Query.Texto), "texto-erro")
+        </div>
+
+        <div class="campo curto">
+            <label for="qtd">Quantidade</label>
+            <input id="qtd" inputmode="numeric" autocomplete="off" @bind="filtro.Quantidade" @bind:event="oninput"
+                   aria-invalid="@Invalido(nameof(PesquisarMailQueue.Query.Quantidade))" aria-describedby="@Descrito(nameof(PesquisarMailQueue.Query.Quantidade), "qtd-erro")" />
+            @MensagemDoCampo(nameof(PesquisarMailQueue.Query.Quantidade), "qtd-erro")
+        </div>
+
+        <button type="submit" class="botao" id="consultar">Consultar</button>
+    </form>
+
+    @if (!smtps.Disponivel)
+    {
+        <Aviso Titulo="@Mensagens.SmtpsIndisponiveisTitulo">@smtps.Aviso</Aviso>
+    }
+
+    <section class="painel" aria-label="Resultados">
+        @if (estado == Estado.Consultando)
+        {
+            <EstadoCarregando Mensagem="@($"Consultando {servidorEmConsulta}…")" Linhas="@(resultado is null ? 6 : 0)" />
+        }
+        else if (estado == Estado.ComErro && erro is not null)
+        {
+            @if (erro.Code == Erros.Consultas.CodigoAcessoNegado)
+            {
+                <EstadoErro Titulo="Acesso negado" Motivo="@erro.Message"
+                            Orientacao="@($"Nenhum dado foi consultado. Para consultar servidores deste ambiente, peça o recurso {RecursoNegado} no UserManager.")" />
+            }
+            else if (erro.Code == Erros.Consultas.CodigoServidorNaoEncontrado)
+            {
+                <EstadoErro Titulo="Servidor não encontrado na lista" Orientacao="Escolha um servidor no seletor." />
+            }
+            else
+            {
+                <EstadoErro Servidor="@servidorComErro" Motivo="@erro.Message" AoTentarDeNovo="TentarDeNovoAsync" />
+            }
+        }
+
+        @if (resultado is not null)
+        {
+            <div class="barra">
+                <label class="busca">
+                    <span class="so-leitor">Filtrar os resultados carregados</span>
+                    <LucideIcon Name="search" Size="16" aria-hidden="true" focusable="false" />
+                    <input class="entrada" id="filtro-local" type="search" data-busca placeholder="Filtrar os resultados carregados"
+                           autocomplete="off" value="@filtroLocal" @oninput="AoFiltrar" />
+                    <kbd aria-hidden="true">/</kbd>
+                </label>
+                <span class="contador" aria-live="polite">@Contador</span>
+            </div>
+
+            @if (resultado.Itens.Count == 0)
+            {
+                <EstadoVazio Titulo="Nenhum e-mail encontrado" Mensagem="@DescricaoDoVazio"
+                             Acoes="@(filtroConsultado?.TemFiltros == true ? BotaoRemoverFiltros : null)" />
+            }
+            else if (Visiveis.Count == 0)
+            {
+                <EstadoVazio Titulo="Nenhum e-mail carregado corresponde ao filtro"
+                             Mensagem="@($"Nenhum dos {resultado.Itens.Count} e-mails carregados contém \"{filtroLocal.Trim()}\".")" />
+            }
+            else
+            {
+                <ListaExpansivel TItem="MensagemVM" Itens="Visiveis" Chave="m => m.MessageId" Selecionado="@selecionado"
+                                 SelecionadoChanged="AoSelecionar" AoAbrir="AoAbrir" Rotulo="E-mails" IdBase="mensagens"
+                                 Colunas="16px 84px minmax(0, 1fr) 230px 104px" ColunasEstreito="16px 84px minmax(0, 1fr) 92px">
+                    <Cabecalho>
+                        <span>Situação</span><span>Assunto</span><span class="opc">Para</span><span class="direita">Postado</span>
+                    </Cabecalho>
+                    <Linha Context="mensagem">
+                        <span><span class="pilula @mensagem.SituacaoClasse">@mensagem.SituacaoRotulo</span></span>
+                        <span class="cel-texto">@if (mensagem.TemAssunto){@mensagem.Assunto}else{<span class="suave">@MensagemVM.SemAssunto</span>}</span>
+                        <span class="cel-suave opc">@if (mensagem.PrimeiroDestinatario is { } primeiro){@primeiro@if (mensagem.DemaisDestinatarios > 0){<text> </text><span class="suave">+@mensagem.DemaisDestinatarios</span>}}else{<span class="suave">@MensagemEnfileirada.SemDestinatarios</span>}</span>
+                        <span class="cel-suave direita num" title="@mensagem.PostadoEmCompleto">@mensagem.PostadoEmRelativo</span>
+                    </Linha>
+                    <Detalhe Context="mensagem">
+                        <dl class="campos">
+                            <dt>Assunto</dt>
+                            <dd>@if (mensagem.TemAssunto){@mensagem.Assunto}else{<span class="suave">@MensagemVM.SemAssunto</span>}</dd>
+                            <dt>Para</dt>
+                            <dd>@if (mensagem.ListaDestinatarios.Count > 0){@mensagem.Destinatarios}else{<span class="suave">@MensagemEnfileirada.SemDestinatarios</span>}</dd>
+                            <dt>Situação</dt>
+                            <dd><span class="pilula @mensagem.SituacaoClasse">@mensagem.SituacaoDescricao</span></dd>
+                            <dt>Postado em</dt>
+                            <dd class="num">@mensagem.PostadoEmCompleto</dd>
+                            <dt>Enviar após</dt>
+                            <dd class="num">@if (mensagem.EnviarAposTexto is { } enviarApos){@enviarApos}else{<span class="suave">não informado</span>}</dd>
+                            <dt>Data de envio</dt>
+                            <dd class="num">@if (mensagem.DataEnvioTexto is { } dataEnvio){@dataEnvio}else{<span class="suave">@MensagemVM.NaoEnviado</span>}</dd>
+                            <dt>MessageId</dt>
+                            <dd><span class="mono">@mensagem.MessageId</span> <BotaoCopiar Texto="@mensagem.MessageId" Rotulo="MessageId" /></dd>
+                        </dl>
+                        <div>
+                            <span class="secao-titulo">Corpo</span>
+                            <CorpoEmail Corpo="@mensagem.Corpo" EhHtml="@mensagem.EhHtml" />
+                        </div>
+                    </Detalhe>
+                </ListaExpansivel>
+            }
+        }
+        else if (estado != Estado.Consultando && estado != Estado.ComErro)
+        {
+            <EstadoVazio Titulo="Escolha o servidor"
+                         Mensagem="Os e-mails mais recentes aparecem aqui depois da consulta. O SMTP e o texto são opcionais." />
+        }
+    </section>
+
+    <footer class="rodape">
+        <span>Fonte: banco <span class="mono">MailQueue</span> do servidor escolhido, lido pela conta de serviço somente de leitura.</span>
+    </footer>
+}
+
+@code {
+    private static readonly CultureInfo PtBr = CultureInfo.GetCultureInfo("pt-BR");
+
+    private static readonly CompareOptions SemAcentoNemCaixa = CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace;
+
+    private enum Estado
+    {
+        Ociosa,
+        Consultando,
+        ComResultado,
+        ComErro,
+    }
+
+    [SupplyParameterFromQuery(Name = Navegacao.ParametroServidor)]
+    public string? ServidorParametro { get; set; }
+
+    [SupplyParameterFromQuery(Name = Navegacao.ParametroSmtp)]
+    public string? SmtpParametro { get; set; }
+
+    [SupplyParameterFromQuery(Name = Navegacao.ParametroTexto)]
+    public string? TextoParametro { get; set; }
+
+    [SupplyParameterFromQuery(Name = Navegacao.ParametroQuantidade)]
+    public string? QuantidadeParametro { get; set; }
+
+    [SupplyParameterFromQuery(Name = Navegacao.ParametroSelecionado)]
+    public string? SelecionadoParametro { get; set; }
+
+    private bool? acesso;
+    private bool descartada;
+    private IReadOnlyList<GrupoServidoresVM> grupos = [];
+
+    // Formulário e validação por campo.
+    private FiltroMailQueueVM filtro = new();
+    private IReadOnlyDictionary<string, string> errosCampo = new Dictionary<string, string>();
+
+    // URL já aplicada: a bruta (para ignorar renderizações sem mudança) e a normalizada (para não refazer a consulta
+    // quando a URL muda só pelo sel ou pela forma de escrever os mesmos filtros).
+    private string? ultimaUrl;
+    private string? chaveAplicada;
+
+    // Lista de SMTPs do servidor escolhido.
+    private ListaSmtpsVM smtps = ListaSmtpsVM.Vazia;
+    private string? servidorDosSmtps;
+    private bool carregandoSmtps;
+    private CancellationTokenSource? cancelamentoSmtps;
+
+    // Consulta: um CancellationTokenSource por consulta; o da consulta em andamento fica em consultaAtual.
+    private Estado estado = Estado.Ociosa;
+    private CancellationTokenSource? consultaAtual;
+    private string? servidorEmConsulta;
+    private ResultadoConsultaVM<MensagemVM>? resultado;
+    private FiltroMailQueueVM? filtroConsultado;
+    private TimeSpan duracao;
+    private Erro? erro;
+    private string? servidorComErro;
+    private string? selecionado;
+
+    // Filtro local sobre os itens carregados (assunto, destinatários, MessageId e corpo sem tags).
+    private string filtroLocal = string.Empty;
+    private (IReadOnlyList<MensagemVM> Fonte, string Termo, IReadOnlyList<MensagemVM> Itens)? filtrados;
+
+    private ServidorVM? ServidorEscolhido =>
+        grupos.SelectMany(g => g.Servidores).FirstOrDefault(s => string.Equals(s.Chave, filtro.Servidor, StringComparison.Ordinal));
+
+    private string RecursoNegado => Modulo.MailQueue.PoliticaPara(ServidorEscolhido?.Ambiente ?? Ambiente.Prd);
+
+    private string? StatusDaLeitura => estado switch
+    {
+        Estado.Consultando => null,
+        _ when resultado is not null =>
+            $"{resultado.Itens.Count} e-mail(s) · {duracao.TotalSeconds.ToString("0.0", PtBr)} s · consultado às {resultado.ConsultadoEm.ToLocalTime().ToString("HH:mm", PtBr)}",
+        _ => null,
+    };
+
+    private string Contador
+    {
+        get
+        {
+            var total = resultado?.Itens.Count ?? 0;
+            if (total == 0)
+            {
+                return string.Empty;
+            }
+
+            return string.IsNullOrWhiteSpace(filtroLocal) ? $"{total} e-mails" : $"{Visiveis.Count} de {total} e-mails";
+        }
+    }
+
+    private string DescricaoDoVazio
+    {
+        get
+        {
+            var smtp = filtroConsultado?.SmtpNumerico is int id ? smtps.RotuloDe(id) : "Todos os SMTPs";
+            var texto = filtroConsultado?.TextoAparado is { } t ? $", contendo \"{t}\"" : string.Empty;
+            return $"{smtp}{texto}, em {resultado?.Servidor.Nome}.";
+        }
+    }
+
+    // Itens que passam pelo filtro local, sem diferenciar acentos e maiúsculas, com vários termos. A mesma lista é
+    // devolvida enquanto nada muda, para a lista expansível manter a linha aberta.
+    private IReadOnlyList<MensagemVM> Visiveis
+    {
+        get
+        {
+            if (resultado is null)
+            {
+                return [];
+            }
+
+            var termo = filtroLocal.Trim();
+            if (termo.Length == 0)
+            {
+                return resultado.Itens;
+            }
+
+            if (filtrados is { } cache && ReferenceEquals(cache.Fonte, resultado.Itens) && cache.Termo == termo)
+            {
+                return cache.Itens;
+            }
+
+            var termos = termo.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var itens = resultado.Itens.Where(m => Contem(m.TextoBusca, termos)).ToArray();
+            filtrados = (resultado.Itens, termo, itens);
+            return itens;
+        }
+    }
+
+    private RenderFragment BotaoRemoverFiltros =>
+        @<button type="button" class="botao secundario pequeno" @onclick="RemoverFiltrosAsync">Remover filtros</button>;
+
+    protected override async Task OnInitializedAsync()
+    {
+        acesso = await AutorizacaoConsulta.PodeAcessarModuloAsync(Modulo.MailQueue);
+        if (acesso == true)
+        {
+            grupos = await Mediator.Send(new ListarPermitidos.Query(Modulo.MailQueue), CancellationToken.None);
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (acesso != true)
+        {
+            return;
+        }
+
+        selecionado = Vazio(SelecionadoParametro);
+
+        var url = string.Join('\u001f', ServidorParametro, SmtpParametro, TextoParametro, QuantidadeParametro);
+        if (url == ultimaUrl)
+        {
+            return;
+        }
+
+        ultimaUrl = url;
+        var daUrl = new FiltroMailQueueVM
+        {
+            Servidor = Vazio(ServidorParametro),
+            Smtp = Vazio(SmtpParametro),
+            Texto = Vazio(TextoParametro),
+            Quantidade = Vazio(QuantidadeParametro) ?? Quantidade.Padrao.ToString(CultureInfo.InvariantCulture),
+        };
+
+        var chave = ChaveDe(daUrl);
+        if (chave == chaveAplicada)
+        {
+            return;
+        }
+
+        chaveAplicada = chave;
+        filtro = daUrl;
+        if (daUrl.Servidor is null)
+        {
+            return;
+        }
+
+        // A lista de SMTPs e a consulta da URL rodam juntas.
+        await Task.WhenAll(CarregarSmtpsSeMudouAsync(daUrl.Servidor), ConsultarAsync(daUrl.Copiar()));
+    }
+
+    private async Task AoConsultarAsync()
+    {
+        var consulta = filtro.Copiar();
+        selecionado = null;
+
+        var tarefas = new List<Task>(2);
+        if (consulta.Servidor is not null)
+        {
+            tarefas.Add(CarregarSmtpsSeMudouAsync(consulta.Servidor));
+        }
+
+        if (Validar(consulta))
+        {
+            chaveAplicada = ChaveDe(consulta);
+            Navigation.NavigateTo(UrlDe(consulta, null), replace: false);
+            tarefas.Add(ConsultarAsync(consulta));
+        }
+
+        await Task.WhenAll(tarefas);
+    }
+
+    // Escolher o servidor já consulta, como no Visor. Os SMTPs são do servidor: a escolha anterior não vale mais.
+    private Task AoEscolherServidorAsync(string? chave)
+    {
+        filtro.Servidor = chave;
+        filtro.Smtp = null;
+        return chave is null ? Task.CompletedTask : AoConsultarAsync();
+    }
+
+    private void AoMudarSmtp(ChangeEventArgs e) => filtro.Smtp = Vazio(e.Value?.ToString());
+
+    private Task TentarDeNovoAsync() => filtroConsultado is null ? Task.CompletedTask : RefazerAsync(filtroConsultado.Copiar());
+
+    private Task RemoverFiltrosAsync()
+    {
+        filtro.Smtp = null;
+        filtro.Texto = null;
+        return AoConsultarAsync();
+    }
+
+    private Task RefazerAsync(FiltroMailQueueVM consulta)
+    {
+        filtro = consulta;
+        return AoConsultarAsync();
+    }
+
+    private bool Validar(FiltroMailQueueVM consulta)
+    {
+        var erros = Validador.Validate(ParaQuery(consulta)).Errors
+            .GroupBy(e => e.PropertyName, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.First().ErrorMessage, StringComparer.Ordinal);
+
+        // O SmtpId da query já é número: um "smtp" não numérico (só pela URL) é recusado aqui, sem consulta.
+        if (!string.IsNullOrWhiteSpace(consulta.Smtp) && consulta.SmtpNumerico is null)
+        {
+            erros[nameof(PesquisarMailQueue.Query.SmtpId)] = Mensagens.SmtpInvalido;
+        }
+
+        errosCampo = erros;
+        return erros.Count == 0;
+    }
+
+    private async Task ConsultarAsync(FiltroMailQueueVM consulta)
+    {
+        if (!Validar(consulta))
+        {
+            return;
+        }
+
+        Interacao.Interagir();
+
+        // Uma consulta por vez: a nova cancela a anterior, que é interrompida no banco e descartada aqui.
+        consultaAtual?.Cancel();
+        using var cancelamento = new CancellationTokenSource();
+        consultaAtual = cancelamento;
+
+        estado = Estado.Consultando;
+        erro = null;
+        filtroConsultado = consulta;
+        servidorEmConsulta = NomeDoServidor(consulta.Servidor);
+        StateHasChanged();
+
+        var inicio = Relogio.GetTimestamp();
+        Result<ResultadoConsultaVM<MensagemVM>, Erro> obtido;
+        try
+        {
+            obtido = await Mediator.Send(ParaQuery(consulta), cancelamento.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            obtido = Erros.Consultas.Cancelada;
+        }
+
+        // Vale só a última: uma consulta substituída (ou a página fechada) não mexe na tela.
+        if (descartada || !ReferenceEquals(consultaAtual, cancelamento))
+        {
+            return;
+        }
+
+        consultaAtual = null;
+        duracao = Relogio.GetElapsedTime(inicio);
+
+        if (obtido.IsSuccess)
+        {
+            resultado = obtido.Value;
+            estado = Estado.ComResultado;
+            return;
+        }
+
+        if (obtido.Error.Code == Erros.Consultas.CodigoCancelada)
+        {
+            // Cancelar volta ao estado anterior: o resultado anterior continua na tela.
+            estado = resultado is null ? Estado.Ociosa : Estado.ComResultado;
+            return;
+        }
+
+        // Acesso negado ou servidor fora da lista: nenhum dado anterior fica visível.
+        if (obtido.Error.Code is Erros.Consultas.CodigoAcessoNegado or Erros.Consultas.CodigoServidorNaoEncontrado)
+        {
+            resultado = null;
+        }
+
+        erro = obtido.Error;
+        servidorComErro = servidorEmConsulta;
+        estado = Estado.ComErro;
+    }
+
+    private async Task CarregarSmtpsSeMudouAsync(string servidor)
+    {
+        if (string.Equals(servidor, servidorDosSmtps, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        cancelamentoSmtps?.Cancel();
+        using var cancelamento = new CancellationTokenSource();
+        cancelamentoSmtps = cancelamento;
+        servidorDosSmtps = servidor;
+        carregandoSmtps = true;
+        smtps = ListaSmtpsVM.Vazia;
+
+        Result<ListaSmtpsVM, Erro> obtidos;
+        try
+        {
+            obtidos = await Mediator.Send(new ListarSmtpsMailQueue.Query(servidor), cancelamento.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        if (descartada || !ReferenceEquals(cancelamentoSmtps, cancelamento))
+        {
+            return;
+        }
+
+        cancelamentoSmtps = null;
+        carregandoSmtps = false;
+
+        // Negado ou cancelado: sem lista (a consulta mostra o motivo). Indisponível: vazia com aviso.
+        smtps = obtidos.IsSuccess ? obtidos.Value : ListaSmtpsVM.Vazia;
+        StateHasChanged();
+    }
+
+    private void AoSelecionar(string? chave)
+    {
+        selecionado = chave;
+        if (filtroConsultado is not null)
+        {
+            Navigation.NavigateTo(UrlDe(filtroConsultado, chave), replace: true);
+        }
+    }
+
+    private void AoAbrir(MensagemVM mensagem) => Interacao.Interagir();
+
+    private void AoFiltrar(ChangeEventArgs e)
+    {
+        filtroLocal = e.Value?.ToString() ?? string.Empty;
+        Interacao.Interagir();
+    }
+
+    private string? Invalido(string campo) => errosCampo.ContainsKey(campo) ? "true" : null;
+
+    private string? Descrito(string campo, string id) => errosCampo.ContainsKey(campo) ? id : null;
+
+    // Mensagem do campo inválido, ligada ao campo por aria-describedby.
+    private RenderFragment MensagemDoCampo(string campo, string id) => builder =>
+    {
+        if (errosCampo.TryGetValue(campo, out var mensagem))
+        {
+            builder.OpenElement(0, "span");
+            builder.AddAttribute(1, "class", "status falha");
+            builder.AddAttribute(2, "id", id);
+            builder.AddAttribute(3, "role", "alert");
+            builder.AddContent(4, mensagem);
+            builder.CloseElement();
+        }
+    };
+
+    private string? NomeDoServidor(string? chave) =>
+        grupos.SelectMany(g => g.Servidores).FirstOrDefault(s => string.Equals(s.Chave, chave, StringComparison.Ordinal))?.Nome ?? chave;
+
+    private static PesquisarMailQueue.Query ParaQuery(FiltroMailQueueVM f) => new(f.Servidor, f.SmtpNumerico, f.Texto, f.Quantidade);
+
+    private static string UrlDe(FiltroMailQueueVM f, string? sel) =>
+        Navegacao.MailQueue(f.Servidor, f.SmtpNumerico, f.TextoAparado, f.QuantidadeNumerica, sel);
+
+    // Mesma consulta = mesma chave: a URL que a própria página gravou não dispara a consulta de novo.
+    private static string ChaveDe(FiltroMailQueueVM f) =>
+        string.Join('\u001f', f.Servidor, f.Smtp?.Trim(), f.TextoAparado, f.QuantidadeNumerica?.ToString(CultureInfo.InvariantCulture) ?? f.Quantidade?.Trim());
+
+    private static string? Vazio(string? valor) => string.IsNullOrWhiteSpace(valor) ? null : valor;
+
+    private static bool Contem(string texto, string[] termos) =>
+        termos.All(t => PtBr.CompareInfo.IndexOf(texto, t, SemAcentoNemCaixa) >= 0);
+
+    public void Dispose()
+    {
+        descartada = true;
+        consultaAtual?.Cancel();
+        cancelamentoSmtps?.Cancel();
+    }
+}

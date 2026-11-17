@@ -1,0 +1,60 @@
+@inject IFormatadorLogEvent Formatador
+
+@* LogEvent do AuditLog (R11, FR-015): JSON indentado e realçado no tema da página, com Copiar (copia o texto
+   exibido). LogEvent que não é JSON aparece como veio, sem erro. O realce vem do modelo do IFormatadorLogEvent,
+   montado aqui como spans: nunca HTML em texto. *@
+@if (string.IsNullOrEmpty(Texto))
+{
+    <span class="suave">(sem LogEvent)</span>
+}
+else
+{
+    <BlocoCodigo Texto="@formatado.Texto" Escuro="false" Rotulo="LogEvent">@Realce</BlocoCodigo>
+}
+
+@code {
+    /// <summary>LogEvent como veio do banco.</summary>
+    [Parameter]
+    public string? Texto { get; set; }
+
+    private LogEventFormatado formatado = new(string.Empty, false, []);
+    private string? original;
+
+    protected override void OnParametersSet()
+    {
+        if (!string.Equals(original, Texto, StringComparison.Ordinal))
+        {
+            formatado = Formatador.Formatar(Texto);
+            original = Texto;
+        }
+    }
+
+    private RenderFragment Realce => builder =>
+    {
+        foreach (var trecho in formatado.Trechos)
+        {
+            var classe = Classe(trecho.Tipo);
+            if (classe is null)
+            {
+                builder.AddContent(0, trecho.Texto);
+            }
+            else
+            {
+                builder.OpenElement(1, "span");
+                builder.AddAttribute(2, "class", classe);
+                builder.AddContent(3, trecho.Texto);
+                builder.CloseElement();
+            }
+        }
+    };
+
+    // Classes do siat.css (JSON no tema da página).
+    private static string? Classe(TipoTrechoJson tipo) => tipo switch
+    {
+        TipoTrechoJson.Chave => "json-chave",
+        TipoTrechoJson.Texto => "json-texto",
+        TipoTrechoJson.Numero => "json-numero",
+        TipoTrechoJson.Literal => "json-literal",
+        _ => null,
+    };
+}
