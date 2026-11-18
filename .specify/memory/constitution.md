@@ -154,6 +154,32 @@ sistemas do Tribunal e evita reimplementar o que já está em uso.
 - Toda versão DEVE ser fixada no `.csproj`; a atualização é revista a cada entrega, e a troca de
   versão principal (MAJOR) de um pacote DEVE ser registrada no plano da feature.
 
+## Fluxo de Trabalho no Git
+
+O nome do branch identifica o propósito do trabalho.
+
+- **Regra geral**: o nome do branch DEVE conter apenas letras sem acento, números e os caracteres
+  `_` (sublinhado), `.` (ponto) e `-` (hífen), além da `/` que separa o prefixo. NÃO DEVE conter
+  espaços nem acentos.
+- **Prefixo obrigatório**: todo branch de trabalho DEVE começar por um dos prefixos `features/`,
+  `issues/` ou `releases/`, escritos OBRIGATORIAMENTE com todas as letras em minúsculo.
+- **`features/`**: para tarefa planejada ou extra do Planner. O nome DEVE começar pelo número da
+  tarefa, seguido de uma descrição sucinta. Exemplo: a tarefa
+  `CE146.19 - [#eTCM-API][#Portal TCMRio] Criação de projeto WEB API` vira
+  `features/CE146.19_web_api`. Se a tarefa ainda não tiver número (por exemplo, antes de as
+  tarefas serem importadas para o Planner do Sprint), o branch PODE omitir o número e usar só a
+  descrição sucinta.
+- **`issues/`**: para correção de bug cadastrado como issue no GitLab (Out Of Sprint). O nome DEVE
+  começar pelo número da issue, seguido de uma descrição sucinta. Exemplo: a issue
+  `37 - Problema ao carregar checklist` vira `issues/37_correcao_carregamento_checklist`.
+- **`releases/`**: guarda versões publicadas em produção que precisam de correção de bug. São
+  branches protegidos: só os Owners do grupo no GitLab podem enviar para eles, como no `main`.
+
+**Justificativa**: o prefixo e o número ligam o branch à tarefa do Planner ou à issue do GitLab
+sem precisar abrir o código. O prefixo em minúsculo é obrigatório porque o Windows não diferencia
+maiúsculas de minúsculas em nomes de pasta, e prefixos com grafias diferentes (`Features/` e
+`features/`) causam conflito entre o GitLab e as máquinas Windows.
+
 ## Governança
 
 - Esta constituição prevalece sobre especificações e planos.
@@ -175,5 +201,6 @@ sistemas do Tribunal e evita reimplementar o que já está em uso.
 | 1.1.1  | 2026-11-17 | Princípio III: a exigência de recurso do UserManager vale para páginas que exibem dados e para toda operação; páginas sem dados (inicial, logout) exigem só autenticação e o login é anônimo. PATCH: explicita a intenção original, que a redação anterior tornava impossível de cumprir (o próprio login não pode exigir recurso) |
 | 1.2.0  | 2026-11-17 | Princípio III: o `ClientSecret` do cliente OIDC do SIAT (`TcmrjOidc:ClientSecret`) passa a ficar no `appsettings`, junto do `ClientId`, no padrão do SiCATI; os demais segredos continuam fora do repositório. MINOR: muda uma regra sem remover nem redefinir o princípio |
 | 1.3.0  | 2026-11-18 | Princípio V: os fluxos principais deixam de exigir teste de interface automatizado (navegador) e passam a constar do roteiro de validação manual da feature; as regras e os componentes continuam com testes automatizados. MINOR: muda uma regra sem remover nem redefinir o princípio |
+| 1.4.0  | 2026-11-18 | Nova seção Fluxo de Trabalho no Git: padrão de nomes de branch (`features/`, `issues/`, `releases/` em minúsculo; só letras sem acento, números, `_`, `.` e `-`). MINOR: acréscimo de seção |
 
-**Versão**: 1.3.0 | **Ratificada em**: 2026-11-09 | **Última emenda**: 2026-11-18
+**Versão**: 1.4.0 | **Ratificada em**: 2026-11-09 | **Última emenda**: 2026-11-18
