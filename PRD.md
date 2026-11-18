@@ -16,7 +16,7 @@ Suporte e desenvolvimento usam hoje um conjunto de ferramentas internas espalhad
 |---|---|---|
 | `TCMRJDoc/sistemas.html` | Lista sistemas com URL, máquina e caminho por ambiente (DSV, HML, PRD, Contingência) | HTML estático + `sistemasDb.js` |
 | `Geral/Ferramentas/VersaoDeSistemasPublicados.ps1` | Mostra a versão publicada de cada sistema em DSV, HML e PRD (duas máquinas por ambiente), com divergências e erros | Script PowerShell na máquina do usuário, gera um HTML temporário |
-| `visor` (Tcmrj.Visor) | Consulta `MailQueue` (e-mails enfileirados) e `AUDITORIADB` (`audit.Log`) em qualquer servidor | `.exe` local que sobe um servidor em `localhost` |
+| Consulta local de MailQueue e AuditLog | Consulta `MailQueue` (e-mails enfileirados) e `AUDITORIADB` (`audit.Log`) em qualquer servidor | `.exe` local que sobe um servidor em `localhost` |
 | `handbook` / `TCMRJDoc` | Base de conhecimento, processos, procedimentos | Markdown no GitLab, leitura pela interface do GitLab ou clone |
 | `ebooker` | Editor de ebooks em Markdown com prévia | HTML local, grava em pasta via File System Access API |
 | `gestao-copilot` | Consumo de AI Credits e budgets do GitHub Copilot | Aplicação Next.js separada, login GitHub, cache SQLite |
@@ -64,10 +64,8 @@ Quem dá suporte ou desenvolve perde tempo para responder perguntas rotineiras (
 |---|---|
 | `Sistemas.CanSelect` | Ver o catálogo de sistemas |
 | `Versoes.CanSelect` | Ver as versões publicadas |
-| `MailQueue.CanSelect` | Consultar MailQueue em DSV e HML |
-| `MailQueuePRD.CanSelect` | Consultar MailQueue em PRD |
-| `AuditLog.CanSelect` | Consultar AuditLog em DSV e HML |
-| `AuditLogPRD.CanSelect` | Consultar AuditLog em PRD |
+| `MailQueue.CanSelect` | Consultar MailQueue em DSV, HML e PRD |
+| `AuditLog.CanSelect` | Consultar AuditLog em DSV, HML e PRD |
 | `Documentacao.CanSelect` | Ler documentação e handbook |
 | `Documentacao.CanEdit` | Editar documentação e handbook |
 | `Copilot.CanSelect` | Painel completo do Copilot |
@@ -119,21 +117,17 @@ Substitui `VersaoDeSistemasPublicados.ps1`.
 - VE-05: Leituras em paralelo, com tempo limite por arquivo; o resultado fica em cache por alguns minutos e mostra quando foi gerado.
 - VE-06 (desejável): Unir Sistemas e Versões numa visão por sistema.
 
-### 7.3 Visor — MailQueue
-
-Porte do `mailqueue.html` do Tcmrj.Visor.
+### 7.3 Consultas — MailQueue
 
 - MQ-01: Escolha do servidor (lista fechada, filtrada pelas permissões) e do SMTP.
-- MQ-02: Os mesmos filtros do Visor atual, com quantidade de 1 a 1000 (padrão 50).
+- MQ-02: Filtros por SMTP e por texto (assunto, destinatários, MessageId e corpo), com quantidade de 1 a 1000 (padrão 50).
 - MQ-03: Lista expansível; o corpo do e-mail é exibido isolado (iframe com sandbox, sem scripts).
 - MQ-04: Exportar o resultado em HTML autocontido.
 
-### 7.4 Visor — AuditLog
-
-Porte do `auditlog.html` do Tcmrj.Visor.
+### 7.4 Consultas — AuditLog
 
 - AL-01: Escolha do servidor e da aplicação (lista de `CSLIB_UserManager`, com campo numérico como alternativa quando a lista não estiver disponível).
-- AL-02: Filtros equivalentes aos atuais e busca por id de log.
+- AL-02: Filtros por aplicação, período e busca por id de log.
 - AL-03: Formatação própria para stack trace da exceção e para o JSON do LogEvent.
 - AL-04: Exportar o resultado em HTML autocontido.
 
@@ -177,11 +171,11 @@ Integração com o Jenkins (`asi_builds`).
 
 - RNF-01: **Hospedagem** no servidor do UserManager (IIS), com HTTPS e **WebSockets habilitados** (necessários ao Blazor Server).
 - RNF-02: **.NET 10**, com referência às bibliotecas internas (`Tcmrj.Autenticacao.AspNetCore`, `Tcmrj.Autorizacao.App`, `Tcmrj.CoreLib.*`).
-- RNF-03: SQL sempre com `SqlParameter` e connection string montada com `SqlConnectionStringBuilder`. Planos de execução das consultas do Visor medidos com e sem filtros antes da publicação.
+- RNF-03: SQL sempre com `SqlParameter` e connection string montada com `SqlConnectionStringBuilder`. Planos de execução das consultas MailQueue e AuditLog medidos com e sem filtros antes da publicação.
 - RNF-04: As páginas abrem em até 2 s. As consultas mostram o progresso e podem ser canceladas.
 - RNF-05: Segredos (PAT do GitHub, segredos OAuth) fora do repositório, em configuração protegida do servidor.
 - RNF-06: Versão do Blazor Blueprint fixada. Componentes de uso recorrente (tabela de resultados, cabeçalho de página, seletor de servidor) encapsulados em componentes próprios.
-- RNF-07: Testes automatizados das regras (parâmetros, permissões, interpretação de versões, regras do Copilot) e testes de interface nos fluxos principais.
+- RNF-07: Testes automatizados das regras (parâmetros, permissões, interpretação de versões, regras do Copilot) e de componentes; fluxos principais num roteiro de validação manual.
 
 ## 9. Roteiro
 
@@ -189,7 +183,7 @@ Integração com o Jenkins (`asi_builds`).
 |---|---|---|
 | 1 | Base: Blazor + SSO + permissões + layout + **Sistemas** | `sistemas.html` |
 | 2 | **Versões publicadas** | `VersaoDeSistemasPublicados.ps1` |
-| 3 | **MailQueue** e **AuditLog** | Tcmrj.Visor |
+| 3 | **MailQueue** e **AuditLog** | Consulta local de MailQueue e AuditLog |
 | 4 | **Gestão do Copilot** | `gestao-copilot` |
 | 5 | **Documentação** (leitura) | Consulta pelo GitLab |
 | 6 | **Edição de documentação** | `ebooker` para documentação |

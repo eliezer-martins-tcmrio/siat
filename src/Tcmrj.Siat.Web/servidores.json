@@ -1,6 +1,7 @@
 {
   "Servidores": [
     { "Chave": "tcmbd3-dev", "Nome": "TCMBD3\\DEV", "Endereco": "TCMBD3\\DEV", "Ambiente": "DSV" },
-    { "Chave": "tcmbd4-hml", "Nome": "TCMBD4\\HML", "Endereco": "TCMBD4\\HML", "Ambiente": "HML" }
+    { "Chave": "tcmbd4-hml", "Nome": "TCMBD4\\HML", "Endereco": "TCMBD4\\HML", "Ambiente": "HML" },
+    { "Chave": "tcmbd-prd", "Nome": "TCMBD", "Endereco": "TCMBD", "Ambiente": "PRD" }
   ]
 }

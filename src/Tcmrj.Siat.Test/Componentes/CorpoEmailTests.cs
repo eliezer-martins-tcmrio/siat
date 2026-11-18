@@ -40,7 +40,7 @@ public sealed class CorpoEmailTests : BunitContext
         var srcdoc = Renderizar(corpo, ehHtml: true).Find("iframe").GetAttribute("srcdoc");
 
         srcdoc.Should().EndWith(corpo);
-        srcdoc!.IndexOf(MetaCsp, StringComparison.Ordinal).Should().BeLessThan(srcdoc.IndexOf(corpo, StringComparison.Ordinal));
+        srcdoc.IndexOf(MetaCsp, StringComparison.Ordinal).Should().BeLessThan(srcdoc.IndexOf(corpo, StringComparison.Ordinal));
     }
 
     [Fact]

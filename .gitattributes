@@ -1,5 +1,2 @@
 * text=auto
 *.sql text eol=lf
-
-# Cópias de referência de outros repositórios (ex.: Consultas.cs do Visor): byte a byte, sem conversão de quebra de linha.
-src/Tcmrj.Siat.Test/Unidade/Referencias/** -text

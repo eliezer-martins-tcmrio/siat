@@ -23,6 +23,3 @@ if (!app.Environment.IsDevelopment())
 app.UseRazorConfiguration();                // HTTPS, autenticação, autorização, antiforgery e endpoints
 
 app.Run();
-
-/// <summary>Ponto de entrada exposto para os testes de interface (WebApplicationFactory).</summary>
-public partial class Program;

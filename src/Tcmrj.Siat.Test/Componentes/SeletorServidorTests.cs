@@ -94,7 +94,7 @@ public sealed class SeletorServidorTests : BunitContext
         var seletor = Render<SeletorServidor>(p => p
             .Add(c => c.Grupos, [new GrupoServidoresVM(Ambiente.Dsv, [Dev]), new GrupoServidoresVM(Ambiente.Hml, [Hml])])
             .Add(c => c.Valor, "tcmbd3-dev")
-            .Add(c => c.ValorChanged, (string? v) => recebido = v));
+            .Add(c => c.ValorChanged, v => recebido = v));
 
         seletor.Find("select").Change("tcmbd4-hml");
 

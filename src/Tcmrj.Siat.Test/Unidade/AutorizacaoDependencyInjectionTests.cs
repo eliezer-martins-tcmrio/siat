@@ -64,11 +64,11 @@ public class AutorizacaoDependencyInjectionTests
         using var provider = CriarProvider();
 
         FluentActions.Invoking(() => provider.GetRequiredService<IStartupValidator>().Validate()).Should().NotThrow();
-        provider.GetRequiredService<IOptions<UserManagerServiceOptions>>().Value.ApplicationId.Should().Be(178);
+        provider.GetRequiredService<IOptions<UserManagerServiceOptions>>().Value.ApplicationId.Should().Be(93);
     }
 
     private static ServiceProvider CriarProvider()
-        => CriarBuilder("178").Services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
+        => CriarBuilder("93").Services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
 
     private static WebApplicationBuilder CriarBuilder(string? applicationId)
     {

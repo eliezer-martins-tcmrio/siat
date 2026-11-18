@@ -1,4 +1,5 @@
 using System.Globalization;
+using Tcmrj.Siat.Domain.Models;
 
 namespace Tcmrj.Siat.App.Web;
 
@@ -23,7 +24,13 @@ public static class Navegacao
 
     public const string ParametroApp = "app";
 
-    public const string ParametroLogId = "logid";
+    public const string ParametroLogUid = "loguid";
+
+    public const string ParametroDias = "dias";
+
+    public const string ParametroDe = "de";
+
+    public const string ParametroAte = "ate";
 
     public const int QuantidadePadrao = 50;
 
@@ -36,14 +43,32 @@ public static class Navegacao
             (ParametroQuantidade, Quantidade(qtd)),
             (ParametroSelecionado, sel));
 
-    public static string AuditLog(string? servidor = null, int? app = null, string? logid = null, int? qtd = null, string? sel = null) =>
+    /// <summary>
+    /// URL do AuditLog. <paramref name="dias"/> no padrão (30) fica fora da URL; com <paramref name="de"/> ou
+    /// <paramref name="ate"/>, o período é pelas datas e os dias não entram.
+    /// </summary>
+    public static string AuditLog(
+        string? servidor = null,
+        int? app = null,
+        string? loguid = null,
+        int? qtd = null,
+        string? sel = null,
+        int? dias = null,
+        DateOnly? de = null,
+        DateOnly? ate = null,
+        bool semApp = false) =>
         Montar(
             RotaAuditLog,
             (ParametroServidor, servidor),
-            (ParametroApp, Numero(app)),
-            (ParametroLogId, logid),
+            (ParametroApp, semApp ? FiltroAuditLog.ValorSemAppId : Numero(app)),
+            (ParametroLogUid, loguid),
+            (ParametroDias, de is null && ate is null && dias is not null and not FiltroAuditLog.DiasPadrao ? Numero(dias) : null),
+            (ParametroDe, Data(de)),
+            (ParametroAte, Data(ate)),
             (ParametroQuantidade, Quantidade(qtd)),
             (ParametroSelecionado, sel));
+
+    private static string? Data(DateOnly? data) => data?.ToString(FiltroAuditLog.FormatoData, CultureInfo.InvariantCulture);
 
     private static string? Numero(int? valor) => valor?.ToString(CultureInfo.InvariantCulture);
 

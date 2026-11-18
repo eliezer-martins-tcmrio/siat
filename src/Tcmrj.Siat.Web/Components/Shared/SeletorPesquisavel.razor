@@ -1,0 +1,272 @@
+@inject IJSRuntime JS
+
+@* Seletor com busca (ao estilo do select2), padrão combobox do WAI-ARIA:
+   - O controle é um botão (role="combobox", ligado ao <label for>) que mostra a opção escolhida.
+   - Aberto, mostra um campo de busca e a lista (role="listbox"); a busca filtra pelo rótulo, sem diferenciar
+     maiúsculas nem acentos, e a opção ativa é indicada por aria-activedescendant.
+   - Teclado: ↓/Enter/Espaço no botão abrem; na busca, ↑/↓ andam, Enter escolhe, Esc fecha e Tab fecha seguindo
+     adiante. O siat.js impede o efeito padrão de ↑/↓ no botão ([data-combo]) e de ↑/↓/Enter na busca ([data-combo-busca]),
+     para a página não rolar e o Enter não enviar o formulário.
+   - Clique fora (camada .combo-fundo) fecha sem mudar a escolha. *@
+<div class="combo" data-aberto="@(aberto ? "true" : null)">
+    <button type="button" class="combo-botao" id="@Id" role="combobox" data-combo
+            aria-haspopup="listbox" aria-expanded="@(aberto ? "true" : "false")" aria-controls="@(aberto ? IdLista : null)"
+            aria-busy="@(Ocupado ? "true" : null)" aria-invalid="@(Invalido ? "true" : null)" aria-describedby="@DescritoPor"
+            @ref="botao" @onclick="AlternarAsync" @onkeydown="AoTeclarNoBotaoAsync">
+        <span class="combo-valor @(Selecionada is null ? "suave" : null)">@(Selecionada?.Rotulo ?? OpcaoVazia)</span>
+        <svg class="combo-seta" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m6 9 6 6 6-6" /></svg>
+    </button>
+
+    @if (aberto)
+    {
+        <div class="combo-fundo" @onclick="FecharAsync"></div>
+        <div class="combo-painel">
+            <input type="search" class="combo-busca" id="@IdBusca" data-combo-busca autocomplete="off" spellcheck="false"
+                   placeholder="@Placeholder" aria-label="@($"Buscar {Rotulo}")" role="combobox" aria-autocomplete="list"
+                   aria-expanded="true" aria-controls="@IdLista" aria-activedescendant="@IdDaAtiva"
+                   @ref="busca" @bind="termo" @bind:event="oninput" @bind:after="AoBuscar" @onkeydown="AoTeclarNaBuscaAsync" />
+            <ul class="combo-lista" id="@IdLista" role="listbox" aria-label="@($"Opções de {Rotulo}")">
+                @for (var i = 0; i < visiveis.Count; i++)
+                {
+                    var opcao = visiveis[i];
+                    var escolhida = string.Equals(opcao.Valor, Valor ?? string.Empty, StringComparison.Ordinal);
+                    <li id="@IdOpcao(i)" role="option" class="combo-opcao" aria-selected="@(escolhida ? "true" : "false")"
+                        data-ativa="@(i == ativa ? "true" : null)"
+                        @onmousedown:preventDefault @onclick="() => EscolherAsync(opcao)">
+                        @opcao.Rotulo
+                    </li>
+                }
+                @if (visiveis.Count == 0)
+                {
+                    <li class="combo-nada" role="presentation">Nenhum resultado para "@termo?.Trim()"</li>
+                }
+            </ul>
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>Opção do seletor. Valor vazio é a opção "nenhuma" (por exemplo, "Todos os SMTPs").</summary>
+    public sealed record Opcao(string Valor, string Rotulo);
+
+    /// <summary>Id do botão, para o &lt;label for&gt;.</summary>
+    [Parameter, EditorRequired]
+    public string Id { get; set; } = default!;
+
+    /// <summary>Nome do campo, usado no rótulo acessível da busca e da lista.</summary>
+    [Parameter, EditorRequired]
+    public string Rotulo { get; set; } = default!;
+
+    /// <summary>Opções na ordem de exibição, sem a opção vazia.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<Opcao> Opcoes { get; set; } = [];
+
+    /// <summary>Texto da opção vazia (valor nulo), que fica sempre no topo da lista.</summary>
+    [Parameter, EditorRequired]
+    public string OpcaoVazia { get; set; } = default!;
+
+    [Parameter]
+    public string? Valor { get; set; }
+
+    [Parameter]
+    public EventCallback<string?> ValorChanged { get; set; }
+
+    [Parameter]
+    public string Placeholder { get; set; } = "Digite para buscar";
+
+    [Parameter]
+    public bool Ocupado { get; set; }
+
+    [Parameter]
+    public bool Invalido { get; set; }
+
+    [Parameter]
+    public string? DescritoPor { get; set; }
+
+    private ElementReference botao;
+    private ElementReference busca;
+    private bool aberto;
+    private bool focarBusca;
+    private bool focarBotao;
+    private bool rolarAteAtiva;
+    private string? termo;
+    private int ativa;
+    private List<Opcao> visiveis = [];
+
+    private string IdLista => $"{Id}-lista";
+
+    private string IdBusca => $"{Id}-busca";
+
+    private string IdOpcao(int indice) => $"{Id}-opcao-{indice}";
+
+    private string? IdDaAtiva => ativa >= 0 && ativa < visiveis.Count ? IdOpcao(ativa) : null;
+
+    private Opcao? Selecionada =>
+        string.IsNullOrEmpty(Valor) ? null : Opcoes.FirstOrDefault(o => string.Equals(o.Valor, Valor, StringComparison.Ordinal));
+
+    private IEnumerable<Opcao> Todas => Opcoes.Prepend(new Opcao(string.Empty, OpcaoVazia));
+
+    protected override void OnParametersSet()
+    {
+        if (aberto)
+        {
+            Filtrar(manterAtiva: true);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        try
+        {
+            if (focarBusca)
+            {
+                focarBusca = false;
+                await busca.FocusAsync();
+            }
+            else if (focarBotao)
+            {
+                focarBotao = false;
+                await botao.FocusAsync();
+            }
+
+            if (rolarAteAtiva && IdDaAtiva is { } id)
+            {
+                rolarAteAtiva = false;
+                await JS.InvokeVoidAsync("siat.mostrarOpcao", id);
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+            // Circuito encerrado: nada a focar.
+        }
+    }
+
+    private Task AlternarAsync() => aberto ? FecharAsync() : AbrirAsync();
+
+    private Task AbrirAsync()
+    {
+        aberto = true;
+        termo = null;
+        Filtrar(manterAtiva: false);
+        ativa = Math.Max(visiveis.FindIndex(o => string.Equals(o.Valor, Valor ?? string.Empty, StringComparison.Ordinal)), 0);
+        focarBusca = true;
+        rolarAteAtiva = true;
+        return Task.CompletedTask;
+    }
+
+    private Task FecharAsync() => FecharAsync(devolverFoco: true);
+
+    private Task FecharAsync(bool devolverFoco)
+    {
+        aberto = false;
+        termo = null;
+        focarBotao = devolverFoco;
+        return Task.CompletedTask;
+    }
+
+    private async Task EscolherAsync(Opcao opcao)
+    {
+        await FecharAsync(devolverFoco: true);
+        var valor = string.IsNullOrEmpty(opcao.Valor) ? null : opcao.Valor;
+        if (!string.Equals(valor, Valor, StringComparison.Ordinal))
+        {
+            Valor = valor;
+            await ValorChanged.InvokeAsync(valor);
+        }
+    }
+
+    private void AoBuscar()
+    {
+        Filtrar(manterAtiva: false);
+        ativa = 0;
+    }
+
+    private async Task AoTeclarNoBotaoAsync(KeyboardEventArgs e)
+    {
+        if (!aberto && e.Key is "ArrowDown" or "ArrowUp")
+        {
+            await AbrirAsync();
+        }
+        else if (aberto && e.Key == "Escape")
+        {
+            // Esc logo depois de abrir, antes de o foco chegar à busca, também fecha.
+            await FecharAsync(devolverFoco: true);
+        }
+    }
+
+    private async Task AoTeclarNaBuscaAsync(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "ArrowDown":
+                Mover(1);
+                break;
+            case "ArrowUp":
+                Mover(-1);
+                break;
+            case "Home" when e.CtrlKey:
+                Mover(-visiveis.Count);
+                break;
+            case "End" when e.CtrlKey:
+                Mover(visiveis.Count);
+                break;
+            case "Enter":
+                if (ativa >= 0 && ativa < visiveis.Count)
+                {
+                    await EscolherAsync(visiveis[ativa]);
+                }
+
+                break;
+            case "Escape":
+                await FecharAsync(devolverFoco: true);
+                break;
+            case "Tab":
+                await FecharAsync(devolverFoco: false);
+                break;
+        }
+    }
+
+    private void Mover(int passo)
+    {
+        if (visiveis.Count == 0)
+        {
+            return;
+        }
+
+        ativa = Math.Clamp(ativa + passo, 0, visiveis.Count - 1);
+        rolarAteAtiva = true;
+    }
+
+    private void Filtrar(bool manterAtiva)
+    {
+        var anterior = manterAtiva && ativa >= 0 && ativa < visiveis.Count ? visiveis[ativa].Valor : null;
+        var procurado = Normalizar(termo);
+        visiveis = procurado.Length == 0
+            ? Todas.ToList()
+            : Todas.Where(o => Normalizar(o.Rotulo).Contains(procurado, StringComparison.Ordinal)).ToList();
+
+        ativa = anterior is null ? Math.Min(ativa, Math.Max(visiveis.Count - 1, 0)) : Math.Max(visiveis.FindIndex(o => o.Valor == anterior), 0);
+    }
+
+    // Sem acentos e em minúsculas, para "configuracao" achar "Configuração".
+    private static string Normalizar(string? texto)
+    {
+        if (string.IsNullOrWhiteSpace(texto))
+        {
+            return string.Empty;
+        }
+
+        var decomposto = texto.Trim().Normalize(System.Text.NormalizationForm.FormD);
+        var saida = new System.Text.StringBuilder(decomposto.Length);
+        foreach (var c in decomposto)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
+            {
+                saida.Append(char.ToLowerInvariant(c));
+            }
+        }
+
+        return saida.ToString();
+    }
+}

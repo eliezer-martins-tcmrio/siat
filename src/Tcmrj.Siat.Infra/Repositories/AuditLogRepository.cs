@@ -10,8 +10,9 @@ namespace Tcmrj.Siat.Infra.Repositories;
 
 /// <summary>
 /// Leitura do <c>AUDITORIADB</c> (banco <see cref="Servidor.BancoAuditoria"/>) de um servidor da lista fechada, com o
-/// SQL do Visor (<c>Sql/logs.sql</c> e <c>Sql/apps.sql</c>, R5). As aplicações vêm de
-/// <c>CSLIB_UserManager.dbo.Apps</c> pelo nome de três partes, na mesma conexão do <c>AUDITORIADB</c>, como no Visor.
+/// SQL embutido (R5): <c>Sql/apps.sql</c> e <c>Sql/logs.sql</c> (filtro pelo início do
+/// LogUID e período por dias ou por datas, convertido numa faixa de LogID). As aplicações vêm de
+/// <c>CSLIB_UserManager.dbo.Apps</c> pelo nome de três partes, na mesma conexão do <c>AUDITORIADB</c>.
 /// O <see cref="CancellationToken"/> vai para <c>OpenAsync</c>, <c>ExecuteReaderAsync</c> e <c>ReadAsync</c>, e o
 /// SqlClient interrompe o comando no servidor (SC-004).
 /// </summary>
@@ -45,12 +46,17 @@ public sealed class AuditLogRepository(IFabricaDeConexao fabrica) : IAuditLogRep
         ArgumentNullException.ThrowIfNull(servidor);
         ArgumentNullException.ThrowIfNull(filtro);
 
-        // Tipos e tamanhos iguais aos do Visor: o plano em cache depende deles.
+        // Tipos e tamanhos fixos: o plano em cache depende deles. O período vira faixa de LogID no banco (logs.sql).
         SqlParameter[] parametros =
         [
+            Parametro("@Dias", SqlDbType.Int, filtro.Dias),
+            Parametro("@De", SqlDbType.DateTime, filtro.De?.ToDateTime(TimeOnly.MinValue)),
+            // A data final é inclusiva: o SQL usa "antes do dia seguinte".
+            Parametro("@Ate", SqlDbType.DateTime, filtro.Ate?.AddDays(1).ToDateTime(TimeOnly.MinValue)),
             Parametro("@Top", SqlDbType.Int, filtro.Quantidade),
             Parametro("@AppID", SqlDbType.Int, filtro.AppId),
-            Parametro("@LogID", SqlDbType.VarChar, filtro.PrefixoLogId, 20),
+            Parametro("@SemAppID", SqlDbType.Bit, filtro.SemAppId),
+            Parametro("@LogUID", SqlDbType.VarChar, filtro.PrefixoLogUid, 36),
         ];
 
         return Executar(servidor, servidor.BancoAuditoria, SqlLogs.Value, parametros, LerRegistro, cancellationToken);
@@ -64,7 +70,8 @@ public sealed class AuditLogRepository(IFabricaDeConexao fabrica) : IAuditLogRep
         Data = (DateTime)leitor["Date"],
         Mensagem = Texto(leitor, "Message"),
         LogUid = Texto(leitor, "LogUID"),
-        AppId = Convert.ToInt32(leitor["AppID"], CultureInfo.InvariantCulture),
+        // audit.Log.AppID aceita NULL (registros gravados sem aplicação).
+        AppId = leitor["AppID"] is DBNull ? null : Convert.ToInt32(leitor["AppID"], CultureInfo.InvariantCulture),
         Excecao = Texto(leitor, "Exception"),
         LogEvent = Texto(leitor, "LogEvent"),
     };

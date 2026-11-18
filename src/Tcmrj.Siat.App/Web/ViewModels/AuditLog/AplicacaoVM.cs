@@ -26,5 +26,5 @@ public sealed record ListaAplicacoesVM(IReadOnlyList<AplicacaoVM> Itens, string?
     public bool Disponivel => Aviso is null;
 
     /// <summary>Nome da aplicação, ou nulo quando ela não está na lista.</summary>
-    public string? NomeDe(int appId) => Itens.FirstOrDefault(a => a.Id == appId)?.Nome;
+    public string? NomeDe(int? appId) => appId is null ? null : Itens.FirstOrDefault(a => a.Id == appId)?.Nome;
 }

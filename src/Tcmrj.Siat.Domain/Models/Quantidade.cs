@@ -6,7 +6,7 @@ namespace Tcmrj.Siat.Domain.Models;
 
 /// <summary>
 /// Regra da quantidade de itens (FR-010, FR-013): 1 a 1000, padrão 50. Não numérica é recusada;
-/// numérica fora do limite é ajustada ao limite mais próximo (como o <c>Math.Clamp</c> do Visor).
+/// numérica fora do limite é ajustada ao limite mais próximo (<c>Math.Clamp</c>).
 /// </summary>
 public static class Quantidade
 {

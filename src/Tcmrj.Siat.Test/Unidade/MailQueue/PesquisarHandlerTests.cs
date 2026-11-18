@@ -147,7 +147,7 @@ public sealed class PesquisarHandlerTests
         await _handler.Handle(new Pesquisar.Query("tcmbd4-hml", null, "  [teste]_%  ", "5000"), CancellationToken.None);
 
         _filtroRecebido.Should().NotBeNull();
-        _filtroRecebido!.Texto.Should().Be("[teste]_%");
+        _filtroRecebido.Texto.Should().Be("[teste]_%");
         _filtroRecebido.SmtpId.Should().BeNull();
         _filtroRecebido.Quantidade.Should().Be(1000);
     }

@@ -8,7 +8,7 @@ using Tcmrj.Siat.Domain.Repositories;
 
 namespace Tcmrj.Siat.App.Web.Services;
 
-/// <summary>Autoriza cada consulta pela política do módulo no ambiente do servidor, sem cache (R4).</summary>
+/// <summary>Autoriza cada consulta pela política do módulo (a mesma em todos os ambientes), sem cache (R4).</summary>
 public sealed class AutorizacaoConsultaService(
     IServidoresRepository servidores,
     IAuthorizationService autorizacao,
@@ -23,7 +23,7 @@ public sealed class AutorizacaoConsultaService(
         }
 
         var usuario = await usuarioAtual.ObterAsync();
-        var resultado = await autorizacao.AuthorizeAsync(usuario, modulo.PoliticaPara(servidor.Ambiente));
+        var resultado = await autorizacao.AuthorizeAsync(usuario, modulo.Politica());
 
         return resultado.Succeeded
             ? Result.Success<Servidor, Erro>(servidor)
@@ -33,14 +33,6 @@ public sealed class AutorizacaoConsultaService(
     public async Task<bool> PodeAcessarModuloAsync(Modulo modulo)
     {
         var usuario = await usuarioAtual.ObterAsync();
-        foreach (var politica in modulo.Politicas())
-        {
-            if ((await autorizacao.AuthorizeAsync(usuario, politica)).Succeeded)
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return (await autorizacao.AuthorizeAsync(usuario, modulo.Politica())).Succeeded;
     }
 }

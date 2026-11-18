@@ -3,7 +3,7 @@ using Tcmrj.Siat.Domain.Models;
 
 namespace Tcmrj.Siat.Domain.Repositories;
 
-/// <summary>Leitura do banco MailQueue de um servidor da lista fechada (só SELECT, SQL do Visor).</summary>
+/// <summary>Leitura do banco MailQueue de um servidor da lista fechada (só SELECT).</summary>
 public interface IMailQueueRepository
 {
     Task<Result<IReadOnlyList<Smtp>, Erro>> ListarSmtpsAsync(Servidor servidor, CancellationToken cancellationToken);

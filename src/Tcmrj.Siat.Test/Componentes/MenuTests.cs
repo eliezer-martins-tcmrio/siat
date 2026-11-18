@@ -6,7 +6,7 @@ using Tcmrj.Siat.Web.Components.Layout;
 
 namespace Tcmrj.Siat.Test.Componentes;
 
-/// <summary>Menu lateral: cada item só aparece com uma das políticas do módulo; a seção some sem nenhum (FR-003).</summary>
+/// <summary>Menu lateral: cada item só aparece com a política do módulo; a seção some sem nenhum (FR-003).</summary>
 public sealed class MenuTests : BunitContext
 {
     private IRenderedComponent<Menu> RenderizarCom(params string[] politicas) => RenderizarEm(null, politicas);
@@ -48,19 +48,9 @@ public sealed class MenuTests : BunitContext
     }
 
     [Fact]
-    public void Somente_o_recurso_de_PRD_tambem_mostra_o_item()
-    {
-        var menu = RenderizarCom("MailQueuePRD.CanSelect");
-
-        var itens = menu.FindAll("a.menu-item");
-        itens.Should().ContainSingle();
-        itens[0].TextContent.Trim().Should().Be("MailQueue");
-    }
-
-    [Fact]
     public void Com_os_dois_modulos_mostra_MailQueue_e_AuditLog_nessa_ordem()
     {
-        var menu = RenderizarCom("MailQueue.CanSelect", "AuditLogPRD.CanSelect");
+        var menu = RenderizarCom("MailQueue.CanSelect", "AuditLog.CanSelect");
 
         menu.FindAll("a.menu-item").Select(a => a.TextContent.Trim())
             .Should().Equal("MailQueue", "AuditLog");

@@ -21,7 +21,7 @@
 @inject TimeProvider Relogio
 @inject IJSRuntime JS
 
-@* Consultas › AuditLog (história 2; design/auditlog.html; Visor wwwroot/auditlog.html).
+@* Consultas › AuditLog (história 2; design/auditlog.html).
    Estrutura comum às páginas de consulta (T068): acesso verificado ao abrir; servidor, filtros e linha aberta na
    URL; ao escolher o servidor, a lista de aplicações e a consulta rodam em paralelo; estados Ociosa, Consultando,
    ComResultado e ComErro (ControleConsulta); uma consulta por vez com um CancellationTokenSource que chega ao SqlClient,
@@ -35,7 +35,7 @@
 }
 else if (acesso == false)
 {
-    <AcessoNegado Mensagem="Você não tem acesso ao AuditLog" Recurso="@Modulo.AuditLog.PoliticaPara(Ambiente.Dsv)" />
+    <AcessoNegado Mensagem="Você não tem acesso ao AuditLog" Recurso="@Modulo.AuditLog.Politica()" />
 }
 else
 {
@@ -44,7 +44,7 @@ else
         <FaixaContexto Servidor="contexto" Modulo="AuditLog" />
     }
 
-    <CabecalhoPagina Titulo="AuditLog" Descricao="Registros de AUDITORIADB · audit.Log, do mais recente para o mais antigo.">
+    <CabecalhoPagina Titulo="AuditLog" Descricao="@($"Registros de AUDITORIADB · audit.Log, do mais recente para o mais antigo, no período escolhido (padrão: últimos {FiltroAuditLog.DiasPadrao} dias).")">
         <Status>
             <span class="@ClasseDoStatus" role="status">@StatusDaLeitura</span>
         </Status>
@@ -58,18 +58,10 @@ else
         {
             <div class="campo largo">
                 <label for="app">Aplicação</label>
-                <select id="app" @bind="filtro.AppId" aria-busy="@(carregandoAplicacoes ? "true" : null)"
-                        aria-invalid="@Invalido(nameof(PesquisarAuditLog.Query.AppId))" aria-describedby="@Descrito(nameof(PesquisarAuditLog.Query.AppId), "app-erro")">
-                    <option value="">Todas as aplicações</option>
-                    @if (filtro.AppIdNumerico is int appForaDaLista && aplicacoes.NomeDe(appForaDaLista) is null)
-                    {
-                        <option value="@appForaDaLista">AppID @appForaDaLista</option>
-                    }
-                    @foreach (var aplicacao in aplicacoes.Itens)
-                    {
-                        <option value="@aplicacao.Id">@aplicacao.Rotulo</option>
-                    }
-                </select>
+                <SeletorPesquisavel Id="app" Rotulo="Aplicação" OpcaoVazia="Todas as aplicações" Placeholder="Nome ou AppID da aplicação"
+                                    Opcoes="OpcoesDeAplicacao" Valor="@filtro.AppId" ValorChanged="AoMudarAplicacao" Ocupado="carregandoAplicacoes"
+                                    Invalido="@(Invalido(nameof(PesquisarAuditLog.Query.AppId)) is not null)"
+                                    DescritoPor="@Descrito(nameof(PesquisarAuditLog.Query.AppId), "app-erro")" />
                 @MensagemDoCampo(nameof(PesquisarAuditLog.Query.AppId), "app-erro")
             </div>
         }
@@ -83,12 +75,45 @@ else
             </div>
         }
 
-        <div class="campo">
-            <label for="logid">LogID <span class="dica">começa com</span></label>
-            <input id="logid" inputmode="numeric" maxlength="20" placeholder="ex.: 4363" autocomplete="off" @bind="filtro.LogId"
-                   aria-invalid="@Invalido(nameof(PesquisarAuditLog.Query.PrefixoLogId))" aria-describedby="@Descrito(nameof(PesquisarAuditLog.Query.PrefixoLogId), "logid-erro")" />
-            @MensagemDoCampo(nameof(PesquisarAuditLog.Query.PrefixoLogId), "logid-erro")
+        <div class="campo loguid">
+            <label for="loguid">LogUID <span class="dica">começa com</span></label>
+            <input id="loguid" class="mono" maxlength="36" placeholder="ex.: 4FDF7B6B" autocomplete="off" spellcheck="false" @bind="filtro.LogUid"
+                   aria-invalid="@Invalido(nameof(PesquisarAuditLog.Query.PrefixoLogUid))" aria-describedby="@Descrito(nameof(PesquisarAuditLog.Query.PrefixoLogUid), "loguid-erro")" />
+            @MensagemDoCampo(nameof(PesquisarAuditLog.Query.PrefixoLogUid), "loguid-erro")
         </div>
+
+        @* Com os campos de data à mostra, o período é por eles e o campo Dias sai da linha. *@
+        @if (!mostrarDatas)
+        {
+            <div class="campo curto">
+                <label for="dias">Dias</label>
+                <input id="dias" type="number" min="@FiltroAuditLog.DiasMinimo" max="@FiltroAuditLog.DiasMaximo" @bind="filtro.Dias"
+                       title="Últimos N dias"
+                       aria-invalid="@Invalido(nameof(PesquisarAuditLog.Query.Dias))" aria-describedby="@Descrito(nameof(PesquisarAuditLog.Query.Dias), "dias-erro")" />
+                @MensagemDoCampo(nameof(PesquisarAuditLog.Query.Dias), "dias-erro")
+            </div>
+        }
+
+        <div class="periodo-datas" id="periodo-datas" hidden="@(!mostrarDatas)">
+            <div class="campo">
+                <label for="de">De</label>
+                <input id="de" type="date" max="@filtro.Ate" value="@filtro.De" @onchange="e => filtro.De = Vazio(e.Value as string)"
+                       aria-invalid="@Invalido(nameof(PesquisarAuditLog.Query.De))" aria-describedby="@Descrito(nameof(PesquisarAuditLog.Query.De), "de-erro")" />
+                @MensagemDoCampo(nameof(PesquisarAuditLog.Query.De), "de-erro")
+            </div>
+            <div class="campo">
+                <label for="ate">Até</label>
+                <input id="ate" type="date" min="@filtro.De" value="@filtro.Ate" @onchange="e => filtro.Ate = Vazio(e.Value as string)"
+                       aria-invalid="@Invalido(nameof(PesquisarAuditLog.Query.Ate))" aria-describedby="@Descrito(nameof(PesquisarAuditLog.Query.Ate), "ate-erro")" />
+                @MensagemDoCampo(nameof(PesquisarAuditLog.Query.Ate), "ate-erro")
+            </div>
+        </div>
+
+        <button type="button" class="botao alternar-periodo" id="alternar-datas" aria-expanded="@(mostrarDatas ? "true" : "false")"
+                aria-controls="periodo-datas" @onclick="AlternarDatas">
+            <LucideIcon Name="@(mostrarDatas ? "x" : "calendar")" Size="14" aria-hidden="true" focusable="false" />
+            @(mostrarDatas ? "Usar dias" : "Período por data")
+        </button>
 
         <div class="campo curto">
             <label for="qtd">Quantidade</label>
@@ -116,7 +141,7 @@ else
             @if (erro.Code == Erros.Consultas.CodigoAcessoNegado)
             {
                 <EstadoErro Titulo="Acesso negado" Motivo="@erro.Message"
-                            Orientacao="@($"Para consultar servidores deste ambiente, peça o recurso {RecursoNegado} no UserManager.")" />
+                            Orientacao="@($"Para consultar, peça o recurso {RecursoNegado} no UserManager.")" />
             }
             else if (erro.Code == Erros.Consultas.CodigoServidorNaoEncontrado)
             {
@@ -130,14 +155,26 @@ else
 
         @if (consultas.Resultado is { } resultado)
         {
-            <FiltroLocal TItem="RegistroAuditoriaVM" Itens="resultado.Itens" TextoDe="textoDoRegistro" @bind-Texto="filtroLocal" Unidade="logs">
+            <FiltroLocal TItem="RegistroAuditoriaVM" Itens="resultado.Itens" TextoDe="textoDoRegistro" @bind-Texto="filtroLocal" Unidade="logs"
+                         Selecao="doTipo">
+                <Antes>
+                    <label class="so-leitor" for="filtro-tipo">Tipo de log</label>
+                    <select id="filtro-tipo" class="entrada" value="@(tipoFiltro ?? string.Empty)" @onchange="AoMudarTipo"
+                            disabled="@(resultado.Itens.Count == 0)">
+                        <option value="">Todos os tipos</option>
+                        @foreach (var tipo in TiposDe(resultado.Itens))
+                        {
+                            <option value="@tipo">@tipo</option>
+                        }
+                    </select>
+                </Antes>
                 <Acoes>
                     @if (erroExportacao is not null)
                     {
                         <span class="status falha" role="alert">@erroExportacao</span>
                     }
                     <button type="button" class="botao secundario pequeno empurra" id="exportar" title="Baixa um arquivo HTML que abre sem o SIAT"
-                            disabled="@(resultado.Itens.Count == 0 || exportando)" @onclick="ExportarAsync">
+                            disabled="@(!TemItensDoTipo(resultado.Itens) || exportando)" @onclick="ExportarAsync">
                         <LucideIcon Name="download" Size="14" aria-hidden="true" focusable="false" />
                         Exportar HTML
                     </button>
@@ -149,9 +186,9 @@ else
                                      TemFiltros="@(filtroDoResultado?.TemFiltros == true)" AoRemoverFiltros="RemoverFiltrosAsync">
                             <Acoes>
                                 @* Com os dois filtros preenchidos, também é possível tirar só um deles. *@
-                                @if (!string.IsNullOrWhiteSpace(filtroDoResultado?.LogId) && !string.IsNullOrWhiteSpace(filtroDoResultado?.AppId))
+                                @if (!string.IsNullOrWhiteSpace(filtroDoResultado?.LogUid) && !string.IsNullOrWhiteSpace(filtroDoResultado?.AppId))
                                 {
-                                    <button type="button" class="botao secundario pequeno" @onclick="RemoverFiltroLogIdAsync">Remover filtro de LogID</button>
+                                    <button type="button" class="botao secundario pequeno" @onclick="RemoverFiltroLogUidAsync">Remover filtro de LogUID</button>
                                     <button type="button" class="botao secundario pequeno" @onclick="TodasAsAplicacoesAsync">Todas as aplicações</button>
                                 }
                             </Acoes>
@@ -160,7 +197,7 @@ else
                     else if (visiveis.Count == 0)
                     {
                         <EstadoVazio Titulo="Nenhum log carregado corresponde ao filtro"
-                                     Mensagem="@($"Nenhum dos {resultado.Itens.Count} logs carregados contém \"{filtroLocal?.Trim()}\".")" />
+                                     Mensagem="@DescricaoDoFiltroLocal(resultado.Itens.Count)" />
                     }
                     else
                     {
@@ -168,11 +205,11 @@ else
                                          SelecionadoChanged="AoSelecionar" AoAbrir="AoAbrir" Rotulo="Registros de log" IdBase="logs"
                                          Colunas="16px 92px 76px minmax(0, 1fr) 170px 104px" ColunasEstreito="16px 92px minmax(0, 1fr) 92px">
                             <Cabecalho>
-                                <span>Tipo</span><span class="opc">LogID</span><span>Mensagem</span><span class="opc">Aplicação</span><span class="direita">Data</span>
+                                <span>Tipo</span><span class="opc">LogUID</span><span>Mensagem</span><span class="opc">Aplicação</span><span class="direita">Data</span>
                             </Cabecalho>
                             <Linha Context="registro">
                                 <span class="nivel @registro.ClasseNivel">@registro.Tipo</span>
-                                <span class="mono cel-suave opc">@registro.Chave</span>
+                                <span class="mono cel-suave opc" title="@registro.LogUid">@registro.LogUidCurto</span>
                                 <span class="cel-texto">@if (registro.TemExcecao){<span class="pilula erro sem-ponto">exceção</span>@(" ")}@registro.ResumoMensagem</span>
                                 <span class="cel-suave opc">@registro.DescricaoAplicacao(aplicacoes.NomeDe(registro.AppId))</span>
                                 <span class="cel-suave direita num" title="@DataCompleta(registro.Data)">@Quando(registro.Data)</span>
@@ -186,11 +223,20 @@ else
                                     <dt>Data</dt>
                                     <dd class="num">@DataCompleta(registro.Data)</dd>
                                     <dt>Aplicação</dt>
-                                    <dd>@if (aplicacoes.NomeDe(registro.AppId) is { } nomeAplicacao){@($"{nomeAplicacao} ")}<span class="suave">(AppID @registro.AppId)</span></dd>
+                                    <dd>@if (aplicacoes.NomeDe(registro.AppId) is { } nomeAplicacao){@($"{nomeAplicacao} ")}<span class="suave">@(registro.AppId is null ? RegistroAuditoriaVM.SemAppId : $"({registro.RotuloAppId})")</span></dd>
                                     <dt>LogID</dt>
-                                    <dd><span class="mono">@registro.Chave</span> <BotaoCopiar Texto="@registro.Chave" Rotulo="LogID" /></dd>
+                                    <dd class="mono">@registro.Chave</dd>
                                     <dt>LogUID</dt>
-                                    <dd class="mono">@(registro.LogUid ?? "(sem LogUID)")</dd>
+                                    <dd>
+                                        @if (registro.LogUid is { } logUid)
+                                        {
+                                            <span class="mono">@logUid</span> <BotaoCopiar Texto="@logUid" Rotulo="LogUID" />
+                                        }
+                                        else
+                                        {
+                                            <span class="suave">@RegistroAuditoriaVM.SemLogUid</span>
+                                        }
+                                    </dd>
                                 </dl>
                                 @if (registro.TemExcecao)
                                 {
@@ -212,7 +258,7 @@ else
         else if (consultas.Estado is Servicos.EstadoConsulta.Ociosa)
         {
             <EstadoVazio Titulo="Escolha o servidor"
-                         Mensagem="Os registros mais recentes aparecem aqui depois da consulta. A aplicação e o LogID são opcionais." />
+                         Mensagem="Os registros mais recentes aparecem aqui depois da consulta. A aplicação e o LogUID são opcionais." />
         }
     </section>
 
@@ -230,8 +276,17 @@ else
     [SupplyParameterFromQuery(Name = Navegacao.ParametroApp)]
     public string? AppParametro { get; set; }
 
-    [SupplyParameterFromQuery(Name = Navegacao.ParametroLogId)]
-    public string? LogIdParametro { get; set; }
+    [SupplyParameterFromQuery(Name = Navegacao.ParametroLogUid)]
+    public string? LogUidParametro { get; set; }
+
+    [SupplyParameterFromQuery(Name = Navegacao.ParametroDias)]
+    public string? DiasParametro { get; set; }
+
+    [SupplyParameterFromQuery(Name = Navegacao.ParametroDe)]
+    public string? DeParametro { get; set; }
+
+    [SupplyParameterFromQuery(Name = Navegacao.ParametroAte)]
+    public string? AteParametro { get; set; }
 
     [SupplyParameterFromQuery(Name = Navegacao.ParametroQuantidade)]
     public string? QuantidadeParametro { get; set; }
@@ -246,6 +301,9 @@ else
     // Formulário e validação por campo.
     private FiltroAuditLogVM filtro = new();
     private IReadOnlyDictionary<string, string> errosCampo = new Dictionary<string, string>();
+
+    // Campos de data ocultos até o usuário pedir (ou até a URL trazer uma data). Ocultar limpa as datas.
+    private bool mostrarDatas;
 
     // URL já aplicada: a bruta (para ignorar renderizações sem mudança) e a normalizada (para não refazer a consulta
     // quando a URL muda só pelo sel ou pela forma de escrever os mesmos filtros).
@@ -266,17 +324,22 @@ else
     private string? servidorComErro;
     private string? selecionado;
 
-    // Filtro local sobre os itens carregados (LogID, mensagem, tipo, AppID e nome da aplicação) e exportação.
+    // Filtro local sobre os itens carregados (LogID, LogUID, mensagem, tipo, AppID e nome da aplicação) e exportação.
     // A função de texto é refeita quando a lista de aplicações muda, para o filtro passar a achar os nomes.
     private string? filtroLocal;
     private Func<RegistroAuditoriaVM, string?> textoDoRegistro = r => r.TextoBusca(null);
     private bool exportando;
     private string? erroExportacao;
 
+    // Tipo escolhido no select ao lado do filtro local (nulo: todos). O predicado só é refeito quando o tipo muda,
+    // para o FiltroLocal devolver a mesma lista (e a linha aberta continuar aberta).
+    private string? tipoFiltro;
+    private Func<RegistroAuditoriaVM, bool>? doTipo;
+
     private ServidorVM? ServidorEscolhido =>
         grupos.SelectMany(g => g.Servidores).FirstOrDefault(s => string.Equals(s.Chave, filtro.Servidor, StringComparison.Ordinal));
 
-    private string RecursoNegado => Modulo.AuditLog.PoliticaPara(ServidorEscolhido?.Ambiente ?? Ambiente.Prd);
+    private static string RecursoNegado => Modulo.AuditLog.Politica();
 
     private string? StatusDaLeitura => consultas.Estado switch
     {
@@ -297,19 +360,26 @@ else
         get
         {
             var partes = new List<string>(2);
-            if (filtroDoResultado?.AppIdNumerico is int app)
+            if (filtroDoResultado?.SemAppId == true)
+            {
+                partes.Add("sem AppID");
+            }
+            else if (filtroDoResultado?.AppIdNumerico is int app)
             {
                 var nome = aplicacoes.NomeDe(app);
                 partes.Add(nome is null ? $"AppID {app}" : $"AppID {app} ({nome})");
             }
 
-            if (!string.IsNullOrWhiteSpace(filtroDoResultado?.LogId))
+            if (!string.IsNullOrWhiteSpace(filtroDoResultado?.LogUid))
             {
-                partes.Add($"LogID começando com {filtroDoResultado.LogId.Trim()}");
+                partes.Add($"LogUID começando com {filtroDoResultado.LogUid.Trim().ToUpperInvariant()}");
             }
 
             var filtros = partes.Count == 0 ? "Sem filtros" : string.Join(", ", partes);
-            return $"{filtros}, em {consultas.Resultado?.Servidor.Nome}.";
+            var periodo = filtroDoResultado is { } f ? PeriodoAuditLog.Descrever(f.DiasNumerico, f.DeData, f.AteData) : null;
+            return periodo is null
+                ? $"{filtros}, em {consultas.Resultado?.Servidor.Nome}."
+                : $"{filtros}, {periodo}, em {consultas.Resultado?.Servidor.Nome}.";
         }
     }
 
@@ -332,7 +402,7 @@ else
 
         selecionado = Vazio(SelecionadoParametro);
 
-        var url = string.Join('\u001f', ServidorParametro, AppParametro, LogIdParametro, QuantidadeParametro);
+        var url = string.Join('\u001f', ServidorParametro, AppParametro, LogUidParametro, DiasParametro, DeParametro, AteParametro, QuantidadeParametro);
         if (url == ultimaUrl)
         {
             return;
@@ -342,8 +412,11 @@ else
         var daUrl = new FiltroAuditLogVM
         {
             Servidor = Vazio(ServidorParametro),
-            AppId = Vazio(AppParametro),
-            LogId = Vazio(LogIdParametro),
+            AppId = FiltroAuditLog.EhSemAppId(AppParametro) ? FiltroAuditLog.ValorSemAppId : Vazio(AppParametro),
+            LogUid = Vazio(LogUidParametro),
+            Dias = Vazio(DiasParametro) ?? FiltroAuditLog.DiasPadrao.ToString(CultureInfo.InvariantCulture),
+            De = Vazio(DeParametro),
+            Ate = Vazio(AteParametro),
             Quantidade = Vazio(QuantidadeParametro) ?? Quantidade.Padrao.ToString(CultureInfo.InvariantCulture),
         };
 
@@ -355,6 +428,7 @@ else
 
         chaveAplicada = chave;
         filtro = daUrl;
+        mostrarDatas = mostrarDatas || daUrl.PorData;
         if (daUrl.Servidor is null)
         {
             return;
@@ -385,18 +459,54 @@ else
         await Task.WhenAll(tarefas);
     }
 
-    // Escolher o servidor já consulta, como no Visor.
+    // Escolher o servidor já consulta.
     private Task AoEscolherServidorAsync(string? chave)
     {
         filtro.Servidor = chave;
         return chave is null ? Task.CompletedTask : AoConsultarAsync();
     }
 
+    private void AoMudarAplicacao(string? app) => filtro.AppId = Vazio(app);
+
+    private static readonly SeletorPesquisavel.Opcao OpcaoSemAppId = new(FiltroAuditLog.ValorSemAppId, RegistroAuditoriaVM.SemAppId);
+
+    // Mostrar abre os campos de data; ocultar volta a valer os dias (as datas são limpas, para não filtrarem escondidas).
+    private void AlternarDatas()
+    {
+        mostrarDatas = !mostrarDatas;
+        if (!mostrarDatas)
+        {
+            filtro.De = null;
+            filtro.Ate = null;
+        }
+    }
+
+    // Opções do seletor de aplicação: "(sem AppID)" logo depois de "Todas as aplicações", e um AppID da URL que não
+    // está na lista entra no topo, com o rótulo "AppID N".
+    private IReadOnlyList<SeletorPesquisavel.Opcao> OpcoesDeAplicacao
+    {
+        get
+        {
+            var opcoes = aplicacoes.Itens
+                .Select(a => new SeletorPesquisavel.Opcao(a.Id.ToString(CultureInfo.InvariantCulture), a.Rotulo))
+                .ToList();
+            if (filtro.AppIdNumerico is int foraDaLista && aplicacoes.NomeDe(foraDaLista) is null)
+            {
+                var valor = foraDaLista.ToString(CultureInfo.InvariantCulture);
+                opcoes.Insert(0, new SeletorPesquisavel.Opcao(valor, $"AppID {valor}"));
+            }
+
+            opcoes.Insert(0, OpcaoSemAppId);
+
+            return opcoes;
+        }
+    }
+
     private Task TentarDeNovoAsync() => filtroConsultado is null ? Task.CompletedTask : RefazerAsync(filtroConsultado.Copiar());
 
-    private Task RemoverFiltroLogIdAsync()
+    private Task RemoverFiltroLogUidAsync()
     {
-        filtro.LogId = null;
+        filtro.LogUid = null;
         return AoConsultarAsync();
     }
 
@@ -409,7 +519,9 @@ else
     private Task RemoverFiltrosAsync()
     {
         filtro.AppId = null;
-        filtro.LogId = null;
+        filtro.LogUid = null;
+        filtro.PeriodoPadrao();
+        mostrarDatas = false;
         return AoConsultarAsync();
     }
 
@@ -519,12 +631,17 @@ else
             var obtido = await Mediator.Send(
                 new ExportarAuditLog.Query(
                     atual.Servidor.Chave,
-                    usado.AppIdNumerico,
-                    Vazio(usado.LogId?.Trim()),
+                    usado.SemAppId ? null : usado.AppIdNumerico,
+                    Vazio(usado.LogUid?.Trim()),
                     usado.QuantidadeNumerica ?? Quantidade.Padrao,
                     filtroLocal,
                     atual.Itens,
-                    aplicacoes.Itens.DistinctBy(a => a.Id).ToDictionary(a => a.Id, a => a.Nome)),
+                    aplicacoes.Itens.DistinctBy(a => a.Id).ToDictionary(a => a.Id, a => a.Nome),
+                    usado.PorData ? null : usado.DiasNumerico ?? FiltroAuditLog.DiasPadrao,
+                    usado.DeData,
+                    usado.AteData,
+                    usado.SemAppId,
+                    tipoFiltro),
                 CancellationToken.None);
 
             if (obtido.IsFailure)
@@ -609,6 +726,53 @@ else
 
     private void AoAbrir(RegistroAuditoriaVM registro) => Interacao.Interagir();
 
+    private void AoMudarTipo(ChangeEventArgs e)
+    {
+        var tipo = Vazio(e.Value as string);
+        if (string.Equals(tipo, tipoFiltro, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        Interacao.Interagir();
+        tipoFiltro = tipo;
+        doTipo = tipo is null ? null : r => string.Equals(r.Tipo, tipo, StringComparison.Ordinal);
+    }
+
+    // Tipos presentes nos itens carregados, na ordem do TypeID; o tipo escolhido continua na lista mesmo que a nova
+    // consulta não o traga (para o select não mostrar um valor que não existe).
+    private IEnumerable<string> TiposDe(IReadOnlyList<RegistroAuditoriaVM> itens)
+    {
+        var tipos = itens
+            .Where(r => !string.IsNullOrEmpty(r.Tipo))
+            .GroupBy(r => r.Tipo, StringComparer.Ordinal)
+            .OrderBy(g => g.Min(r => r.TipoId))
+            .Select(g => g.Key)
+            .ToList();
+        if (tipoFiltro is not null && !tipos.Contains(tipoFiltro, StringComparer.Ordinal))
+        {
+            tipos.Insert(0, tipoFiltro);
+        }
+
+        return tipos;
+    }
+
+    // O arquivo leva só os registros do tipo escolhido: sem nenhum, não há o que exportar.
+    private bool TemItensDoTipo(IReadOnlyList<RegistroAuditoriaVM> itens) =>
+        doTipo is null ? itens.Count > 0 : itens.Any(doTipo);
+
+    private string DescricaoDoFiltroLocal(int total)
+    {
+        var texto = filtroLocal?.Trim();
+        var criterios = (tipoFiltro, string.IsNullOrEmpty(texto)) switch
+        {
+            ({ } tipo, true) => $"é do tipo {tipo}",
+            ({ } tipo, false) => $"é do tipo {tipo} e contém \"{texto}\"",
+            _ => $"contém \"{texto}\"",
+        };
+        return $"Nenhum dos {Servicos.FiltroLocal.Quantidade(total, "logs")} carregados {criterios}.";
+    }
+
     private string? Invalido(string campo) => errosCampo.ContainsKey(campo) ? "true" : null;
 
     private string? Descrito(string campo, string id) => errosCampo.ContainsKey(campo) ? id : null;
@@ -627,17 +791,19 @@ else
         }
     };
 
-    private static PesquisarAuditLog.Query ParaQuery(FiltroAuditLogVM f) => new(f.Servidor, f.AppId, f.LogId, f.Quantidade);
+    private static PesquisarAuditLog.Query ParaQuery(FiltroAuditLogVM f) => new(f.Servidor, f.AppId, f.LogUid, f.Quantidade, f.Dias, f.De, f.Ate);
 
     private static string UrlDe(FiltroAuditLogVM f, string? sel) =>
-        Navegacao.AuditLog(f.Servidor, f.AppIdNumerico, Vazio(f.LogId?.Trim()), f.QuantidadeNumerica, sel);
+        Navegacao.AuditLog(f.Servidor, f.AppIdNumerico, Vazio(f.LogUid?.Trim().ToUpperInvariant()), f.QuantidadeNumerica, sel,
+            f.DiasNumerico, f.DeData, f.AteData, f.SemAppId);
 
     // Filtros como ficam na URL; valores inválidos entram como vieram (não são consultados, mas contam como mudança).
     private static string ChaveDe(FiltroAuditLogVM f)
     {
-        var app = f.AppIdNumerico?.ToString(CultureInfo.InvariantCulture) ?? Vazio(f.AppId);
+        var app = f.SemAppId ? FiltroAuditLog.ValorSemAppId : f.AppIdNumerico?.ToString(CultureInfo.InvariantCulture) ?? Vazio(f.AppId);
         var qtd = f.QuantidadeNumerica?.ToString(CultureInfo.InvariantCulture) ?? Vazio(f.Quantidade);
-        return string.Join('\u001f', Vazio(f.Servidor), app, Vazio(f.LogId?.Trim()), qtd);
+        var dias = f.PorData ? null : f.DiasNumerico?.ToString(CultureInfo.InvariantCulture) ?? Vazio(f.Dias);
+        return string.Join('\u001f', Vazio(f.Servidor), app, Vazio(f.LogUid?.Trim().ToUpperInvariant()), dias, Vazio(f.De?.Trim()), Vazio(f.Ate?.Trim()), qtd);
     }
 
     private static string? Vazio(string? valor) => string.IsNullOrWhiteSpace(valor) ? null : valor;

@@ -2,7 +2,7 @@
 @attribute [Authorize]
 
 @* Acesso negado: página própria e componente usado pelas telas quando o usuário não tem o recurso
-   (por exemplo, MailQueue sem MailQueue.CanSelect nem MailQueuePRD.CanSelect, ou servidor de PRD sem o recurso de PRD). *@
+   (por exemplo, MailQueue sem MailQueue.CanSelect). *@
 <CabecalhoPagina Titulo="Acesso negado" />
 
 <Aviso Variante="VarianteAviso.Erro" Titulo="@TituloEfetivo">
@@ -18,11 +18,11 @@
 </Aviso>
 
 @code {
-    /// <summary>O que foi negado (por exemplo, "Você não tem acesso ao AuditLog de produção").</summary>
+    /// <summary>O que foi negado (por exemplo, "Você não tem acesso ao AuditLog").</summary>
     [Parameter]
     public string? Mensagem { get; set; }
 
-    /// <summary>Recurso do UserManager que falta (por exemplo, "AuditLogPRD.CanSelect").</summary>
+    /// <summary>Recurso do UserManager que falta (por exemplo, "AuditLog.CanSelect").</summary>
     [Parameter]
     public string? Recurso { get; set; }
 

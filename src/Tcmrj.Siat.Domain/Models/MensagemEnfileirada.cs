@@ -1,12 +1,15 @@
 namespace Tcmrj.Siat.Domain.Models;
 
-/// <summary>Mensagem de <c>MailQueue.dbo.Messages</c> com os destinatários agregados (SQL do Visor).</summary>
+/// <summary>Mensagem de <c>MailQueue.dbo.Messages</c> com os destinatários agregados.</summary>
 public sealed record MensagemEnfileirada
 {
     public const string SemDestinatarios = "(sem destinatários)";
 
     /// <summary><c>CONVERT(varchar(36), MessageId)</c>.</summary>
     public required string MessageId { get; init; }
+
+    /// <summary><c>m.SmtpId</c>: SMTP pelo qual o e-mail sai. Nulo se não informado.</summary>
+    public int? SmtpId { get; init; }
 
     public string? Assunto { get; init; }
 

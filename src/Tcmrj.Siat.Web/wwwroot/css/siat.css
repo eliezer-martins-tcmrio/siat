@@ -383,6 +383,38 @@ a.menu-item:hover { background: oklch(from var(--color-sidebar-strong) l c h / 0
 .seletor-servidor optgroup[data-amb="prd"] { color: var(--color-env-prd); font-weight: 700; }
 .seletor-servidor[data-amb="prd"] select { font-weight: 600; }
 
+/* Seletor com busca (SeletorPesquisavel.razor): botão com a escolha + painel com busca e lista. */
+.combo { position: relative; }
+.combo-botao {
+  display: flex; align-items: center; gap: 8px; width: 100%; min-height: 40px; padding: 0 10px 0 12px;
+  border: 1px solid var(--color-field); border-radius: var(--radius-control);
+  background: var(--color-surface); color: var(--color-ink); font-weight: 400; font-size: 14px; text-align: left;
+}
+.combo-botao:focus-visible { outline-offset: 0; }
+.combo-botao[aria-invalid="true"] { border-color: var(--color-bad); }
+.combo-botao[aria-busy="true"] .combo-seta { opacity: 0.4; }
+.combo-valor { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.combo-seta { flex: none; color: var(--color-muted); transition: rotate 150ms; }
+.combo[data-aberto] .combo-seta { rotate: 180deg; }
+.combo-fundo { position: fixed; inset: 0; z-index: 30; }
+.combo-painel {
+  position: absolute; top: calc(100% + 4px); left: 0; z-index: 31;
+  width: max(100%, 320px); max-width: min(480px, 90vw); padding: 6px;
+  border: 1px solid var(--color-line); border-radius: var(--radius-card);
+  background: var(--color-surface); box-shadow: 0 8px 24px oklch(30% 0.07 248 / 0.16), var(--shadow-card);
+}
+.campo .combo-busca { min-height: 34px; padding: 0 10px; font-size: 13px; }
+.combo-busca:focus-visible { outline-width: 2px; outline-offset: 0; }
+.combo-lista { list-style: none; margin: 6px 0 0; padding: 0; max-height: 280px; overflow-y: auto; }
+.combo-opcao {
+  padding: 7px 10px; border-radius: 5px; font-weight: 400; font-size: 13px; cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.combo-opcao:hover { background: var(--color-soft); }
+.combo-opcao[aria-selected="true"] { font-weight: 600; }
+.combo-opcao[data-ativa] { background: var(--color-accent-soft); color: var(--color-accent-ink); }
+.combo-nada { padding: 10px; font-weight: 400; font-size: 13px; color: var(--color-muted); }
+
 .filtros {
   display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 14px;
   padding: 16px 18px;
@@ -397,14 +429,16 @@ a.menu-item:hover { background: oklch(from var(--color-sidebar-strong) l c h / 0
   background: var(--color-surface); border: 1px solid var(--color-line);
   border-radius: var(--radius-card); box-shadow: var(--shadow-card);
 }
-.painel > * + * { border-top: 1px solid var(--color-line); }
-.painel.filtros > * { border-top: 0; }
+/* Divisória entre as seções do painel; no formulário de filtros não há seções (e zerar a borda de todos os filhos
+   cortava o topo dos botões secundários). */
+.painel:not(.filtros) > * + * { border-top: 1px solid var(--color-line); }
 .barra {
   display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px;
   padding: 12px 18px;
 }
 .barra .contador { color: var(--color-muted); font-size: 13px; font-variant-numeric: tabular-nums; }
 .barra .empurra { margin-left: auto; }
+.barra select.entrada { flex: 0 1 200px; width: auto; }
 
 /* Faixa de resumo: uma superfície dividida, não quatro cartões. */
 .resumo {
@@ -475,7 +509,7 @@ a.menu-item:hover { background: oklch(from var(--color-sidebar-strong) l c h / 0
 .expansor svg { transition: rotate 150ms cubic-bezier(0.25, 1, 0.5, 1); }
 [aria-expanded="true"] > svg, [aria-expanded="true"] .seta { rotate: 90deg; }
 
-/* ---------- Lista expansível de resultados (Visor) ---------- */
+/* ---------- Lista expansível de resultados ---------- */
 
 .lista { font-size: 13px; }
 .lista-cab, .item-linha {
@@ -526,6 +560,11 @@ pre.codigo {
 .copiavel pre.codigo { padding-right: 88px; }
 pre.codigo.escuro { background: var(--color-code-bg); border-color: var(--color-code-line); color: var(--color-code-ink); }
 .copiavel:has(.escuro) .botao { background: oklch(32% 0.015 250); border-color: var(--color-code-line); color: var(--color-code-ink); }
+/* No tema claro, o Copiar sobre o bloco escuro (Exceção) se destaca mais: fundo e borda mais claros, texto quase branco. */
+:root:not([data-theme="dark"]) .copiavel:has(.escuro) .botao {
+  background: oklch(44% 0.02 250); border-color: oklch(62% 0.02 250); color: oklch(98.5% 0.003 250); font-weight: 600;
+}
+:root:not([data-theme="dark"]) .copiavel:has(.escuro) .botao:hover { background: oklch(52% 0.022 250); }
 .st-tipo { font-weight: 700; color: oklch(96% 0.005 250); }
 .st-at, .st-ns, .st-param { color: oklch(62% 0.015 250); }
 .st-metodo { font-weight: 600; color: oklch(93% 0.008 250); }
@@ -583,3 +622,22 @@ pre.codigo.escuro { background: var(--color-code-bg); border-color: var(--color-
   *, *::before, *::after { transition-duration: 0s !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
   .progresso::after { width: 100%; translate: 0 0; opacity: 0.5; }
 }
+
+/* Período por data do AuditLog: os dois campos ficam juntos e só aparecem quando pedidos. */
+/* De e Até ficam juntos na linha dos filtros e, se a linha quebrar, descem juntos (sem quebrar entre si). */
+.periodo-datas { display: flex; flex: 0 0 auto; align-items: flex-end; gap: 14px; }
+.periodo-datas[hidden] { display: none; }
+.filtros .periodo-datas .campo { flex: 0 0 140px; }
+/* Com as datas à mostra, Aplicação e LogUID cedem espaço para tudo caber numa linha (eles ainda crescem se sobrar). */
+.filtros:has(.periodo-datas:not([hidden])) .campo.largo { flex-basis: 160px; }
+.filtros:has(.periodo-datas:not([hidden])) .campo.loguid { flex-basis: 150px; }
+
+/* Botão que mostra/oculta o período por data: destacado no tom de acento; aberto, preenchido. */
+.botao.alternar-periodo {
+  background: var(--color-accent-soft); border-color: var(--color-accent); color: var(--color-accent-ink);
+}
+.botao.alternar-periodo:hover { background: oklch(from var(--color-accent-soft) calc(l - 0.04) c h); }
+.botao.alternar-periodo[aria-expanded="true"] {
+  background: var(--color-accent-ink); border-color: var(--color-accent-ink); color: var(--color-surface);
+}
+.botao.alternar-periodo[aria-expanded="true"]:hover { background: oklch(from var(--color-accent-ink) calc(l + 0.06) c h); }

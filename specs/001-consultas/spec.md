@@ -1,6 +1,6 @@
 # Especificação: Consultas — MailQueue e AuditLog
 
-**Branch da feature**: `001-consultas-visor`
+**Branch da feature**: `001-consultas`
 
 **Criada em**: 2026-11-10
 
@@ -10,9 +10,9 @@
 
 ## Contexto
 
-Esta é a primeira entrega do SIAT. O PRD previa o Visor (MailQueue e AuditLog) na fase 3, depois de Sistemas e Versões; por decisão do responsável, ele passa a ser a primeira entrega. Por isso esta feature inclui também a base mínima da aplicação (login, permissões, layout e menu) necessária para o módulo funcionar sozinho.
+Esta é a primeira entrega do SIAT. O PRD previa MailQueue e AuditLog na fase 3, depois de Sistemas e Versões; por decisão do responsável, eles passam a ser a primeira entrega. Por isso esta feature inclui também a base mínima da aplicação (login, permissões, layout e menu) necessária para o módulo funcionar sozinho.
 
-No menu lateral, a seção que o PRD e o sistema de design chamam de **Visor** passa a se chamar **Consultas**, com os itens **MailQueue** e **AuditLog**. Requisitos do PRD cobertos: RG-01 a RG-05, RG-09 a RG-14 e MQ-01 a MQ-04, AL-01 a AL-04.
+No menu lateral, a seção se chama **Consultas**, com os itens **MailQueue** e **AuditLog**. Requisitos do PRD cobertos: RG-01 a RG-05, RG-09 a RG-14 e MQ-01 a MQ-04, AL-01 a AL-04.
 
 ## Cenários de usuário e testes *(obrigatório)*
 
@@ -20,9 +20,9 @@ No menu lateral, a seção que o PRD e o sistema de design chamam de **Visor** p
 
 Uma pessoa do suporte precisa saber se um e-mail foi enfileirado em homologação. Ela entra no SIAT com o login do Tribunal, abre **Consultas › MailQueue**, escolhe um servidor de HML na lista, opcionalmente escolhe o SMTP e digita um trecho do destinatário ou do assunto, e vê a lista dos e-mails encontrados, do mais recente para o mais antigo. Ao abrir uma linha, vê o detalhe do e-mail, com o corpo exibido de forma isolada.
 
-**Por que esta prioridade**: é a pergunta mais frequente que o Visor responde hoje e, com a base da aplicação, já entrega valor sozinha, substituindo o executável local na maior parte dos usos.
+**Por que esta prioridade**: é a pergunta mais frequente do suporte e, com a base da aplicação, já entrega valor sozinha, sem nenhuma ferramenta instalada na máquina do usuário.
 
-**Teste independente**: com um usuário que tem só o recurso `MailQueue.CanSelect`, consultar um servidor de HML com e sem filtros e conferir que os resultados batem com os do Visor atual para os mesmos filtros.
+**Teste independente**: com um usuário que tem só o recurso `MailQueue.CanSelect`, consultar um servidor de HML com e sem filtros e conferir que os resultados batem com os dados do banco para os mesmos filtros.
 
 **Cenários de aceitação**:
 
@@ -39,9 +39,9 @@ Uma pessoa do suporte precisa saber se um e-mail foi enfileirado em homologaçã
 
 Um desenvolvedor investiga um erro reportado em HML. Ele abre **Consultas › AuditLog**, escolhe o servidor, escolhe a aplicação na lista e vê os registros de log mais recentes. Ao abrir um registro, vê a exceção com o stack trace formatado e o LogEvent formatado e legível. Quando tem o número do log informado pelo usuário, busca pelo início do número.
 
-**Por que esta prioridade**: é o segundo uso do Visor, essencial para desenvolvedores; depende da mesma base da História 1, mas é testável sem ela estar completa.
+**Por que esta prioridade**: é a consulta essencial para desenvolvedores; depende da mesma base da História 1, mas é testável sem ela estar completa.
 
-**Teste independente**: com um usuário que tem só `AuditLog.CanSelect`, consultar uma aplicação em HML e buscar um LogID conhecido, comparando com o Visor atual.
+**Teste independente**: com um usuário que tem só `AuditLog.CanSelect`, consultar uma aplicação em HML e buscar um LogID conhecido, comparando com o registro no `AUDITORIADB`.
 
 **Cenários de aceitação**:
 
@@ -52,21 +52,21 @@ Um desenvolvedor investiga um erro reportado em HML. Ele abre **Consultas › Au
 
 ---
 
-### História 3 — Consultar dados de PRD com permissão própria (Prioridade: P3)
+### História 3 — Consultar dados de PRD com destaque e registro (Prioridade: P3)
 
-Uma pessoa do grupo restrito de PRD precisa confirmar se um e-mail de produção foi enfileirado ou ver um erro de produção. Ela escolhe um servidor de PRD, que só aparece para quem tem o recurso de PRD, e a tela deixa claro que está consultando produção e que a consulta fica registrada.
+Uma pessoa do grupo `Consultas` precisa confirmar se um e-mail de produção foi enfileirado ou ver um erro de produção. Ela escolhe um servidor de PRD, liberado pelo mesmo recurso do módulo que DSV e HML, e a tela deixa claro que está consultando produção e que a consulta fica registrada.
 
 **Por que esta prioridade**: os dados de PRD são os mais sensíveis; a entrega de DSV/HML já tem valor sozinha, e PRD só é liberado com os controles de acesso e auditoria validados.
 
-**Teste independente**: com dois usuários, um com `MailQueue.CanSelect` e outro com `MailQueue.CanSelect` e `MailQueuePRD.CanSelect`, conferir que só o segundo vê e consegue consultar servidores de PRD, inclusive tentando pela URL.
+**Teste independente**: com dois usuários, um com `MailQueue.CanSelect` e outro sem nenhum recurso do SIAT, conferir que só o primeiro vê e consegue consultar servidores de PRD, inclusive tentando pela URL.
 
 **Cenários de aceitação**:
 
-1. **Dado** um usuário sem `MailQueuePRD.CanSelect`, **quando** abre o seletor de servidor da MailQueue, **então** não vê nenhum servidor de PRD.
-2. **Dado** o mesmo usuário, **quando** abre uma URL compartilhada que aponta para um servidor de PRD, **então** a consulta não é feita e ele vê uma mensagem de acesso negado, sem nenhum dado de PRD.
-3. **Dado** um usuário com o recurso de PRD, **quando** escolhe um servidor de PRD, **então** a faixa de contexto no topo da tela fica destacada como produção e avisa que a consulta é registrada em log.
+1. **Dado** um usuário com `MailQueue.CanSelect`, **quando** abre o seletor de servidor da MailQueue, **então** vê os servidores de DSV, HML e PRD.
+2. **Dado** um usuário sem `MailQueue.CanSelect`, **quando** abre uma URL compartilhada que aponta para um servidor de PRD, **então** a consulta não é feita e ele vê uma mensagem de acesso negado, sem nenhum dado de PRD.
+3. **Dado** um usuário com o recurso do módulo, **quando** escolhe um servidor de PRD, **então** a faixa de contexto no topo da tela fica destacada como produção e avisa que a consulta é registrada em log.
 4. **Dado** qualquer consulta, em qualquer ambiente, **quando** é executada, **então** fica registrado no log quem consultou, o servidor, o módulo e os filtros usados.
-5. As mesmas regras valem para o AuditLog com `AuditLogPRD.CanSelect`.
+5. As mesmas regras valem para o AuditLog com `AuditLog.CanSelect`.
 
 ---
 
@@ -109,8 +109,8 @@ Durante uma consulta lenta (por exemplo, uma aplicação sem registros, que obri
 **Base da aplicação**
 
 - **FR-001**: O sistema DEVE exigir login pelo SSO corporativo do UserManager de PRD antes de mostrar qualquer página.
-- **FR-002**: O sistema DEVE ser cadastrado no UserManager como aplicação própria, com os recursos `MailQueue.CanSelect`, `MailQueuePRD.CanSelect`, `AuditLog.CanSelect` e `AuditLogPRD.CanSelect`.
-- **FR-003**: O menu lateral DEVE ter a seção **Consultas** (no lugar de "Visor") com os itens **MailQueue** e **AuditLog**; cada item só aparece para quem tem o recurso correspondente, e a seção some quando o usuário não tem nenhum dos dois.
+- **FR-002**: O sistema DEVE ser cadastrado no UserManager como aplicação própria, com os recursos `MailQueue.CanSelect` e `AuditLog.CanSelect`; cada recurso libera os três ambientes (DSV, HML e PRD).
+- **FR-003**: O menu lateral DEVE ter a seção **Consultas** com os itens **MailQueue** e **AuditLog**; cada item só aparece para quem tem o recurso correspondente, e a seção some quando o usuário não tem nenhum dos dois.
 - **FR-004**: Toda página e toda consulta DEVEM ser autorizadas no servidor pelo recurso correspondente, independentemente do que a interface mostra.
 - **FR-005**: O layout DEVE seguir o sistema de design do SIAT (`DESIGN.md`): menu lateral com logo, temas claro, escuro e do sistema, e rodapé com tema, conta e sair.
 - **FR-006**: A página inicial DEVE levar o usuário à primeira ferramenta de Consultas a que ele tem acesso ou, se não tiver nenhuma, informar que ele não tem acesso e a quem pedir.
@@ -118,19 +118,19 @@ Durante uma consulta lenta (por exemplo, uma aplicação sem registros, que obri
 **Servidores**
 
 - **FR-007**: O servidor a consultar DEVE ser escolhido de uma lista fechada, em que cada servidor tem nome e ambiente (DSV, HML ou PRD); NÃO DEVE existir campo de servidor livre, nem na tela nem na URL.
-- **FR-008**: O seletor DEVE mostrar apenas os servidores permitidos ao usuário: DSV e HML com o recurso comum do módulo; PRD apenas com o recurso de PRD do módulo.
+- **FR-008**: O seletor DEVE mostrar os servidores da lista fechada (DSV, HML e PRD) apenas a quem tem o recurso do módulo; sem ele, nenhum servidor é oferecido nem consultado.
 - **FR-009**: Toda tela de consulta DEVE mostrar a faixa de contexto com servidor e ambiente; em PRD, destacada e com o aviso de que a consulta é registrada em log.
 
 **MailQueue**
 
 - **FR-010**: Os usuários DEVEM poder filtrar por SMTP (lista vinda do servidor escolhido, com "Todos os SMTPs"), por texto (procurado em assunto, corpo, destinatários e identificador da mensagem) e por quantidade de 1 a 1000, padrão 50.
-- **FR-011**: O resultado DEVE vir do mais recente para o mais antigo, em lista expansível com as colunas e o detalhe equivalentes aos do Visor atual.
+- **FR-011**: O resultado DEVE vir do mais recente para o mais antigo, em lista expansível com as colunas e o detalhe descritos nos cenários de aceitação.
 - **FR-012**: O corpo do e-mail DEVE ser exibido isolado da página, sem executar scripts.
 
 **AuditLog**
 
 - **FR-013**: Os usuários DEVEM poder filtrar por aplicação (lista do UserManager; campo numérico quando a lista não estiver disponível), por início do LogID (só dígitos, até 20) e por quantidade de 1 a 1000, padrão 50.
-- **FR-014**: O resultado DEVE vir do mais recente para o mais antigo, em lista expansível com as colunas e o detalhe equivalentes aos do Visor atual.
+- **FR-014**: O resultado DEVE vir do mais recente para o mais antigo, em lista expansível com as colunas e o detalhe descritos nos cenários de aceitação.
 - **FR-015**: O detalhe DEVE exibir a exceção com o stack trace formatado e o LogEvent indentado; conteúdo inválido DEVE ser exibido como texto original.
 
 **Comportamentos comuns**
@@ -159,21 +159,20 @@ Durante uma consulta lenta (por exemplo, uma aplicação sem registros, que obri
 ### Resultados mensuráveis
 
 - **SC-001**: Uma pessoa do suporte responde "o e-mail foi enfileirado em HML?" em menos de 30 segundos a partir do login, sem instalar nem executar nada na própria máquina.
-- **SC-002**: Para os mesmos servidor e filtros, os resultados de MailQueue e AuditLog são idênticos aos do Visor atual em 100% dos casos de teste de aceitação.
+- **SC-002**: Para os mesmos servidor e filtros, os resultados de MailQueue e AuditLog correspondem aos dados do banco consultado (mesmos itens, na mesma ordem) em 100% dos casos de teste de aceitação.
 - **SC-003**: As telas abrem em até 2 segundos; consultas com filtro em servidores disponíveis retornam em até 5 segundos na maioria dos casos medidos.
 - **SC-004**: Um cancelamento interrompe a consulta no banco em até 2 segundos.
-- **SC-005**: Zero consultas a PRD feitas por usuários sem o recurso de PRD, verificado pelo registro de consultas e por testes de acesso direto pela URL.
+- **SC-005**: Zero consultas a PRD feitas por usuários sem o recurso do módulo, verificado pelo registro de consultas e por testes de acesso direto pela URL.
 - **SC-006**: 100% das consultas e exportações aparecem no registro de consultas com usuário, servidor e filtros.
-- **SC-007**: Três meses após a entrega, o executável do Visor deixou de ser usado pelas equipes de suporte e desenvolvimento.
+- **SC-007**: Três meses após a entrega, as equipes de suporte e desenvolvimento consultam MailQueue e AuditLog só pelo SIAT, sem ferramenta local.
 
 ## Premissas
 
 - A base da aplicação (login, permissões, layout, menu, temas) entra nesta feature por ser a primeira entrega; Sistemas, Versões e os demais módulos continuam nas fases seguintes e aparecerão no menu em suas próprias seções.
-- A seção de menu **Consultas** agrupa as consultas a bancos de servidores escolhidos pelo usuário; futuras consultas desse tipo podem entrar nela. O `DESIGN.md` e as telas de exemplo em `design/` serão atualizados para usar "Consultas" no lugar de "Visor".
-- Filtros, colunas e detalhes reproduzem os do Visor atual (`Tcmrj.Visor`), que serve de referência de comportamento; as telas de exemplo `design/mailqueue.html` e `design/auditlog.html` são o contrato visual.
+- A seção de menu **Consultas** agrupa as consultas a bancos de servidores escolhidos pelo usuário; futuras consultas desse tipo podem entrar nela.
+- Filtros, colunas e detalhes são os definidos nesta especificação; as telas de exemplo `design/mailqueue.html` e `design/auditlog.html` são o contrato visual.
 - A lista fechada de servidores fica em arquivo de configuração versionado, com ambiente por servidor; o conteúdo inicial e quem pode alterá-lo seguem como questão em aberto do PRD (item 3), sem bloquear o desenvolvimento.
 - A conta de serviço somente de leitura terá acesso aos bancos MailQueue, AUDITORIADB e à lista de aplicações do UserManager em cada servidor da lista.
-- Os grupos do UserManager que recebem os recursos de PRD são definidos pela coordenação (questão em aberto 4 do PRD); a entrega de PRD (História 3) só é liberada depois disso.
+- Quem entra no grupo `Consultas` do UserManager (e, com isso, consulta também PRD) é definido pela coordenação.
 - O registro de consultas usa o mecanismo de log já adotado pelo Tribunal; o SIAT não guarda dados próprios.
-- O Visor atual continua disponível até o módulo Consultas ser validado pelos usuários.
-- Itens do Visor atual ligados à execução local (porta, abrir navegador, encerrar servidor, servidores sugeridos guardados no navegador, token de sessão na URL) não se aplicam e ficam fora do escopo.
+- Itens ligados a execução local (porta, abrir navegador, encerrar servidor, servidores sugeridos guardados no navegador, token de sessão na URL) não se aplicam e ficam fora do escopo.

@@ -18,14 +18,38 @@ namespace Tcmrj.Siat.App.Web.Features.AuditLog;
 public static class Pesquisar
 {
     /// <summary>
-    /// Filtros como vieram da tela ou da URL. <paramref name="AppId"/>, <paramref name="PrefixoLogId"/> e
-    /// <paramref name="Quantidade"/> são texto para que a validação devolva a mensagem do campo.
+    /// Filtros como vieram da tela ou da URL, em texto para que a validação devolva a mensagem do campo.
+    /// <paramref name="Dias"/> vazio vale 30; com <paramref name="De"/> ou <paramref name="Ate"/> (yyyy-MM-dd), o
+    /// período é pelas datas e os dias são ignorados.
     /// </summary>
-    public sealed record Query(string? Servidor, string? AppId, string? PrefixoLogId, string? Quantidade)
-        : IRequest<Result<ResultadoConsultaVM<RegistroAuditoriaVM>, Erro>>;
+    public sealed record Query(
+        string? Servidor,
+        string? AppId,
+        string? PrefixoLogUid,
+        string? Quantidade,
+        string? Dias = null,
+        string? De = null,
+        string? Ate = null) : IRequest<Result<ResultadoConsultaVM<RegistroAuditoriaVM>, Erro>>;
 
-    /// <summary>Filtros gravados no registro da consulta (propriedade <c>Filtros</c> do LogEvent).</summary>
-    public sealed record FiltrosRegistrados(int? AppId, string? PrefixoLogId, int Quantidade);
+    /// <summary>
+    /// Filtros gravados no registro da consulta (propriedade <c>Filtros</c> do LogEvent). <paramref name="Dias"/> é
+    /// nulo quando o período é pelas datas.
+    /// </summary>
+    public sealed record FiltrosRegistrados(
+        int? AppId,
+        string? PrefixoLogUid,
+        int Quantidade,
+        int? Dias = FiltroAuditLog.DiasPadrao,
+        DateOnly? De = null,
+        DateOnly? Ate = null,
+        bool SemAppId = false)
+    {
+        public static FiltrosRegistrados Do(FiltroAuditLog filtro)
+        {
+            ArgumentNullException.ThrowIfNull(filtro);
+            return new(filtro.AppId, filtro.PrefixoLogUid, filtro.Quantidade, filtro.Dias, filtro.De, filtro.Ate, filtro.SemAppId);
+        }
+    }
 
     public sealed class Handler(
         IValidator<Query> validador,
@@ -54,7 +78,7 @@ public static class Pesquisar
             }
 
             var chave = request.Servidor!.Trim();
-            var filtros = new FiltrosRegistrados(filtro.Value.AppId, filtro.Value.PrefixoLogId, filtro.Value.Quantidade);
+            var filtros = FiltrosRegistrados.Do(filtro.Value);
 
             var autorizado = await autorizacao.AutorizarAsync(Modulo.AuditLog, chave);
             if (autorizado.IsFailure)
@@ -115,7 +139,8 @@ public static class Pesquisar
         }
 
         int? appId = null;
-        if (!string.IsNullOrWhiteSpace(query.AppId))
+        var semAppId = FiltroAuditLog.EhSemAppId(query.AppId);
+        if (!semAppId && !string.IsNullOrWhiteSpace(query.AppId))
         {
             if (!int.TryParse(query.AppId.Trim(), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var id))
             {
@@ -125,6 +150,24 @@ public static class Pesquisar
             appId = id;
         }
 
-        return FiltroAuditLog.Create(appId, query.PrefixoLogId, quantidade.Value);
+        var dias = FiltroAuditLog.InterpretarDias(query.Dias);
+        if (dias.IsFailure)
+        {
+            return dias.Error;
+        }
+
+        var de = FiltroAuditLog.InterpretarData(query.De);
+        if (de.IsFailure)
+        {
+            return de.Error;
+        }
+
+        var ate = FiltroAuditLog.InterpretarData(query.Ate);
+        if (ate.IsFailure)
+        {
+            return ate.Error;
+        }
+
+        return FiltroAuditLog.Create(appId, query.PrefixoLogUid, quantidade.Value, dias.Value, de.Value, ate.Value, semAppId);
     }
 }

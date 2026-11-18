@@ -21,8 +21,8 @@
 @inject TimeProvider Relogio
 @inject IJSRuntime JS
 
-@* Consultas › MailQueue (história 1; design/mailqueue.html; Visor wwwroot/mailqueue.html).
-   - Acesso: no OnInitializedAsync, qualquer das duas políticas do módulo; sem nenhuma, AcessoNegado. Cada consulta é
+@* Consultas › MailQueue (história 1; design/mailqueue.html).
+   - Acesso: no OnInitializedAsync, a política do módulo (a mesma em DSV, HML e PRD); sem ela, AcessoNegado. Cada consulta é
      autorizada de novo no servidor pela feature (R4).
    - URL: servidor, smtp, texto, qtd e sel ([SupplyParameterFromQuery]). Abrir a URL refaz a consulta; consultar grava a
      URL com Navegacao.MailQueue (replace: false); abrir ou fechar uma linha troca só o sel (replace: true).
@@ -39,7 +39,7 @@
 }
 else if (acesso == false)
 {
-    <AcessoNegado Mensagem="Você não tem acesso à MailQueue" Recurso="@Modulo.MailQueue.PoliticaPara(Ambiente.Dsv)" />
+    <AcessoNegado Mensagem="Você não tem acesso à MailQueue" Recurso="@Modulo.MailQueue.Politica()" />
 }
 else
 {
@@ -60,19 +60,10 @@ else
 
         <div class="campo">
             <label for="smtp">SMTP</label>
-            <select id="smtp" value="@(filtro.Smtp ?? string.Empty)" @onchange="AoMudarSmtp"
-                    aria-busy="@(carregandoSmtps ? "true" : null)"
-                    aria-invalid="@Invalido(nameof(PesquisarMailQueue.Query.SmtpId))" aria-describedby="@Descrito(nameof(PesquisarMailQueue.Query.SmtpId), "smtp-erro")">
-                <option value="" selected="@(filtro.SmtpNumerico is null)">Todos os SMTPs</option>
-                @if (filtro.SmtpNumerico is int smtpForaDaLista && !smtps.Itens.Any(s => s.SmtpId == smtpForaDaLista))
-                {
-                    <option value="@smtpForaDaLista" selected>@smtps.RotuloDe(smtpForaDaLista)</option>
-                }
-                @foreach (var smtp in smtps.Itens)
-                {
-                    <option value="@smtp.SmtpId" selected="@(filtro.SmtpNumerico == smtp.SmtpId)">@smtp.Rotulo</option>
-                }
-            </select>
+            <SeletorPesquisavel Id="smtp" Rotulo="SMTP" OpcaoVazia="Todos os SMTPs" Placeholder="Id ou descrição do SMTP"
+                                Opcoes="OpcoesDeSmtp" Valor="@filtro.Smtp" ValorChanged="AoMudarSmtp" Ocupado="carregandoSmtps"
+                                Invalido="@(Invalido(nameof(PesquisarMailQueue.Query.SmtpId)) is not null)"
+                                DescritoPor="@Descrito(nameof(PesquisarMailQueue.Query.SmtpId), "smtp-erro")" />
             @MensagemDoCampo(nameof(PesquisarMailQueue.Query.SmtpId), "smtp-erro")
         </div>
 
@@ -110,7 +101,7 @@ else
             @if (erro.Code == Erros.Consultas.CodigoAcessoNegado)
             {
                 <EstadoErro Titulo="Acesso negado" Motivo="@erro.Message"
-                            Orientacao="@($"Nenhum dado foi consultado. Para consultar servidores deste ambiente, peça o recurso {RecursoNegado} no UserManager.")" />
+                            Orientacao="@($"Nenhum dado foi consultado. Para consultar, peça o recurso {RecursoNegado} no UserManager.")" />
             }
             else if (erro.Code == Erros.Consultas.CodigoServidorNaoEncontrado)
             {
@@ -151,12 +142,13 @@ else
                     {
                         <ListaExpansivel TItem="MensagemVM" Itens="visiveis" Chave="m => m.MessageId" Selecionado="@selecionado"
                                          SelecionadoChanged="AoSelecionar" AoAbrir="AoAbrir" Rotulo="E-mails" IdBase="mensagens"
-                                         Colunas="16px 84px minmax(0, 1fr) 230px 104px" ColunasEstreito="16px 84px minmax(0, 1fr) 92px">
+                                         Colunas="16px 84px 52px minmax(0, 1fr) 230px 104px" ColunasEstreito="16px 84px 52px minmax(0, 1fr) 92px">
                             <Cabecalho>
-                                <span>Situação</span><span>Assunto</span><span class="opc">Para</span><span class="direita">Postado</span>
+                                <span>Situação</span><span>SMTP</span><span>Assunto</span><span class="opc">Para</span><span class="direita">Postado</span>
                             </Cabecalho>
                             <Linha Context="mensagem">
                                 <span><span class="pilula @mensagem.SituacaoClasse">@mensagem.SituacaoRotulo</span></span>
+                                <span class="cel-suave num" title="@RotuloDoSmtp(mensagem)">@if (mensagem.SmtpTexto is { } smtpId){@smtpId}else{<span class="suave">—</span>}</span>
                                 <span class="cel-texto">@if (mensagem.TemAssunto){@mensagem.Assunto}else{<span class="suave">@MensagemVM.SemAssunto</span>}</span>
                                 <span class="cel-suave opc">@if (mensagem.PrimeiroDestinatario is { } primeiro){@primeiro@if (mensagem.DemaisDestinatarios > 0){<text> </text><span class="suave">+@mensagem.DemaisDestinatarios</span>}}else{<span class="suave">@MensagemEnfileirada.SemDestinatarios</span>}</span>
                                 <span class="cel-suave direita num" title="@mensagem.PostadoEmCompleto">@mensagem.PostadoEmRelativo</span>
@@ -167,6 +159,8 @@ else
                                     <dd>@if (mensagem.TemAssunto){@mensagem.Assunto}else{<span class="suave">@MensagemVM.SemAssunto</span>}</dd>
                                     <dt>Para</dt>
                                     <dd>@if (mensagem.ListaDestinatarios.Count > 0){@mensagem.Destinatarios}else{<span class="suave">@MensagemEnfileirada.SemDestinatarios</span>}</dd>
+                                    <dt>SMTP</dt>
+                                    <dd class="num">@if (RotuloDoSmtp(mensagem) is { } rotuloSmtp){@rotuloSmtp}else{<span class="suave">não informado</span>}</dd>
                                     <dt>Situação</dt>
                                     <dd><span class="pilula @mensagem.SituacaoClasse">@mensagem.SituacaoDescricao</span></dd>
                                     <dt>Postado em</dt>
@@ -256,7 +250,7 @@ else
     private ServidorVM? ServidorEscolhido =>
         grupos.SelectMany(g => g.Servidores).FirstOrDefault(s => string.Equals(s.Chave, filtro.Servidor, StringComparison.Ordinal));
 
-    private string RecursoNegado => Modulo.MailQueue.PoliticaPara(ServidorEscolhido?.Ambiente ?? Ambiente.Prd);
+    private static string RecursoNegado => Modulo.MailQueue.Politica();
 
     private string? StatusDaLeitura => consultas.Estado switch
     {
@@ -354,7 +348,7 @@ else
         await Task.WhenAll(tarefas);
     }
 
-    // Escolher o servidor já consulta, como no Visor. Os SMTPs são do servidor: a escolha anterior não vale mais.
+    // Escolher o servidor já consulta. Os SMTPs são do servidor: a escolha anterior não vale mais.
     private Task AoEscolherServidorAsync(string? chave)
     {
         filtro.Servidor = chave;
@@ -362,7 +356,24 @@ else
         return chave is null ? Task.CompletedTask : AoConsultarAsync();
     }
 
-    private void AoMudarSmtp(ChangeEventArgs e) => filtro.Smtp = Vazio(e.Value?.ToString());
+    private void AoMudarSmtp(string? smtp) => filtro.Smtp = Vazio(smtp);
+
+    // Opções do seletor de SMTP; um SMTP da URL que não está na lista entra no topo, com o rótulo "SMTP N".
+    private IReadOnlyList<SeletorPesquisavel.Opcao> OpcoesDeSmtp
+    {
+        get
+        {
+            var opcoes = smtps.Itens
+                .Select(s => new SeletorPesquisavel.Opcao(s.SmtpId.ToString(CultureInfo.InvariantCulture), s.Rotulo))
+                .ToList();
+            if (filtro.SmtpNumerico is int foraDaLista && !smtps.Itens.Any(s => s.SmtpId == foraDaLista))
+            {
+                opcoes.Insert(0, new SeletorPesquisavel.Opcao(foraDaLista.ToString(CultureInfo.InvariantCulture), smtps.RotuloDe(foraDaLista)));
+            }
+
+            return opcoes;
+        }
+    }
 
     private Task TentarDeNovoAsync() => filtroConsultado is null ? Task.CompletedTask : RefazerAsync(filtroConsultado.Copiar());
 
@@ -590,6 +601,8 @@ else
             builder.CloseElement();
         }
     };
+
+    private string? RotuloDoSmtp(MensagemVM mensagem) => mensagem.SmtpId is int id ? smtps.RotuloDe(id) : null;
 
     private string? NomeDoServidor(string? chave) =>
         grupos.SelectMany(g => g.Servidores).FirstOrDefault(s => string.Equals(s.Chave, chave, StringComparison.Ordinal))?.Nome ?? chave;

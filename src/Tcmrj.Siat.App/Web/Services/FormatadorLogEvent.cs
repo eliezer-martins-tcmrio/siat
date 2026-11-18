@@ -7,7 +7,7 @@ namespace Tcmrj.Siat.App.Web.Services;
 
 /// <summary>
 /// LogEvent indentado (R11, FR-015): <c>JsonDocument.Parse</c> + <c>JsonSerializer</c> com indentação de dois espaços e
-/// LF (como o <c>JSON.stringify(..., null, 2)</c> do Visor), separado em trechos por tipo de token. Conteúdo que não
+/// LF, separado em trechos por tipo de token. Conteúdo que não
 /// é JSON volta como veio, sem exceção.
 /// </summary>
 public sealed partial class FormatadorLogEvent : IFormatadorLogEvent
@@ -52,7 +52,7 @@ public sealed partial class FormatadorLogEvent : IFormatadorLogEvent
     private static LogEventFormatado Original(string texto) =>
         new(texto, false, [new(TipoTrechoJson.Simples, texto)]);
 
-    // Mesmo realce do Visor (highlightJson): o texto é JSON válido gerado pelo serializador, então a busca da
+    // Realce por tipo de token: o texto é JSON válido gerado pelo serializador, então a busca da
     // esquerda para a direita nunca confunde um número dentro de um texto com um número.
     private static List<TrechoJson> Realcar(string json)
     {

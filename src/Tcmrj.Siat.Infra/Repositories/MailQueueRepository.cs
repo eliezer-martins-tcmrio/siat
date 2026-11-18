@@ -9,9 +9,9 @@ using Tcmrj.Siat.Infra.Conexoes;
 namespace Tcmrj.Siat.Infra.Repositories;
 
 /// <summary>
-/// Leitura do banco MailQueue (<see cref="Servidor.BancoMailQueue"/>) de um servidor da lista fechada, com o SQL do
-/// Visor sem mudança (<c>Sql/mensagens.sql</c> e <c>Sql/smtps.sql</c>, R5) e só SELECT. Parâmetros tipados como no
-/// Visor (o plano em cache depende deles). O <see cref="CancellationToken"/> vai para <c>OpenAsync</c>,
+/// Leitura do banco MailQueue (<see cref="Servidor.BancoMailQueue"/>) de um servidor da lista fechada, com o SQL
+/// embutido (<c>Sql/mensagens.sql</c> e <c>Sql/smtps.sql</c>, R5) e só SELECT. Parâmetros tipados, para o plano em
+/// cache ser reaproveitado. O <see cref="CancellationToken"/> vai para <c>OpenAsync</c>,
 /// <c>ExecuteReaderAsync</c> e <c>ReadAsync</c>, e o SqlClient interrompe o comando no servidor (SC-004).
 /// <para>
 /// Erros viram <see cref="Erros.Consultas"/> com o servidor (e o banco, quando o problema é de acesso). Cancelamento
@@ -49,7 +49,7 @@ public sealed class MailQueueRepository(IFabricaDeConexao fabrica) : IMailQueueR
     }
 
     /// <summary>
-    /// Parâmetros de <c>mensagens.sql</c>, iguais aos do Visor: <c>@Top int</c>, <c>@SmtpId int</c> e
+    /// Parâmetros de <c>mensagens.sql</c>: <c>@Top int</c>, <c>@SmtpId int</c> e
     /// <c>@Texto nvarchar(max)</c> com o texto escapado por <see cref="PadraoLike"/> (nulo vai como <c>NULL</c>).
     /// </summary>
     internal static SqlParameter[] Parametros(FiltroMailQueue filtro)
@@ -89,6 +89,7 @@ public sealed class MailQueueRepository(IFabricaDeConexao fabrica) : IMailQueueR
     private static MensagemEnfileirada LerMensagem(SqlDataReader leitor) => new()
     {
         MessageId = leitor["MessageId"] as string ?? string.Empty,
+        SmtpId = leitor["SmtpId"] is DBNull ? null : Convert.ToInt32(leitor["SmtpId"], System.Globalization.CultureInfo.InvariantCulture),
         Assunto = leitor["Assunto"] as string,
         DataPostagem = (DateTime)leitor["DataPostagem"],
         EnviarApos = leitor["EnviarApos"] as DateTime?,
@@ -159,7 +160,7 @@ public sealed class MailQueueRepository(IFabricaDeConexao fabrica) : IMailQueueR
         using var recurso = assembly.GetManifestResourceStream(nome)
             ?? throw new InvalidOperationException($"SQL embutido não encontrado: {arquivo}");
 
-        // Sem BOM e sem conversão: o texto vai ao servidor exatamente como no Visor.
+        // Sem BOM e sem conversão: o texto vai ao servidor exatamente como está no arquivo.
         using var leitor = new StreamReader(recurso, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
         return leitor.ReadToEnd();
     }

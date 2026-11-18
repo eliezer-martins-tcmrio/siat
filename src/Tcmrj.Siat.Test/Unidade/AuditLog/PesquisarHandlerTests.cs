@@ -85,7 +85,7 @@ public class PesquisarHandlerTests
         registro.Ambiente.Should().Be(Ambiente.Hml);
         registro.Resultado.Should().Be(ResultadoRegistro.Sucesso);
         registro.Itens.Should().Be(2);
-        registro.Filtros.Should().BeEquivalentTo(new { AppId = 12, PrefixoLogId = "4363", Quantidade = 100 });
+        registro.Filtros.Should().BeEquivalentTo(new { AppId = 12, PrefixoLogUid = "4363", Quantidade = 100 });
     }
 
     [Fact]
@@ -113,7 +113,7 @@ public class PesquisarHandlerTests
         registro.ServidorNome.Should().Be("TCMBD4\\PRD");
         registro.Ambiente.Should().Be(Ambiente.Prd);
         registro.Itens.Should().BeNull();
-        registro.Filtros.Should().BeEquivalentTo(new { AppId = (int?)null, PrefixoLogId = "4363", Quantidade = 50 });
+        registro.Filtros.Should().BeEquivalentTo(new { AppId = (int?)null, PrefixoLogUid = "4363", Quantidade = 50 });
     }
 
     [Fact]
@@ -175,22 +175,22 @@ public class PesquisarHandlerTests
     {
         using var cts = new CancellationTokenSource();
 
-        await _handler.Handle(new Pesquisar.Query("tcmbd4-hml", " 12 ", " 4363 ", "5000"), cts.Token);
+        await _handler.Handle(new Pesquisar.Query("tcmbd4-hml", " 12 ", " 4fdf7b6b ", "5000"), cts.Token);
 
         var (servidor, filtro, token) = _repositorio.Pesquisas.Should().ContainSingle().Subject;
         servidor.Should().BeSameAs(Hml);
         filtro.AppId.Should().Be(12);
-        filtro.PrefixoLogId.Should().Be("4363");
+        filtro.PrefixoLogUid.Should().Be("4FDF7B6B");
         filtro.Quantidade.Should().Be(1000);
         token.Should().Be(cts.Token);
     }
 
     [Theory]
-    [InlineData("43a", null, Mensagens.LogIdSoDigitos)]
+    [InlineData("4fdf%", null, Mensagens.LogUidInvalido)]
     [InlineData(null, "abc", Mensagens.QuantidadeForaDoPadrao)]
-    public async Task Filtro_invalido_nao_autoriza_nao_consulta_e_nao_registra(string? logId, string? quantidade, string mensagem)
+    public async Task Filtro_invalido_nao_autoriza_nao_consulta_e_nao_registra(string? logUid, string? quantidade, string mensagem)
     {
-        var resultado = await _handler.Handle(new Pesquisar.Query("tcmbd4-hml", null, logId, quantidade), CancellationToken.None);
+        var resultado = await _handler.Handle(new Pesquisar.Query("tcmbd4-hml", null, logUid, quantidade), CancellationToken.None);
 
         resultado.IsFailure.Should().BeTrue();
         resultado.Error.Message.Should().Be(mensagem);

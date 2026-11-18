@@ -11,6 +11,7 @@
    - ChildContent recebe os itens visíveis; a mesma lista volta enquanto nada muda (a lista expansível mantém a
      linha aberta). Acoes fica à direita do contador (por exemplo, Exportar). *@
 <div class="barra">
+    @Antes
     <label class="busca">
         <span class="so-leitor">@Rotulo</span>
         <LucideIcon Name="search" Size="16" aria-hidden="true" focusable="false" />
@@ -64,9 +65,43 @@
     [Parameter]
     public RenderFragment<IReadOnlyList<TItem>>? ChildContent { get; set; }
 
-    private bool Filtrando => !string.IsNullOrWhiteSpace(Texto);
+    /// <summary>Controles à esquerda do campo de texto (por exemplo, um select que alimenta <see cref="Selecao"/>).</summary>
+    [Parameter]
+    public RenderFragment? Antes { get; set; }
 
-    protected override void OnParametersSet() => visiveis = filtro.Aplicar(Itens, TextoDe, Texto);
+    /// <summary>
+    /// Filtro adicional, aplicado junto com o texto (o item precisa passar pelos dois). Troque a instância só quando a
+    /// regra mudar: a mesma instância devolve a mesma lista de visíveis.
+    /// </summary>
+    [Parameter]
+    public Func<TItem, bool>? Selecao { get; set; }
+
+    // Último resultado da seleção sobre o resultado do texto, para devolver a mesma lista enquanto nada muda.
+    private IReadOnlyList<TItem>? baseSelecao;
+    private Func<TItem, bool>? selecaoUsada;
+    private IReadOnlyList<TItem> selecionados = [];
+
+    private bool Filtrando => !string.IsNullOrWhiteSpace(Texto) || Selecao is not null;
+
+    protected override void OnParametersSet() => visiveis = Visiveis();
+
+    private IReadOnlyList<TItem> Visiveis()
+    {
+        var porTexto = filtro.Aplicar(Itens, TextoDe, Texto);
+        if (Selecao is null)
+        {
+            return porTexto;
+        }
+
+        if (!ReferenceEquals(baseSelecao, porTexto) || !ReferenceEquals(selecaoUsada, Selecao))
+        {
+            selecionados = porTexto.Where(Selecao).ToArray();
+            baseSelecao = porTexto;
+            selecaoUsada = Selecao;
+        }
+
+        return selecionados;
+    }
 
     private Task AoTeclarAsync(KeyboardEventArgs e) =>
         e.Key == "Escape" && !string.IsNullOrEmpty(Texto) ? MudarAsync(string.Empty) : Task.CompletedTask;
@@ -78,7 +113,7 @@
         var texto = valor ?? string.Empty;
         Texto = texto;
         Interagir();
-        visiveis = filtro.Aplicar(Itens, TextoDe, Texto);
+        visiveis = Visiveis();
         await TextoChanged.InvokeAsync(texto);
     }
 

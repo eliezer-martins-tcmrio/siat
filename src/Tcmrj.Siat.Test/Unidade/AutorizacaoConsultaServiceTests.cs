@@ -36,7 +36,7 @@ public class AutorizacaoConsultaServiceTests
     [Fact]
     public async Task Autorizado_devolve_o_servidor()
     {
-        _permitidas.Add("MailQueuePRD.CanSelect");
+        _permitidas.Add("MailQueue.CanSelect");
 
         var resultado = await _servico.AutorizarAsync(Modulo.MailQueue, "prd1");
 
@@ -47,7 +47,7 @@ public class AutorizacaoConsultaServiceTests
     [Fact]
     public async Task Negado_devolve_acesso_negado_sem_registrar()
     {
-        _permitidas.Add("MailQueue.CanSelect");
+        _permitidas.Add("AuditLog.CanSelect");
 
         var resultado = await _servico.AutorizarAsync(Modulo.MailQueue, "prd1");
 
@@ -81,12 +81,24 @@ public class AutorizacaoConsultaServiceTests
     }
 
     [Fact]
-    public async Task PodeAcessarModulo_e_verdadeiro_com_qualquer_uma_das_politicas()
+    public async Task PodeAcessarModulo_e_verdadeiro_com_a_politica_do_modulo()
     {
         (await _servico.PodeAcessarModuloAsync(Modulo.MailQueue)).Should().BeFalse();
 
-        _permitidas.Add("MailQueuePRD.CanSelect");
+        _permitidas.Add("MailQueue.CanSelect");
 
         (await _servico.PodeAcessarModuloAsync(Modulo.MailQueue)).Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("dsv1")]
+    [InlineData("prd1")]
+    public async Task O_mesmo_recurso_libera_todos_os_ambientes(string chave)
+    {
+        _permitidas.Add("MailQueue.CanSelect");
+
+        var resultado = await _servico.AutorizarAsync(Modulo.MailQueue, chave);
+
+        resultado.IsSuccess.Should().BeTrue();
     }
 }

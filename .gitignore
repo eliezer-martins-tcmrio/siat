@@ -371,4 +371,3 @@ FodyWeavers.xsd
 .superpowers/
 TestResults/
 .env*
-.playwright/

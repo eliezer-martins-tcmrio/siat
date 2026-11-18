@@ -1,5 +1,6 @@
 SELECT TOP (@Top)
        CONVERT(varchar(36), m.MessageId)      AS MessageId,
+       m.SmtpId                               AS SmtpId,
        m.Subject                              AS Assunto,
        m.DatePosted                           AS DataPostagem,
        m.SendAfter                            AS EnviarApos,

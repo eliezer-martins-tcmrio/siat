@@ -1,7 +1,7 @@
 @* Corpo do e-mail isolado (R10, FR-012; DESIGN.md, Regras): iframe com sandbox vazio (sem scripts, formulários,
    pop-ups nem acesso à página do SIAT) e srcdoc iniciado pela meta CSP, que impede carregar qualquer recurso
-   externo (só imagens data:). Altura fixa com redimensionamento vertical (.corpo-email no siat.css); o Visor media
-   a altura com allow-same-origin, que o SIAT não usa. Texto simples (IsHTML = 0) vai escapado dentro de <pre>. *@
+   externo (só imagens data:). Altura fixa com redimensionamento vertical (.corpo-email no siat.css): medir a
+   altura exigiria allow-same-origin, que o SIAT não usa. Texto simples (IsHTML = 0) vai escapado dentro de <pre>. *@
 <iframe class="corpo-email" sandbox="" title="@Titulo" srcdoc="@Srcdoc"></iframe>
 
 @code {

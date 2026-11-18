@@ -4,7 +4,7 @@ using Tcmrj.Siat.App.Web.Services.Interfaces;
 namespace Tcmrj.Siat.App.Web.Services;
 
 /// <summary>
-/// Stack trace .NET separado em linhas e trechos (R11), com as mesmas regras do <c>formatStackTrace</c> do Visor:
+/// Stack trace .NET separado em linhas e trechos (R11):
 /// linha <c>at</c> com namespace, método, parâmetros (tipo e nome), arquivo e linha; linha da mensagem com o tipo da
 /// exceção; separador de exceção interna. Aceita também o texto em português (<c>em ... na ...:linha N</c>).
 /// </summary>

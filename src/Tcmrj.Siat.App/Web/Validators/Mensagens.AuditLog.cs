@@ -3,7 +3,13 @@ namespace Tcmrj.Siat.App.Web.Validators;
 /// <summary>Textos do AuditLog (FR-013).</summary>
 public static partial class Mensagens
 {
-    public const string LogIdSoDigitos = "Informe apenas dígitos no LogID.";
+    public const string LogUidInvalido = "Informe o início do LogUID só com dígitos hexadecimais (0-9, A-F) e hífens.";
+
+    public const string DiasNaoNumerico = "Informe um número de dias entre 1 e 3650.";
+
+    public const string DataInvalida = "Informe uma data válida.";
+
+    public const string PeriodoInvertido = "A data inicial deve ser igual ou anterior à data final.";
 
     public const string AppIdNaoNumerico = "Informe o AppID da aplicação com um número inteiro.";
 

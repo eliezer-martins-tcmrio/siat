@@ -25,18 +25,27 @@ public sealed class FiltrosAuditLogSteps
     private readonly AuditLogRepositoryFalso _repositorio = new();
     private string? _servidor;
     private string? _appId;
-    private string? _prefixoLogId;
+    private string? _prefixoLogUid;
     private string? _quantidade;
+    private string? _dias;
+    private string? _de;
+    private string? _ate;
     private Result<ResultadoConsultaVM<RegistroAuditoriaVM>, Erro> _resultado;
 
     [Given(@"uma consulta ao AuditLog no servidor ""(.*)""")]
     public void DadoUmaConsultaNoServidor(string servidor) => _servidor = servidor;
 
-    [Given(@"o prefixo de LogID ""(.*)""")]
-    public void DadoOPrefixoDeLogId(string prefixo) => _prefixoLogId = prefixo;
+    [Given(@"o início do LogUID ""(.*)""")]
+    public void DadoOInicioDoLogUid(string prefixo) => _prefixoLogUid = prefixo;
 
     [Given(@"a quantidade ""(.*)"" no AuditLog")]
     public void DadoAQuantidade(string quantidade) => _quantidade = quantidade;
+
+    [Given(@"os dias ""(.*)"" no AuditLog")]
+    public void DadoOsDias(string dias) => _dias = dias;
+
+    [Given(@"o período de ""(.*)"" a ""(.*)"" no AuditLog")]
+    public void DadoOPeriodo(string de, string ate) => (_de, _ate) = (de, ate);
 
     [Given(@"a aplicação ""(.*)"" no AuditLog")]
     public void DadoAAplicacao(string appId) => _appId = appId;
@@ -58,20 +67,51 @@ public sealed class FiltrosAuditLogSteps
             TimeProvider.System);
 
         _resultado = await handler.Handle(
-            new Pesquisar.Query(_servidor, _appId, _prefixoLogId, _quantidade), CancellationToken.None);
+            new Pesquisar.Query(_servidor, _appId, _prefixoLogUid, _quantidade, _dias, _de, _ate), CancellationToken.None);
     }
 
-    [Then(@"o AuditLog é consultado com o prefixo de LogID ""(.*)""")]
-    public void EntaoConsultadoComOPrefixo(string prefixo) => FiltroEnviado().PrefixoLogId.Should().Be(prefixo);
+    [Then(@"o AuditLog é consultado com o início do LogUID ""(.*)""")]
+    public void EntaoConsultadoComOPrefixo(string prefixo) => FiltroEnviado().PrefixoLogUid.Should().Be(prefixo);
 
-    [Then(@"o AuditLog é consultado sem prefixo de LogID")]
-    public void EntaoConsultadoSemPrefixo() => FiltroEnviado().PrefixoLogId.Should().BeNull();
+    [Then(@"o AuditLog é consultado sem início de LogUID")]
+    public void EntaoConsultadoSemPrefixo() => FiltroEnviado().PrefixoLogUid.Should().BeNull();
 
     [Then(@"o AuditLog é consultado com a quantidade (\d+)")]
     public void EntaoConsultadoComAQuantidade(int quantidade) => FiltroEnviado().Quantidade.Should().Be(quantidade);
 
     [Then(@"o AuditLog é consultado em todas as aplicações")]
-    public void EntaoConsultadoEmTodasAsAplicacoes() => FiltroEnviado().AppId.Should().BeNull();
+    public void EntaoConsultadoEmTodasAsAplicacoes()
+    {
+        var filtro = FiltroEnviado();
+        filtro.AppId.Should().BeNull();
+        filtro.SemAppId.Should().BeFalse();
+    }
+
+    [Then(@"o AuditLog é consultado só nos registros sem AppID")]
+    public void EntaoConsultadoSemAppId()
+    {
+        var filtro = FiltroEnviado();
+        filtro.AppId.Should().BeNull();
+        filtro.SemAppId.Should().BeTrue();
+    }
+
+    [Then(@"o AuditLog é consultado nos últimos (\d+) dias")]
+    public void EntaoConsultadoNosUltimosDias(int dias)
+    {
+        var filtro = FiltroEnviado();
+        filtro.Dias.Should().Be(dias);
+        filtro.De.Should().BeNull();
+        filtro.Ate.Should().BeNull();
+    }
+
+    [Then(@"o AuditLog é consultado de ""(.*)"" a ""(.*)"" sem os dias")]
+    public void EntaoConsultadoNoPeriodo(string de, string ate)
+    {
+        var filtro = FiltroEnviado();
+        filtro.Dias.Should().BeNull();
+        filtro.De.Should().Be(string.IsNullOrEmpty(de) ? null : DateOnly.Parse(de, System.Globalization.CultureInfo.InvariantCulture));
+        filtro.Ate.Should().Be(string.IsNullOrEmpty(ate) ? null : DateOnly.Parse(ate, System.Globalization.CultureInfo.InvariantCulture));
+    }
 
     [Then(@"o AuditLog é consultado na aplicação (\d+)")]
     public void EntaoConsultadoNaAplicacao(int appId) => FiltroEnviado().AppId.Should().Be(appId);

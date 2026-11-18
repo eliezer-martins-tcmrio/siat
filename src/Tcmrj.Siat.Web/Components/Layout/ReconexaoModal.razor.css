@@ -29,7 +29,14 @@
     display: none;
 }
 
+/* Centralização explícita: não depende do estilo padrão de <dialog> do navegador,
+   que pode ser sobrescrito por estilos injetados. */
 #components-reconnect-modal {
+    position: fixed;
+    inset: 0;
+    margin: auto;
+    height: fit-content;
+    max-height: calc(100vh - 32px);
     width: min(420px, calc(100vw - 32px));
     padding: 0;
     border: 1px solid var(--color-line);

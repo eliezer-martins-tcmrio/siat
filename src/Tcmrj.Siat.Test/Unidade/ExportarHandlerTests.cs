@@ -184,7 +184,7 @@ public sealed class ExportarHandlerTests
         _chamadas.Should().Equal("autorizar", "montar", "registrar");
         _autorizacao.Verify(a => a.AutorizarAsync(Modulo.AuditLog, "tcmbd4-hml"), Times.Once);
         obtido.Value.Nome.Should().Be("auditlog_20261117_143205.html");
-        Encoding.UTF8.GetString(obtido.Value.Conteudo).Should().Contain("eTCM (AppID 12)").And.Contain("LogID começa com: 4363");
+        Encoding.UTF8.GetString(obtido.Value.Conteudo).Should().Contain("eTCM (AppID 12)").And.Contain("LogUID começa com: 4363").And.Contain("Período: últimos 30 dias");
 
         var registro = _registros.Should().ContainSingle().Subject;
         registro.Operacao.Should().Be(OperacaoConsulta.Exportacao);
@@ -192,6 +192,28 @@ public sealed class ExportarHandlerTests
         registro.Itens.Should().Be(4);
         registro.Resultado.Should().Be(ResultadoRegistro.Sucesso);
         registro.Filtros.Should().Be(new PesquisarAuditLog.FiltrosRegistrados(12, "4363", 100));
+    }
+
+    [Fact]
+    public async Task AuditLog_com_tipo_exporta_so_os_registros_do_tipo_e_o_mostra_nos_filtros()
+    {
+        var registros = Registros(3)
+            .Append(new RegistroAuditoriaVM(2000, 3, "Error", Agora, "Falhou", null, 12, null, null))
+            .ToArray();
+        IReadOnlyList<RegistroAuditoriaVM>? montados = null;
+        _exportacao.Setup(e => e.AuditLog(It.IsAny<CabecalhoExportacao>(), It.IsAny<IReadOnlyList<RegistroAuditoriaVM>>(), It.IsAny<IReadOnlyDictionary<int, string>>()))
+            .Returns((CabecalhoExportacao c, IReadOnlyList<RegistroAuditoriaVM> r, IReadOnlyDictionary<int, string> n) =>
+            {
+                montados = r;
+                return _exportacaoReal.AuditLog(c, r, n);
+            });
+        var consulta = new ExportarAuditLog.Query("tcmbd4-hml", null, null, 100, null, registros, Tipo: "Error");
+
+        var obtido = await HandlerAuditLog().Handle(consulta, CancellationToken.None);
+
+        montados.Should().ContainSingle().Which.LogId.Should().Be(2000);
+        Encoding.UTF8.GetString(obtido.Value.Conteudo).Should().Contain("Tipo: Error");
+        _registros.Should().ContainSingle().Which.Itens.Should().Be(1);
     }
 
     [Fact]

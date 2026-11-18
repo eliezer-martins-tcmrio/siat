@@ -97,7 +97,10 @@ public sealed class FiltroLocalTests
     public void Filtro_de_lista_devolve_a_mesma_instancia_enquanto_nada_muda()
     {
         var filtro = new FiltroLocal<string>();
-        Func<string, string?> texto = i => i;
+        static string? texto(string i)
+        {
+            return i;
+        }
 
         var primeira = filtro.Aplicar(Itens, texto, "prazo");
         var segunda = filtro.Aplicar(Itens, texto, " prazo ");

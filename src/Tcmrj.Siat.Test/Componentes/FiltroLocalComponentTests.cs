@@ -37,10 +37,10 @@ public sealed class FiltroLocalComponentTests : BunitContext
             .Add(c => c.Itens, Itens)
             .Add(c => c.TextoDe, i => i)
             .Add(c => c.Texto, texto)
-            .Add(c => c.TextoChanged, (string? t) => _texto = t)
+            .Add(c => c.TextoChanged, t => _texto = t)
             .Add(c => c.Unidade, "e-mails")
             .Add(c => c.Acoes, "<button type=\"button\" id=\"exportar\">Exportar HTML</button>")
-            .Add(c => c.ChildContent, (IReadOnlyList<string> visiveis) => (RenderFragment)(b =>
+            .Add(c => c.ChildContent, visiveis => (RenderFragment)(b =>
             {
                 foreach (var item in visiveis)
                 {

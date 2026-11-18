@@ -1,6 +1,6 @@
 namespace Tcmrj.Siat.Domain.Models;
 
-/// <summary>Registro de <c>AUDITORIADB.audit.Log</c> + <c>audit.Log_Types</c> (SQL do Visor).</summary>
+/// <summary>Registro de <c>AUDITORIADB.audit.Log</c> + <c>audit.Log_Types</c>.</summary>
 public sealed record RegistroAuditoria
 {
     public const string TipoNaoCadastrado = "(tipo não cadastrado)";
@@ -19,7 +19,8 @@ public sealed record RegistroAuditoria
     /// <summary><c>CONVERT(varchar(36), LogUID)</c>.</summary>
     public string? LogUid { get; init; }
 
-    public int AppId { get; init; }
+    /// <summary>Nulo quando o registro foi gravado sem aplicação.</summary>
+    public int? AppId { get; init; }
 
     /// <summary>Formatada no detalhe (R11).</summary>
     public string? Excecao { get; init; }

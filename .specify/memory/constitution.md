@@ -54,7 +54,9 @@ de quem fez a alteração.
   `appsettings`.
 - Conteúdo externo potencialmente perigoso (corpo de e-mail, HTML, Markdown) DEVE ser exibido
   isolado ou sanitizado.
-- Segredos (tokens, segredos OAuth) NÃO DEVEM ir para o repositório.
+- Segredos (tokens, senhas, chaves de API) NÃO DEVEM ir para o repositório. Exceção única: o
+  `ClientSecret` do cliente OIDC do SIAT no SIA (`TcmrjOidc:ClientSecret`) DEVE ficar no
+  `appsettings`, junto do `ClientId`, como no SiCATI. No banco do SIA vai só o hash.
 - Toda consulta a dados sensíveis e toda escrita DEVEM ser registradas no log
   (`Tcmrj.CoreLib.DBLog`) com usuário, servidor e filtros.
 
@@ -79,7 +81,8 @@ derrubar as demais ferramentas.
 - Regras de negócio (validação de parâmetros, permissões, interpretação de versões, regras do
   Copilot) DEVEM ter testes automatizados escritos antes ou junto com o código.
 - Componentes com lógica DEVEM ter testes de componente.
-- Os fluxos principais de cada módulo DEVEM ter teste de interface.
+- Os fluxos principais de cada módulo DEVEM estar no roteiro de validação manual da feature
+  (`quickstart.md`).
 - Código sem teste das suas regras NÃO DEVE ser considerado pronto.
 
 **Justificativa**: o SIAT é consultado para diagnosticar problemas; uma regra errada de permissão
@@ -170,5 +173,7 @@ sistemas do Tribunal e evita reimplementar o que já está em uso.
 | 1.0.0  | 2026-11-09 | Ratificação inicial |
 | 1.1.0  | 2026-11-10 | Autenticação por OIDC no SIA (padrão do SiCATI); estrutura do projeto-modelo com Web em Blazor; nova seção Dependências (últimas versões, só licenças gratuitas) |
 | 1.1.1  | 2026-11-17 | Princípio III: a exigência de recurso do UserManager vale para páginas que exibem dados e para toda operação; páginas sem dados (inicial, logout) exigem só autenticação e o login é anônimo. PATCH: explicita a intenção original, que a redação anterior tornava impossível de cumprir (o próprio login não pode exigir recurso) |
+| 1.2.0  | 2026-11-17 | Princípio III: o `ClientSecret` do cliente OIDC do SIAT (`TcmrjOidc:ClientSecret`) passa a ficar no `appsettings`, junto do `ClientId`, no padrão do SiCATI; os demais segredos continuam fora do repositório. MINOR: muda uma regra sem remover nem redefinir o princípio |
+| 1.3.0  | 2026-11-18 | Princípio V: os fluxos principais deixam de exigir teste de interface automatizado (navegador) e passam a constar do roteiro de validação manual da feature; as regras e os componentes continuam com testes automatizados. MINOR: muda uma regra sem remover nem redefinir o princípio |
 
-**Versão**: 1.1.1 | **Ratificada em**: 2026-11-09 | **Última emenda**: 2026-11-17
+**Versão**: 1.3.0 | **Ratificada em**: 2026-11-09 | **Última emenda**: 2026-11-18

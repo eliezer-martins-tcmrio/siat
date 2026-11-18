@@ -1,4 +1,4 @@
-USE [CSLIB_UserManager]
+﻿USE [CSLIB_UserManager]
 GO
 
 /*
@@ -18,25 +18,21 @@ GO
 	*  - com Microsoft.AspNetCore.Identity.PasswordHasher<object>               *
 	*    .HashPassword(null, "<segredo>"), que produz o mesmo formato.          *
 	*                                                                           *
-	* O segredo em claro NUNCA entra no repositório: user-secrets em            *
-	* desenvolvimento (TcmrjOidc:ClientSecret) e variável de ambiente           *
-	* TcmrjOidc__ClientSecret no IIS.                                           *
+	* O segredo em claro fica no appsettings do SIAT (TcmrjOidc:ClientSecret);  *
+	* aqui entra só o hash.                                                     *
 	*****************************************************************************
 */
 
 SET XACT_ABORT ON
 
 -- Hash do ClientSecret de SIAT-dev. SUBSTITUIR antes de executar.
-DECLARE @HashSecretDev NVARCHAR(MAX) = N'<HASH_DO_CLIENTSECRET_SIAT_DEV>'
--- Hash do ClientSecret de SIAT (PRD). SUBSTITUIR antes de executar.
-DECLARE @HashSecretPrd NVARCHAR(MAX) = N'<HASH_DO_CLIENTSECRET_SIAT_PRD>'
-
+DECLARE @HashSecretDev NVARCHAR(MAX) = N'AQAAAAEAACcQAAAAECIz9XIOx4dzAbKWmsj6Vm1nenXcwvM85h/1Ml+1v3Pzy9PKEVFlmbdxEys/nfDL2g=='
 DECLARE @Permissions NVARCHAR(MAX) = N'["ept:authorization","ept:logout","ept:token","gt:authorization_code","rst:code","scp:profile","scp:openid"]'
 DECLARE @Requirements NVARCHAR(MAX) = N'["ft:pkce"]'
 
 -- TODO: confirmar o nome DNS de PRD (questão em aberto 5 do PRD).
 -- Se o SIAT for publicado num subdiretório do IIS, o subdiretório entra antes de /signin-oidc e /signout-callback-oidc.
-DECLARE @UrlBasePrd NVARCHAR(200) = N'https://siat.tcmrj.tcmnet.tcm'
+-- DECLARE @UrlBasePrd NVARCHAR(200) = N'https://tcmrj.tcmrj.tcmnet.tcm/siat'
 
 -- Cliente de desenvolvimento (porta 7271 de src/Tcmrj.Siat.Web/Properties/launchSettings.json)
 IF NOT EXISTS (
@@ -78,50 +74,6 @@ BEGIN
 		,N'["https://localhost:7271/signout-callback-oidc"]'
 		,NULL
 		,N'["https://localhost:7271/signin-oidc"]'
-		,@Requirements
-		,N'confidential'
-		)
-END
-
--- Cliente de produção
-IF NOT EXISTS (
-		SELECT *
-		FROM [OpenIddict].[OpenIddictApplications]
-		WHERE [ClientId] = 'SIAT'
-		)
-BEGIN
-	IF @HashSecretPrd LIKE N'<%'
-	BEGIN
-		RAISERROR ('Substitua @HashSecretPrd pelo hash do ClientSecret de SIAT antes de executar. SIAT não foi inserido.', 16, 1)
-	END
-	ELSE
-	INSERT [OpenIddict].[OpenIddictApplications] (
-		[Id]
-		,[ClientId]
-		,[ClientSecret]
-		,[ConcurrencyToken]
-		,[ConsentType]
-		,[DisplayName]
-		,[DisplayNames]
-		,[Permissions]
-		,[PostLogoutRedirectUris]
-		,[Properties]
-		,[RedirectUris]
-		,[Requirements]
-		,[Type]
-		)
-	VALUES (
-		CONVERT(NVARCHAR(100), NEWID())
-		,N'SIAT'
-		,@HashSecretPrd
-		,CONVERT(NVARCHAR(100), NEWID())
-		,NULL
-		,N'SIAT'
-		,NULL
-		,@Permissions
-		,N'["' + @UrlBasePrd + N'/signout-callback-oidc"]'
-		,NULL
-		,N'["' + @UrlBasePrd + N'/signin-oidc"]'
 		,@Requirements
 		,N'confidential'
 		)

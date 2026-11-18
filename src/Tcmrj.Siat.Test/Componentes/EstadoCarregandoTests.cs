@@ -11,7 +11,10 @@ public sealed class EstadoCarregandoTests : BunitContext
 {
     private readonly FakeTimeProvider _relogio = new(new DateTimeOffset(2026, 11, 17, 14, 0, 0, TimeSpan.Zero));
 
-    public EstadoCarregandoTests() => Services.AddSingleton<TimeProvider>(_relogio);
+    public EstadoCarregandoTests()
+    {
+        Services.AddSingleton<TimeProvider>(_relogio);
+    }
 
     private IRenderedComponent<EstadoCarregando> Renderizar(Action? aoCancelar = null, long? inicio = null) =>
         Render<EstadoCarregando>(p =>

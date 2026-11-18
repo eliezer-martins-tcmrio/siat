@@ -60,7 +60,15 @@
 
     private static string Iniciais(string nome)
     {
-        var partes = nome.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        // Contas administrativas trazem um prefixo de ambiente ("[DEV25ADM] FULANO"),
+        // que não faz parte do nome e não deve virar sigla.
+        var inicio = nome.TrimStart();
+        if (inicio.StartsWith('[') && inicio.IndexOf(']') is var fim and > 0)
+        {
+            inicio = inicio[(fim + 1)..];
+        }
+
+        var partes = inicio.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         return partes.Length switch
         {
             0 => string.Empty,

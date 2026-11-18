@@ -38,26 +38,26 @@ public class ListarPermitidosTests
     }
 
     [Fact]
-    public async Task Usuario_so_com_recurso_comum_nao_recebe_servidores_de_prd()
+    public async Task Usuario_com_o_recurso_recebe_todos_agrupados_na_ordem_dos_ambientes()
     {
-        var (handler, _) = Criar("MailQueue.CanSelect");
-
-        var grupos = await handler.Handle(new ListarPermitidos.Query(Modulo.MailQueue), CancellationToken.None);
-
-        grupos.Select(g => g.Ambiente).Should().Equal(Ambiente.Dsv, Ambiente.Hml);
-        grupos[0].Servidores.Select(s => s.Chave).Should().Equal("d1", "d2");
-    }
-
-    [Fact]
-    public async Task Usuario_com_os_dois_recursos_recebe_todos_agrupados_na_ordem_dos_ambientes()
-    {
-        var (handler, auth) = Criar("AuditLog.CanSelect", "AuditLogPRD.CanSelect");
+        var (handler, auth) = Criar("AuditLog.CanSelect");
 
         var grupos = await handler.Handle(new ListarPermitidos.Query(Modulo.AuditLog), CancellationToken.None);
 
         grupos.Select(g => g.Ambiente).Should().Equal(Ambiente.Dsv, Ambiente.Hml, Ambiente.Prd);
+        grupos[0].Servidores.Select(s => s.Chave).Should().Equal("d1", "d2");
         grupos[2].Servidores.Select(s => s.Chave).Should().Equal("p1", "p2");
-        auth.Verify(a => a.AuthorizeAsync(It.IsAny<ClaimsPrincipal>(), It.IsAny<object?>(), "AuditLogPRD.CanSelect"), Times.Once);
+        auth.Verify(a => a.AuthorizeAsync(It.IsAny<ClaimsPrincipal>(), It.IsAny<object?>(), "AuditLog.CanSelect"), Times.Once);
+    }
+
+    [Fact]
+    public async Task Recurso_de_outro_modulo_nao_libera_servidores()
+    {
+        var (handler, _) = Criar("AuditLog.CanSelect");
+
+        var grupos = await handler.Handle(new ListarPermitidos.Query(Modulo.MailQueue), CancellationToken.None);
+
+        grupos.Should().BeEmpty();
     }
 
     [Fact]

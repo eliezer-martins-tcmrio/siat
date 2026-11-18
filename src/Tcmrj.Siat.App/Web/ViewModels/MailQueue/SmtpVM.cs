@@ -6,7 +6,7 @@ namespace Tcmrj.Siat.App.Web.ViewModels.MailQueue;
 /// <summary>SMTP de <c>MailQueue.dbo.SMTPs</c> do servidor escolhido, para o filtro da MailQueue.</summary>
 public sealed record SmtpVM(int SmtpId, string Descricao)
 {
-    /// <summary>Texto da opção no seletor: "Id · Descrição" (como no Visor e em <c>design/mailqueue.html</c>).</summary>
+    /// <summary>Texto da opção no seletor: "Id · Descrição" (como em <c>design/mailqueue.html</c>).</summary>
     public string Rotulo => string.IsNullOrWhiteSpace(Descricao)
         ? SmtpId.ToString(CultureInfo.InvariantCulture)
         : $"{SmtpId.ToString(CultureInfo.InvariantCulture)} · {Descricao}";

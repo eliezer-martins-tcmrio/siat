@@ -23,8 +23,29 @@ public class NavegacaoTests
     [Fact]
     public void AuditLog_omite_vazios_e_quantidade_padrao()
     {
-        Navegacao.AuditLog("srv", 12, "4363", 50, "")
-            .Should().Be("/consultas/auditlog?servidor=srv&app=12&logid=4363");
+        Navegacao.AuditLog("srv", 12, "4FDF7B6B", 50, "")
+            .Should().Be("/consultas/auditlog?servidor=srv&app=12&loguid=4FDF7B6B");
+    }
+
+    [Fact]
+    public void AuditLog_omite_os_dias_padrao_e_mantem_os_outros()
+    {
+        Navegacao.AuditLog("srv", dias: 30).Should().Be("/consultas/auditlog?servidor=srv");
+        Navegacao.AuditLog("srv", dias: 90).Should().Be("/consultas/auditlog?servidor=srv&dias=90");
+    }
+
+    [Fact]
+    public void AuditLog_com_datas_leva_as_datas_e_nao_os_dias()
+    {
+        Navegacao.AuditLog("srv", qtd: 100, dias: 90, de: new DateOnly(2025, 1, 1), ate: new DateOnly(2025, 1, 31))
+            .Should().Be("/consultas/auditlog?servidor=srv&de=2025-01-01&ate=2025-01-31&qtd=100");
+        Navegacao.AuditLog("srv", de: new DateOnly(2025, 1, 1)).Should().Be("/consultas/auditlog?servidor=srv&de=2025-01-01");
+    }
+
+    [Fact]
+    public void AuditLog_sem_AppID_vai_como_app_sem()
+    {
+        Navegacao.AuditLog("srv", app: 12, semApp: true).Should().Be("/consultas/auditlog?servidor=srv&app=sem");
     }
 
     [Fact]

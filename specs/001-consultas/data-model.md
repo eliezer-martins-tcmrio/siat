@@ -12,14 +12,14 @@ Criação por `Create(...)` que valida e devolve `Result<T, Erro>`, como no proj
 ### Modulo
 `MailQueue`, `AuditLog`.
 
-Regra `PoliticaPara(Ambiente)` (FR-008, R4):
+Regra `Politica()` (FR-008, R4): uma política por módulo, a mesma em DSV, HML e PRD.
 
-| Módulo | DSV / HML | PRD |
-|---|---|---|
-| MailQueue | `MailQueue.CanSelect` | `MailQueuePRD.CanSelect` |
-| AuditLog | `AuditLog.CanSelect` | `AuditLogPRD.CanSelect` |
+| Módulo | Política |
+|---|---|
+| MailQueue | `MailQueue.CanSelect` |
+| AuditLog | `AuditLog.CanSelect` |
 
-`Politicas()` devolve as duas políticas do módulo (usada para decidir se o item aparece no menu e se a página abre).
+Usada no menu, na abertura da página, na lista de servidores e em cada consulta e exportação.
 
 ## Servidor
 Item da lista fechada (`servidores.json`, [contracts/servidores.schema.json](./contracts/servidores.schema.json)).
@@ -44,7 +44,7 @@ Lido de `MailQueue.dbo.SMTPs` do servidor escolhido.
 | Descricao | string | `Description` |
 
 ## MensagemEnfileirada
-Lida de `MailQueue.dbo.Messages` + `dbo.Recipients` (SQL do Visor).
+Lida de `MailQueue.dbo.Messages` + `dbo.Recipients`.
 
 | Campo | Tipo | Origem |
 |---|---|---|
@@ -71,7 +71,7 @@ Lida de `CSLIB_UserManager.dbo.Apps` do servidor escolhido.
 Lista indisponível (sem acesso ao banco): a feature devolve lista vazia com aviso, e a tela troca o seletor por um campo numérico (cenário 2 da história 2).
 
 ## RegistroAuditoria
-Lido de `AUDITORIADB.audit.Log` + `audit.Log_Types` (SQL do Visor).
+Lido de `AUDITORIADB.audit.Log` + `audit.Log_Types`.
 
 | Campo | Tipo | Origem |
 |---|---|---|
@@ -102,7 +102,7 @@ Lido de `AUDITORIADB.audit.Log` + `audit.Log_Types` (SQL do Visor).
 | Quantidade | int | 1 a 1000, padrão 50 |
 
 ### Quantidade fora do limite
-Na URL e no formulário: não numérica → recusada com mensagem; numérica fora de 1 a 1000 → ajustada ao limite mais próximo (mesmo comportamento do Visor `Math.Clamp`). Nunca é enviada como veio.
+Na URL e no formulário: não numérica → recusada com mensagem; numérica fora de 1 a 1000 → ajustada ao limite mais próximo (`Math.Clamp`). Nunca é enviada como veio.
 
 ## RegistroConsulta (evento de log)
 Não é tabela do SIAT: é o evento gravado pelo DBLog em `audit.Log` (R7). Formato em [contracts/registro-consulta.md](./contracts/registro-consulta.md).

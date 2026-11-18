@@ -10,8 +10,7 @@ public static class AuthenticationConfiguration
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        // OIDC contra o SIA (esquemas "Cookies"/"oidc"). O ClientSecret vem de user-secrets em desenvolvimento
-        // e da variável de ambiente TcmrjOidc__ClientSecret no IIS; nunca do appsettings.
+        // OIDC contra o SIA (esquemas "Cookies"/"oidc"). ClientId e ClientSecret vêm da seção TcmrjOidc do appsettings.
         builder.Services.AddTcmrjOidc(builder.Configuration);
 
         // Permissões do UserManager (connection string padrão UserManagerConnection), ITcmrjContext por circuito

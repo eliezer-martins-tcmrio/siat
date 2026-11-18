@@ -49,7 +49,13 @@ public static class Erros
 
         public const string CodigoTextoMuitoLongo = "filtros.texto-muito-longo";
 
-        public const string CodigoLogIdInvalido = "filtros.logid-invalido";
+        public const string CodigoLogUidInvalido = "filtros.loguid-invalido";
+
+        public const string CodigoDiasNaoNumerico = "filtros.dias-nao-numerico";
+
+        public const string CodigoDataInvalida = "filtros.data-invalida";
+
+        public const string CodigoPeriodoInvertido = "filtros.periodo-invertido";
 
         public static Erro QuantidadeNaoNumerica => new(
             CodigoQuantidadeNaoNumerica,
@@ -59,8 +65,20 @@ public static class Erros
             CodigoTextoMuitoLongo,
             $"O texto de busca deve ter no máximo {maximo} caracteres.");
 
-        public static Erro LogIdInvalido => new(
-            CodigoLogIdInvalido,
-            "Informe apenas dígitos no LogID.");
+        public static Erro LogUidInvalido => new(
+            CodigoLogUidInvalido,
+            "Informe o início do LogUID só com dígitos hexadecimais (0-9, A-F) e hífens.");
+
+        public static Erro DiasNaoNumerico => new(
+            CodigoDiasNaoNumerico,
+            "Informe um número de dias entre 1 e 3650.");
+
+        public static Erro DataInvalida => new(
+            CodigoDataInvalida,
+            "Informe uma data válida.");
+
+        public static Erro PeriodoInvertido => new(
+            CodigoPeriodoInvertido,
+            "A data inicial deve ser igual ou anterior à data final.");
     }
 }

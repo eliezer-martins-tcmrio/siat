@@ -57,9 +57,7 @@ public sealed class RegistroConsultaService(
                     matricula);
             }
         }
-#pragma warning disable CA1031 // Falha ao registrar nunca pode impedir nem interromper a consulta do usuário.
         catch (Exception)
-#pragma warning restore CA1031
         {
         }
     }

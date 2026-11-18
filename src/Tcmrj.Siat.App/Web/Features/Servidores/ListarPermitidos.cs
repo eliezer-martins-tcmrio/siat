@@ -22,20 +22,20 @@ public static class ListarPermitidos
 
         public async Task<IReadOnlyList<GrupoServidoresVM>> Handle(Query request, CancellationToken cancellationToken)
         {
-            var lista = servidores.Listar();
+            // Uma política por módulo libera os três ambientes: sem ela, nenhum servidor é oferecido.
             var usuario = await usuarioAtual.ObterAsync();
+            var permitido = await autorizacao.AuthorizeAsync(usuario, request.Modulo.Politica());
+            if (!permitido.Succeeded)
+            {
+                return [];
+            }
 
+            var lista = servidores.Listar();
             var grupos = new List<GrupoServidoresVM>();
             foreach (var ambiente in Ordem)
             {
                 var doAmbiente = lista.Where(s => s.Ambiente == ambiente).Select(ServidorVM.De).ToList();
-                if (doAmbiente.Count == 0)
-                {
-                    continue;
-                }
-
-                var permitido = await autorizacao.AuthorizeAsync(usuario, request.Modulo.PoliticaPara(ambiente));
-                if (permitido.Succeeded)
+                if (doAmbiente.Count > 0)
                 {
                     grupos.Add(new GrupoServidoresVM(ambiente, doAmbiente));
                 }

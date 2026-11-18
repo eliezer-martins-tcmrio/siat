@@ -1,6 +1,6 @@
 # language: pt
 Funcionalidade: Filtros da MailQueue
-  Os filtros da MailQueue seguem as regras do Visor (FR-010, FR-016): SMTP opcional, texto aparado e
+  Os filtros da MailQueue (FR-010, FR-016): SMTP opcional, texto aparado e
   procurado literalmente, e quantidade de 1 a 1000 com padrão 50. Valores inválidos nunca vão ao banco
   como vieram: a quantidade numérica é ajustada ao limite e a não numérica é recusada.
 

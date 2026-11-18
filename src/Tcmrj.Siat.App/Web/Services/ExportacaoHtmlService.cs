@@ -184,7 +184,7 @@ public sealed class ExportacaoHtmlService(IFormatadorStackTrace formatadorStackT
         ArgumentNullException.ThrowIfNull(mensagens);
 
         var html = new StringBuilder(4096 + (mensagens.Count * 2048));
-        Abrir(html, cabecalho, mensagens.Count, "e-mails", "16px 84px minmax(0,1fr) minmax(0,230px) 120px");
+        Abrir(html, cabecalho, mensagens.Count, "e-mails", "16px 84px 52px minmax(0,1fr) minmax(0,230px) 120px");
 
         foreach (var m in mensagens)
         {
@@ -193,6 +193,7 @@ public sealed class ExportacaoHtmlService(IFormatadorStackTrace formatadorStackT
 
             html.Append("<summary><span><span class=\"pilula ").Append(Codificar(m.SituacaoClasse)).Append("\">")
                 .Append(Codificar(m.SituacaoRotulo)).Append("</span></span>");
+            html.Append("<span class=\"cel suave num\">").Append(m.SmtpTexto is { } smtpId ? Codificar(smtpId) : Suave("—")).Append("</span>");
             html.Append("<span class=\"cel\">").Append(m.TemAssunto ? Codificar(m.Assunto) : Suave(MensagemVM.SemAssunto)).Append("</span>");
             html.Append("<span class=\"cel suave\">");
             if (m.PrimeiroDestinatario is { } primeiro)
@@ -214,6 +215,7 @@ public sealed class ExportacaoHtmlService(IFormatadorStackTrace formatadorStackT
             html.Append("<div class=\"detalhe\"><dl class=\"campos\">");
             Campo(html, "Assunto", m.TemAssunto ? Codificar(m.Assunto) : Suave(MensagemVM.SemAssunto));
             Campo(html, "Para", m.ListaDestinatarios.Count > 0 ? Codificar(m.Destinatarios) : Suave(MensagemEnfileirada.SemDestinatarios));
+            Campo(html, "SMTP", m.SmtpTexto is { } smtp ? Codificar(smtp) : Suave("não informado"), "num");
             Campo(html, "Situação", $"<span class=\"pilula {Codificar(m.SituacaoClasse)}\">{Codificar(m.SituacaoDescricao)}</span>");
             Campo(html, "Postado em", Codificar(m.PostadoEmCompleto), "num");
             Campo(html, "Enviar após", m.EnviarAposTexto is { } enviarApos ? Codificar(enviarApos) : Suave("não informado"), "num");
@@ -243,7 +245,7 @@ public sealed class ExportacaoHtmlService(IFormatadorStackTrace formatadorStackT
 
         foreach (var r in registros)
         {
-            var nomeAplicacao = nomesAplicacoes.TryGetValue(r.AppId, out var nome) ? nome : null;
+            var nomeAplicacao = r.AppId is int appId && nomesAplicacoes.TryGetValue(appId, out var nome) ? nome : null;
             var data = r.Data.ToString(FormatoData, PtBr);
 
             html.Append("<details class=\"item\" data-chave=\"").Append(Codificar(r.Chave))
@@ -265,7 +267,7 @@ public sealed class ExportacaoHtmlService(IFormatadorStackTrace formatadorStackT
             Campo(html, "Mensagem", string.IsNullOrEmpty(r.Mensagem) ? Suave(RegistroAuditoriaVM.SemMensagem) : Codificar(r.Mensagem), estilo: "white-space:pre-wrap");
             Campo(html, "Tipo", $"<span class=\"nivel {Codificar(r.ClasseNivel)}\">{Codificar(r.Tipo)}</span> {Suave($"TypeID {r.TipoId.ToString(CultureInfo.InvariantCulture)}")}");
             Campo(html, "Data", Codificar(data), "num");
-            Campo(html, "Aplicação", (nomeAplicacao is null ? string.Empty : Codificar(nomeAplicacao) + " ") + Suave($"(AppID {r.AppId.ToString(CultureInfo.InvariantCulture)})"));
+            Campo(html, "Aplicação", (nomeAplicacao is null ? string.Empty : Codificar(nomeAplicacao) + " ") + Suave(r.AppId is null ? RegistroAuditoriaVM.SemAppId : $"({r.RotuloAppId})"));
             Campo(html, "LogID", Codificar(r.Chave), "mono");
             Campo(html, "LogUID", Codificar(r.LogUid ?? "(sem LogUID)"), "mono");
             html.Append("</dl>");

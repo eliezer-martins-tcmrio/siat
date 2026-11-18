@@ -1,6 +1,6 @@
 @inject IAuthorizationService Autorizacao
 
-@* Cada item aparece para quem tem ao menos uma das políticas do módulo (Modulo.Politicas(): DSV/HML e PRD);
+@* Cada item aparece para quem tem a política do módulo (Modulo.Politica(), a mesma em DSV, HML e PRD);
    a seção some quando nenhum item aparece (FR-003). A autorização real é feita na página e na consulta (FR-004). *@
 <nav class="menu-nav" aria-label="Navegação principal">
     @if (itensConsultas.Count > 0)
@@ -45,26 +45,13 @@
         var visiveis = new List<ItemMenu>(ItensConsultas.Length);
         foreach (var item in ItensConsultas)
         {
-            if (await TemAlgumaPoliticaAsync(usuario, item.Modulo))
+            if ((await Autorizacao.AuthorizeAsync(usuario, item.Modulo.Politica())).Succeeded)
             {
                 visiveis.Add(item);
             }
         }
 
         itensConsultas = visiveis;
-    }
-
-    private async Task<bool> TemAlgumaPoliticaAsync(ClaimsPrincipal usuario, Modulo modulo)
-    {
-        foreach (var politica in modulo.Politicas())
-        {
-            if ((await Autorizacao.AuthorizeAsync(usuario, politica)).Succeeded)
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     private sealed record ItemMenu(Modulo Modulo, string Rotulo, string Rota, string Icone);

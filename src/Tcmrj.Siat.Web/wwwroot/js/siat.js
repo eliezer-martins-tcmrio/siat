@@ -108,6 +108,21 @@ window.siat = (function () {
     linhas[indice].scrollIntoView({ block: 'nearest' });
   });
 
+  // ---------- Seletor com busca (SeletorPesquisavel.razor) ----------
+  // O componente trata as teclas no servidor; aqui só se impede o efeito padrão delas: ↑/↓ não rolam a página e o
+  // Enter na busca não envia o formulário. Roda antes do atalho de listas acima (registrado na captura).
+  document.addEventListener('keydown', ev => {
+    const alvo = ev.target;
+    if (!(alvo instanceof Element)) return;
+    if (alvo.matches('[data-combo-busca]') && ['ArrowDown', 'ArrowUp', 'Enter'].includes(ev.key)) ev.preventDefault();
+    else if (alvo.matches('[data-combo]') && (ev.key === 'ArrowDown' || ev.key === 'ArrowUp')) ev.preventDefault();
+  }, true);
+
+  function mostrarOpcao(id) {
+    const opcao = document.getElementById(id);
+    if (opcao) opcao.scrollIntoView({ block: 'nearest' });
+  }
+
   // ---------- Download de arquivo gerado no servidor (exportação, research.md R12) ----------
   // Recebe um DotNetStreamReference; o arquivo vira um Blob local, sem nova requisição ao SIAT.
   async function baixarArquivo(nome, referencia, tipo) {
@@ -130,5 +145,5 @@ window.siat = (function () {
     HTMLFormElement.prototype.submit.call(formulario);
   }
 
-  return { temaSalvo, definirTema, aplicarTema, copiar, baixarArquivo, enviarFormulario };
+  return { temaSalvo, definirTema, aplicarTema, copiar, mostrarOpcao, baixarArquivo, enviarFormulario };
 })();

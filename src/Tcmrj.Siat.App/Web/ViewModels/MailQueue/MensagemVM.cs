@@ -13,7 +13,7 @@ public enum SituacaoEnvio
     NaFila,
 }
 
-/// <summary>E-mail da MailQueue exibido na lista (colunas e detalhe do Visor).</summary>
+/// <summary>E-mail da MailQueue exibido na lista.</summary>
 public sealed partial record MensagemVM
 {
     public const string SemAssunto = "(sem assunto)";
@@ -26,6 +26,9 @@ public sealed partial record MensagemVM
 
     /// <summary>Chave da linha na lista e valor de <c>sel</c> na URL.</summary>
     public required string MessageId { get; init; }
+
+    /// <summary>SMTP do e-mail, exibido ao lado da situação; nulo quando o banco não informa.</summary>
+    public int? SmtpId { get; init; }
 
     public string? Assunto { get; init; }
 
@@ -50,7 +53,7 @@ public sealed partial record MensagemVM
 
     public SituacaoEnvio Situacao { get; init; }
 
-    /// <summary>Texto do filtro local: assunto, destinatários, MessageId e corpo sem tags (como no Visor).</summary>
+    /// <summary>Texto do filtro local: assunto, destinatários, MessageId e corpo sem tags.</summary>
     public string TextoBusca { get; init; } = string.Empty;
 
     /// <summary>"Postado em" relativo ao momento da consulta: "hoje 14:32:10", "ontem 09:15" ou "15/11/2026 08:00".</summary>
@@ -85,6 +88,9 @@ public sealed partial record MensagemVM
         ? $"Enviado em {Formatar(envio)}"
         : SituacaoRotulo;
 
+    /// <summary>SmtpId em texto, ou nulo.</summary>
+    public string? SmtpTexto => SmtpId?.ToString(CultureInfo.InvariantCulture);
+
     public string PostadoEm => Formatar(DataPostagem);
 
     /// <summary>Data completa, com segundos (<c>title</c> da coluna Postado).</summary>
@@ -110,6 +116,7 @@ public sealed partial record MensagemVM
         return new MensagemVM
         {
             MessageId = mensagem.MessageId,
+            SmtpId = mensagem.SmtpId,
             Assunto = mensagem.Assunto,
             DataPostagem = mensagem.DataPostagem,
             EnviarApos = mensagem.EnviarApos,
@@ -144,7 +151,7 @@ public sealed partial record MensagemVM
         return Espacos().Replace(texto, " ").Trim();
     }
 
-    /// <summary>Mesma regra do Visor (<c>formatarQuando</c>): hoje com segundos, ontem, ou a data.</summary>
+    /// <summary>Data da lista: hoje com segundos, ontem, ou a data.</summary>
     private static string Relativo(DateTime data, DateTime agora)
     {
         var dias = (agora.Date - data.Date).Days;
