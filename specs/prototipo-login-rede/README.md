@@ -31,7 +31,8 @@ libera os módulos conforme o UserManager do DEV.
 
 `.\tools\iniciar-iisexpress.ps1` (ou a configuração `siat-iisexpress` do `.claude/launch.json`) publica o projeto,
 monta um `.iisexpress\applicationhost.config` a partir do modelo do IIS Express (seções de autenticação bloqueadas,
-como no servidor), libera a seção `windowsAuthentication` só para o site e abre `https://localhost:44371`. Exige o
+como no servidor), põe o SIAT como aplicativo em `/siat_dsv` (diretório virtual, como no servidor; `-Caminho /` para a
+raiz), libera a seção `windowsAuthentication` só para ele e sobe em `https://localhost:44371/siat_dsv/`. Exige o
 ASP.NET Core Module V2 do IIS Express (vem com o Visual Studio). Para publicar de novo, pare o IIS Express antes.
 
 Validado em 2026-11-19:
@@ -42,6 +43,15 @@ Validado em 2026-11-19:
   `WWW-Authenticate: Negotiate, NTLM` (o desafio é do IIS); o log mostra "Deferring to the server's implementation of
   Windows Authentication"; no navegador, entra sem senha, a claim `matricula` chega ao circuito do Blazor e o log
   registra "Usuário de rede TCMNET\... vinculado à matrícula ...".
+- Em `/siat_dsv`: `<base href="/siat_dsv/">`; CSS, `_framework`, `_blazor`, menu, marca, redirecionamento da página
+  inicial e URL dos filtros ficam todos dentro de `/siat_dsv/`; link direto (`/siat_dsv/consultas/auditlog`) abre.
+
+## Caminho do aplicativo (`SiatConfiguration:BlazorBaseHref`)
+
+Mesmo padrão do SiCATI: vazio na raiz (`dotnet run`), e no `appsettings` de cada ambiente do `asi_builds` o caminho
+do aplicativo no IIS, sem barra no fim: `/siat_dsv`, `/siat_hml`, `/siat`. Tem de ser igual ao caminho no IIS. Valor
+malformado (`/siat/`, `siat`, `/`) impede a aplicação de subir. As rotas do `Navegacao` são relativas ao base href
+(`consultas/mailqueue`, sem a barra inicial).
 
 ## Para testar no DSV (pedidos à infra)
 
@@ -50,9 +60,8 @@ Validado em 2026-11-19:
       do SIAT (`appcmd unlock config "<site>/siat_dsv" -section:system.webServer/security/authentication/windowsAuthentication -commit:apphost`),
       **antes** da primeira publicação. Sem isso: HTTP 500.19 em todas as rotas. A seção `anonymousAuthentication`
       não precisa ser liberada: o `web.config` não a declara, e o anônimo já vem ligado no IIS.
-- [ ] Publicação num diretório virtual (`/siat_dsv`, como o `/sicati`): hoje o `App.razor` fixa `<base href="/" />`;
-      precisa vir da configuração, como o `BlazorBaseHref` do SiCATI. Não tem relação com a autenticação, mas impede o
-      teste no DSV.
+- [ ] `appsettings.Development.json` do SIAT no `asi_builds` com `SiatConfiguration:BlazorBaseHref = /siat_dsv` (igual
+      ao caminho do aplicativo no IIS).
 - [ ] GPO do Edge e do Chrome: `AuthServerAllowlist = tcmrj.tcmnet.tcm,tcmrj2.tcmnet.tcm` (só esses hosts). Sem isso
       o navegador abre uma janela pedindo usuário e senha.
 - [ ] App pool com conta de domínio de serviço, com SELECT em `vwSIRHU_Integracao` (e no que ela lê do RH) e em `Users`.

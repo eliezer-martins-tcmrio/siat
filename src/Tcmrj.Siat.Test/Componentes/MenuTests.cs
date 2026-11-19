@@ -43,7 +43,7 @@ public sealed class MenuTests : BunitContext
         var itens = menu.FindAll("a.menu-item");
         itens.Should().ContainSingle();
         itens[0].TextContent.Trim().Should().Be("MailQueue");
-        itens[0].GetAttribute("href").Should().Be("/consultas/mailqueue");
+        itens[0].GetAttribute("href").Should().Be("consultas/mailqueue");
         itens[0].QuerySelector("svg")!.GetAttribute("aria-hidden").Should().Be("true", itens[0].OuterHtml);
     }
 
@@ -59,7 +59,7 @@ public sealed class MenuTests : BunitContext
     [Fact]
     public void Item_da_pagina_atual_fica_marcado()
     {
-        var menu = RenderizarEm("/consultas/auditlog?servidor=x", "MailQueue.CanSelect", "AuditLog.CanSelect");
+        var menu = RenderizarEm("consultas/auditlog?servidor=x", "MailQueue.CanSelect", "AuditLog.CanSelect");
 
         var auditLog = menu.FindAll("a.menu-item").Single(a => a.TextContent.Trim() == "AuditLog");
         auditLog.GetAttribute("aria-current").Should().Be("page");

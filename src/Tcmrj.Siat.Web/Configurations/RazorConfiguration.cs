@@ -21,6 +21,14 @@ public static class RazorConfiguration
 
         builder.Services.AddBlazorBlueprintComponents();
 
+        // Caminho do aplicativo no IIS (<base href>); um valor malformado quebraria todas as URLs, então nem sobe.
+        builder.Services.AddOptions<SiatOptions>()
+            .Bind(builder.Configuration.GetSection(SiatOptions.Secao))
+            .Validate(
+                o => SiatOptions.BaseHrefValido(o.BlazorBaseHref),
+                $"{SiatOptions.Secao}:{nameof(SiatOptions.BlazorBaseHref)} deve ser vazio ou começar com \"/\" e não terminar com \"/\" (por exemplo, /siat_dsv).")
+            .ValidateOnStart();
+
         return builder;
     }
 

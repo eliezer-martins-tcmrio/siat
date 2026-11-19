@@ -3,14 +3,18 @@ using Tcmrj.Siat.Domain.Models;
 
 namespace Tcmrj.Siat.App.Web;
 
-/// <summary>Rotas e parâmetros de URL das páginas (contracts/rotas-ui.md).</summary>
+/// <summary>
+/// Rotas e parâmetros de URL das páginas (contracts/rotas-ui.md). As URLs são relativas ao <c>&lt;base href&gt;</c>
+/// (sem a barra inicial): publicado num diretório virtual (<c>/siat_dsv</c>), o SIAT continua dentro dele. Os
+/// <c>@page</c> mantêm a barra, porque o roteador já os resolve a partir do base href.
+/// </summary>
 public static class Navegacao
 {
-    public const string Home = "/";
+    public const string Home = "";
 
-    public const string RotaMailQueue = "/consultas/mailqueue";
+    public const string RotaMailQueue = "consultas/mailqueue";
 
-    public const string RotaAuditLog = "/consultas/auditlog";
+    public const string RotaAuditLog = "consultas/auditlog";
 
     public const string ParametroServidor = "servidor";
 

@@ -1,10 +1,16 @@
+@using Microsoft.Extensions.Options
+@using Tcmrj.Siat.Web.Configurations
+@inject IOptions<SiatOptions> SiatConfig
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <base href="/" />
+    @* Caminho do aplicativo no IIS (SiatConfiguration:BlazorBaseHref, por ambiente no asi_builds): as rotas, os
+       arquivos estáticos e a conexão do Blazor são relativos a ele. *@
+    <base href="@SiatConfig.Value.BaseHref" />
     @* Aplica o tema salvo antes da primeira pintura (sem clarão do tema errado). Mesma lógica de
        window.siat.aplicarTema em js/siat.js: chave "siat-tema", valores claro/escuro/sistema
        (aceita também light/dark/system); data-theme para o siat.css e a classe "dark" para o Blueprint. *@

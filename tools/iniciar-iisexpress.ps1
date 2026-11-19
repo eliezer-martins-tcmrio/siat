@@ -5,20 +5,31 @@
     hosting in-process e a seção windowsAuthentication do web.config, que vem bloqueada como no servidor.
 
 .DESCRIPTION
-    1. Publica o projeto Web, como o build do asi_builds, com o ambiente no web.config (no deploy quem faz isso é o XDT).
+    1. Publica o projeto Web, como o build do asi_builds, com o ambiente no web.config (no deploy quem faz isso é o XDT),
+       e grava um appsettings.Development.json com o SiatConfiguration:BlazorBaseHref do caminho (no deploy, é o
+       appsettings do ambiente que vem do asi_builds).
     2. Recria .iisexpress\applicationhost.config a partir do modelo do IIS Express, com o ASP.NET Core Module V2.
-    3. Cria o site SIAT em https://localhost:<Porta> e libera a seção windowsAuthentication só para ele, com o mesmo
-       comando que a infra roda no servidor (appcmd unlock config). Com -SemDesbloquear, não libera: o IIS responde
-       HTTP 500.19, que é o erro do servidor antes do pedido à infra.
+    3. Cria o site SIAT em https://localhost:<Porta>, com o SIAT como aplicativo em <Caminho> (diretório virtual,
+       como no servidor), e libera a seção windowsAuthentication só para ele, com o mesmo comando que a infra roda no
+       servidor (appcmd unlock config). Com -SemDesbloquear, não libera: o IIS responde HTTP 500.19, que é o erro do
+       servidor antes do pedido à infra.
     4. Inicia o IIS Express em primeiro plano (Q para parar). Para publicar de novo, pare o IIS Express antes.
 
 .EXAMPLE
     .\tools\iniciar-iisexpress.ps1
+    Abre em https://localhost:44371/siat_dsv/
+.EXAMPLE
+    .\tools\iniciar-iisexpress.ps1 -Caminho /
+    O SIAT na raiz do site.
 .EXAMPLE
     .\tools\iniciar-iisexpress.ps1 -SemDesbloquear
 #>
 param(
     [switch] $SemDesbloquear,
+
+    # Caminho do aplicativo no site: "/" para a raiz ou um diretório virtual como no servidor (/siat_dsv).
+    [ValidatePattern('^(/|(/[A-Za-z0-9_.\-]+)+)$')]
+    [string] $Caminho = '/siat_dsv',
 
     # O certificado de desenvolvimento do IIS Express já fica associado às portas 44300 a 44399.
     [ValidateRange(44300, 44399)]
@@ -30,7 +41,10 @@ $ErrorActionPreference = 'Stop'
 $raiz = Split-Path $PSScriptRoot -Parent
 $pasta = Join-Path $raiz '.iisexpress'
 $publicacao = Join-Path $pasta 'site'
+$raizDoSite = Join-Path $pasta 'raiz'
 $config = Join-Path $pasta 'applicationhost.config'
+$naRaiz = $Caminho -eq '/'
+$baseHref = if ($naRaiz) { '' } else { $Caminho }
 $iisExpress = Join-Path $env:ProgramFiles 'IIS Express'
 $appcmd = Join-Path $iisExpress 'appcmd.exe'
 
@@ -41,6 +55,10 @@ if (-not (Test-Path (Join-Path $iisExpress 'Asp.Net Core Module\V2\aspnetcorev2.
 Write-Host '1/4 Publicando o Tcmrj.Siat.Web...'
 dotnet publish (Join-Path $raiz 'src\Tcmrj.Siat.Web') -c Debug -o $publicacao -p:EnvironmentName=Development --nologo -v quiet
 if ($LASTEXITCODE -ne 0) { throw 'dotnet publish falhou. Se o IIS Express estiver rodando, pare-o antes (ele prende as DLLs).' }
+
+# O <base href> tem de ser o caminho do aplicativo no IIS, senão as rotas e os arquivos estáticos saem dele.
+@{ SiatConfiguration = @{ BlazorBaseHref = $baseHref } } | ConvertTo-Json |
+    Set-Content (Join-Path $publicacao 'appsettings.Development.json') -Encoding utf8
 
 Write-Host '2/4 Recriando o applicationhost.config...'
 New-Item -ItemType Directory -Force $pasta | Out-Null
@@ -67,19 +85,30 @@ $ativo.SetAttribute('lockItem', 'true')
 [void] $modulos.AppendChild($ativo)
 $xml.Save($config)
 
-Write-Host "3/4 Criando o site SIAT em https://localhost:$Porta ..."
+$url = "https://localhost:$Porta" + $baseHref + '/'
+Write-Host "3/4 Criando o site SIAT ($url)..."
 & $appcmd delete site 'WebSite1' /apphostconfig:$config | Out-Null
-& $appcmd add site /name:SIAT /bindings:"https/*:${Porta}:localhost" /physicalPath:$publicacao /apphostconfig:$config | Out-Null
-if ($LASTEXITCODE -ne 0) { throw 'appcmd add site falhou.' }
+if ($naRaiz) {
+    & $appcmd add site /name:SIAT /bindings:"https/*:${Porta}:localhost" /physicalPath:$publicacao /apphostconfig:$config | Out-Null
+}
+else {
+    # Raiz do site vazia e o SIAT como aplicativo no caminho, como em W:\TcmRoot\dsv\Sites\siat_dsv.
+    New-Item -ItemType Directory -Force $raizDoSite | Out-Null
+    & $appcmd add site /name:SIAT /bindings:"https/*:${Porta}:localhost" /physicalPath:$raizDoSite /apphostconfig:$config | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'appcmd add site falhou.' }
+    & $appcmd add app /site.name:SIAT /path:$Caminho /physicalPath:$publicacao /apphostconfig:$config | Out-Null
+}
+if ($LASTEXITCODE -ne 0) { throw 'appcmd add site/app falhou.' }
 
+$caminhoDeConfiguracao = 'SIAT' + $(if ($naRaiz) { '/' } else { $Caminho })
 if ($SemDesbloquear) {
     Write-Warning 'Seção windowsAuthentication bloqueada (-SemDesbloquear): espere HTTP 500.19.'
 }
 else {
     # O mesmo pedido que vai para a infra: liberar a seção só para o aplicativo do SIAT, nunca para o servidor todo.
-    & $appcmd unlock config 'SIAT/' -section:system.webServer/security/authentication/windowsAuthentication /commit:apphost /apphostconfig:$config
+    & $appcmd unlock config $caminhoDeConfiguracao -section:system.webServer/security/authentication/windowsAuthentication /commit:apphost /apphostconfig:$config
     if ($LASTEXITCODE -ne 0) { throw 'appcmd unlock config falhou.' }
 }
 
-Write-Host "4/4 Iniciando o IIS Express em https://localhost:$Porta (Q para parar)..."
+Write-Host "4/4 Iniciando o IIS Express em $url (Q para parar)..."
 & (Join-Path $iisExpress 'iisexpress.exe') /config:$config /site:SIAT
