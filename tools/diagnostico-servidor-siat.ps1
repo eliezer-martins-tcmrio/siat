@@ -373,7 +373,8 @@ Invoke-Secao '5. Sites, aplicativos e app pools' {
                 $script:certificados.Add([pscustomobject]@{ Site = $site.Name; Binding = $b.BindingInformation; Hash = $hash; Loja = $loja })
             }
             if ($b.Protocol -in 'http', 'https') {
-                try { if ($b.Host) { $script:hostsDosBindings.Add($b.Host) } } catch { }
+                # Host curinga (*.tcmnet.tcm) não é nome que se resolva no DNS.
+                try { if ($b.Host -and -not $b.Host.Contains('*')) { $script:hostsDosBindings.Add($b.Host) } } catch { }
             }
             Write-Detalhe $texto
         }

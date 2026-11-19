@@ -53,22 +53,38 @@ do aplicativo no IIS, sem barra no fim: `/siat_dsv`, `/siat_hml`, `/siat`. Tem d
 malformado (`/siat/`, `siat`, `/`) impede a aplicação de subir. As rotas do `Navegacao` são relativas ao base href
 (`consultas/mailqueue`, sem a barra inicial).
 
+## O que os servidores mostraram (2026-11-19)
+
+Diagnóstico como administrador no tcm2016web3 e no tcm2016web4, mais requisições de uma estação:
+
+- Prontos nos dois: recursos Autenticação do Windows e WebSocket, ASP.NET Core Module V2 20.0 e Hosting Bundle 10.0.15.
+- Nenhum caminho tem a seção `windowsAuthentication` liberada. Os dois aplicativos que já usam autenticação do Windows
+  (`SuporteASI_dsv`, `SuporteDSG_dsv`) a ligam no `applicationHost.config` (`location` com `enabled="true"`), não no
+  `web.config`, com o anônimo desligado.
+- O ARR não repassa a autenticação do Windows: responde 302 para o servidor. `tcmrj2/SuporteASI_dsv` vai para
+  `http://tcm2016web3/SuporteASI_dsv/`; `tcmrj/SuporteASI` (PRD) para `http://tcm2016web1/SuporteASI/`. O SiCATI, que
+  é Blazor e não usa autenticação do Windows, também: `tcmrj2/sicati_dsv` vai para
+  `https://tcm2016web3.tcmnet.tcm/sicati_dsv/`. Só o SCAF, dos verificados, passa pelo ARR.
+- Direto no servidor, o Kerberos funciona sem SPN novo (ticket `HTTP/tcm2016web3`, coberto pelo `HOST/` do computador):
+  a preocupação com NTLM através do ARR e com SPN em `tcmrj2` deixa de existir se o SIAT seguir o mesmo caminho.
+- O SiCATI roda com `TCMNET\svc-intranet`. No DEV ela tem `db_datareader` no `CSLIB_UserManager` e no `SIRHU`; a
+  `vwSIRHU_Integracao` lê 8 tabelas do `SIRHU`, sem encadeamento de propriedade entre bancos, então a conta precisa dos
+  dois. A `svc-etcm` (SCAF) tem no `SIRHU` só o papel `ComDireitoDeLeitura_ParaViews`, não verificado.
+
 ## Para testar no DSV (pedidos à infra)
 
-- [ ] Recurso "Autenticação do Windows" do IIS instalado no tcm2016web3 e no tcm2016web4.
-- [ ] Seção `system.webServer/security/authentication/windowsAuthentication` liberada **só** para o aplicativo
-      do SIAT (`appcmd unlock config "<site>/siat_dsv" -section:system.webServer/security/authentication/windowsAuthentication -commit:apphost`),
-      **antes** da primeira publicação. Sem isso: HTTP 500.19 em todas as rotas. A seção `anonymousAuthentication`
-      não precisa ser liberada: o `web.config` não a declara, e o anônimo já vem ligado no IIS.
-- [ ] `appsettings.Development.json` do SIAT no `asi_builds` com `SiatConfiguration:BlazorBaseHref = /siat_dsv` (igual
-      ao caminho do aplicativo no IIS).
-- [ ] GPO do Edge e do Chrome: `AuthServerAllowlist = tcmrj.tcmnet.tcm,tcmrj2.tcmnet.tcm` (só esses hosts). Sem isso
-      o navegador abre uma janela pedindo usuário e senha.
-- [ ] App pool com conta de domínio de serviço, com SELECT em `vwSIRHU_Integracao` (e no que ela lê do RH) e em `Users`.
-- [ ] Teste através do ARR (`tcmrj2` -> TCM2016ARR2): NTLM costuma falhar através do ARR. Se falhar: SPN
-      `HTTP/tcmrj2.tcmnet.tcm` na conta do app pool e `useAppPoolCredentials="true"`, para usar Kerberos.
-- [ ] PRD: `tcmrj` também passa por um ARR (10.5.191.202, TCM2016ARR1). Mesmo teste do ARR, e confirmar que ele mantém
-      a conexão inteira num servidor (NTLM é por conexão).
+- [x] Recurso "Autenticação do Windows" e Hosting Bundle do .NET 10 no tcm2016web3 e no tcm2016web4.
+- [ ] Aplicativo `/siat_dsv` no `Default Web Site`, app pool próprio com `TCMNET\svc-intranet` (como o SiCATI).
+- [ ] Autenticação do Windows ligada para ele, **antes** da primeira publicação. Do jeito do protótipo hoje, liberar a
+      seção (`appcmd unlock config "Default Web Site/siat_dsv" -section:system.webServer/security/authentication/windowsAuthentication -commit:apphost`);
+      sem isso, HTTP 500.19 em todas as rotas. O padrão dos servidores (SuporteASI) é outro: a infra liga a seção no
+      `applicationHost.config` e o `web.config` não a declara; adotá-lo exige tirar a seção do `web.config` do SIAT.
+- [ ] Regra no ARR2: `/siat_dsv` com 302 para `https://tcm2016web3.tcmnet.tcm/siat_dsv/`, como a do SiCATI.
+- [ ] `appsettings.Development.json` do SIAT no `asi_builds` com `SiatConfiguration:BlazorBaseHref = /siat_dsv`.
+- [ ] Login sem senha em `https://tcm2016web3.tcmnet.tcm`: se o Edge pedir usuário e senha, falta a GPO
+      `AuthServerAllowlist` com esse host (o SuporteASI evita isso com `http://tcm2016web3`, sem ponto, que o Windows
+      trata como intranet, mas sem TLS).
+- [ ] PRD: o mesmo, com o redirecionamento do ARR1 (`tcmrj`) para o tcm2016web1.
 
 ## Diagnóstico do servidor (`tools/diagnostico-servidor-siat.ps1`)
 
@@ -79,6 +95,9 @@ double hop), num PowerShell de 64 bits como administrador:
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\diagnostico-servidor-siat.ps1
 ```
+
+Sem elevação ou em 32 bits ele não roda (o IIS devolveria listas vazias sem erro). A conta administrativa do servidor
+não tem login no SQL do DEV: use `-SemSql` e confira as contas dos pools de uma estação.
 
 Grava `siat-diagnostico-<SERVIDOR>-<data>.txt` com o resumo de `[FALTA]`, `[ATENCAO]` e `[ERRO]` no fim. Cobre os
 itens acima que dá para ver do servidor: recurso Autenticação do Windows, Hosting Bundle do .NET 10, liberação da seção
