@@ -63,10 +63,20 @@ if (-not $Saida) {
     $Saida = Join-Path (Get-Location).ProviderPath ('siat-diagnostico-{0}-{1:yyyyMMdd-HHmm}.txt' -f $env:COMPUTERNAME, (Get-Date))
 }
 
-# Num PowerShell de 32 bits, System32 é redirecionado para SysWOW64, onde não há applicationHost.config.
-$sistema32 = 'System32'
-if ([Environment]::Is64BitOperatingSystem -and -not [Environment]::Is64BitProcess) { $sistema32 = 'Sysnative' }
-$script:inetsrv = Join-Path $env:windir "$sistema32\inetsrv"
+# Sem elevação o IIS não deixa ler o applicationHost.config, e o ServerManager devolve listas vazias sem erro: o
+# relatório diria que aplicativos existentes não existem. Em 32 bits, System32 vira SysWOW64, sem a configuração do IIS.
+$identidade = [Security.Principal.WindowsIdentity]::GetCurrent()
+$elevado = (New-Object Security.Principal.WindowsPrincipal($identidade)).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+if (-not $elevado -or -not [Environment]::Is64BitProcess) {
+    $motivos = @()
+    if (-not $elevado) { $motivos += 'o PowerShell não foi aberto como administrador' }
+    if (-not [Environment]::Is64BitProcess) { $motivos += 'o PowerShell é o de 32 bits (x86)' }
+    Write-Host ('Diagnóstico não executado: {0}.' -f ($motivos -join ' e ')) -ForegroundColor Red
+    Write-Host 'Abra "Windows PowerShell" (não o x86 nem o ISE x86) com "Executar como administrador" e rode:' -ForegroundColor Yellow
+    Write-Host ('    powershell -ExecutionPolicy Bypass -File "{0}"' -f $MyInvocation.MyCommand.Path) -ForegroundColor Yellow
+    exit 1
+}
+$script:inetsrv = Join-Path $env:windir 'System32\inetsrv'
 
 $script:relatorio = New-Object 'System.Collections.Generic.List[string]'
 $script:pendencias = New-Object 'System.Collections.Generic.List[string]'
@@ -192,14 +202,12 @@ function Invoke-Consulta($Conexao, [string] $Sql, [hashtable] $Parametros = @{})
 
 #endregion
 
-$identidade = [Security.Principal.WindowsIdentity]::GetCurrent()
 Write-Linha 'Diagnóstico do servidor para o SIAT com autenticação do Windows (protótipo features/prototipo_login_rede)'
 Write-Linha ('Gerado em {0:dd/MM/yyyy HH:mm} em {1} por {2}. Só leitura: nada foi alterado.' -f (Get-Date), $env:COMPUTERNAME, $identidade.Name)
 Write-Linha ('Parâmetros: Caminhos={0}; Nomes={1}; Dominio={2}; ServidorSql={3}; Banco={4}; SemSql={5}' -f
     ($Caminhos -join ','), ($Nomes -join ','), $Dominio, $ServidorSql, $BancoUserManager, [bool] $SemSql)
 
 Invoke-Secao '1. Servidor' {
-    $principal = New-Object Security.Principal.WindowsPrincipal($identidade)
     $cs = Get-CimInstance Win32_ComputerSystem
     $so = Get-CimInstance Win32_OperatingSystem
     try { $script:fqdn = [Net.Dns]::GetHostEntry($env:COMPUTERNAME).HostName } catch { }
@@ -213,14 +221,7 @@ Invoke-Secao '1. Servidor' {
 
     Write-Status INFO ('Servidor {0} ({1}), domínio {2}; conta do computador na rede: {3}' -f $env:COMPUTERNAME, $script:fqdn, $cs.Domain, $script:contaDoComputador)
     Write-Status INFO ('{0} (versão {1}); último boot {2:dd/MM/yyyy HH:mm}' -f $so.Caption, $so.Version, $so.LastBootUpTime)
-    Write-Status INFO ('PowerShell {0}, processo de {1} bits' -f $PSVersionTable.PSVersion, $(if ([Environment]::Is64BitProcess) { 64 } else { 32 }))
-    if ($principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-        Write-Status OK ('Rodando como administrador ({0}).' -f $identidade.Name)
-    }
-    else {
-        Write-Status ERRO 'Sem elevação: o applicationHost.config, os app pools e os logs do IIS não podem ser lidos. Abra o PowerShell como administrador e rode de novo.'
-    }
-    if (-not [Environment]::Is64BitProcess) { Write-Status ERRO 'PowerShell de 32 bits: abra o de 64 bits e rode de novo.' }
+    Write-Status OK ('PowerShell {0} de 64 bits, como administrador ({1}).' -f $PSVersionTable.PSVersion, $identidade.Name)
 
     $script:ipsLocais = @(Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
             Where-Object { $_.IPAddress -ne '127.0.0.1' } | ForEach-Object { $_.IPAddress })
@@ -331,8 +332,13 @@ Invoke-Secao '5. Sites, aplicativos e app pools' {
     if (-not (Test-Path $dll)) { Write-Status ERRO "IIS não instalado: $dll não existe."; return }
     Add-Type -Path $dll
     # Só leitura: o ServerManager só grava com CommitChanges, que este script nunca chama.
-    $script:gerenciador = New-Object Microsoft.Web.Administration.ServerManager
-    $sm = $script:gerenciador
+    $sm = New-Object Microsoft.Web.Administration.ServerManager
+    if ($sm.Sites.Count -eq 0) {
+        # Sem permissão de leitura o ServerManager devolve listas vazias em vez de erro.
+        Write-Status ERRO 'Nenhum site lido do IIS (sem permissão no applicationHost.config?): sites, aplicativos e logs não verificados.'
+        return
+    }
+    $script:gerenciador = $sm
 
     Write-Linha 'App pools (identidade e conta que sai para a rede; a senha nunca é lida):'
     foreach ($pool in $sm.ApplicationPools) {
@@ -675,7 +681,15 @@ WHERE dp.name = @Conta OR dp.sid = SUSER_SID(@Conta)
         Write-Detalhe ('Grupos do AD com usuário no banco: {0}' -f $(if ($grupos) { @($grupos | ForEach-Object { $_.Nome }) -join ', ' } else { 'nenhum visível' }))
         Write-Status INFO 'O SIAT também abre AUDITORIADB e os servidores das consultas com a identidade do app pool; isso não é verificado aqui.'
     }
-    catch { Write-Status ERRO ('SQL: {0}' -f (Format-Erro $_)) }
+    catch {
+        $sql = $_.Exception
+        while ($sql -and -not ($sql -is [System.Data.SqlClient.SqlException])) { $sql = $sql.InnerException }
+        if ($sql -and $sql.Number -eq 18456) {
+            # Conta administrativa do servidor (ex.: _a1) sem login no SQL: não é pendência do servidor.
+            Write-Status ERRO ('SQL não verificado: {0} não tem login em {1}. Rode com -SemSql; o acesso das contas dos app pools (seção 5) dá para conferir de uma estação.' -f $identidade.Name, $ServidorSql)
+        }
+        else { Write-Status ERRO ('SQL: {0}' -f (Format-Erro $_)) }
+    }
     finally { $conexao.Dispose() }
 }
 
