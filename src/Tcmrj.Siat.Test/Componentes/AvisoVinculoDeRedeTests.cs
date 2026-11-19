@@ -14,7 +14,7 @@ namespace Tcmrj.Siat.Test.Componentes;
 public sealed class AvisoVinculoDeRedeTests : BunitContext
 {
     [Theory]
-    [InlineData(VinculoDeRede.DominioInvalido, "não é do domínio do Tribunal")]
+    [InlineData(VinculoDeRede.DominioInvalido, "não é do domínio do TCMRio")]
     [InlineData(VinculoDeRede.NaoEncontrado, "não está ligado a uma matrícula")]
     [InlineData(VinculoDeRede.Duplicado, "mais de uma matrícula")]
     [InlineData(VinculoDeRede.UsuarioDesabilitado, "não tem usuário habilitado no UserManager")]

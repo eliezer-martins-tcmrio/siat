@@ -13,6 +13,13 @@
       "runtimeArgs": ["run", "--project", "src/Tcmrj.Siat.Web", "--launch-profile", "https", "--no-launch-profile-arguments"],
       "port": 7271,
       "url": "https://localhost:7271"
+    },
+    {
+      "name": "siat-iisexpress",
+      "runtimeExecutable": "pwsh",
+      "runtimeArgs": ["-NoProfile", "-File", "tools/iniciar-iisexpress.ps1"],
+      "port": 44371,
+      "url": "https://localhost:44371"
     }
   ]
 }

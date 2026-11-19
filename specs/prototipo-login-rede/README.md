@@ -27,17 +27,36 @@ O que saiu: o OIDC no SIA (`TcmrjOidc`, `Account/Login`, `Account/Logout`) e o b
 navegador envia as credenciais sem perguntar. Validado em 2026-11-19: entra sem senha, mostra nome e matrícula e
 libera os módulos conforme o UserManager do DEV.
 
+## Testar na máquina (IIS Express)
+
+`.\tools\iniciar-iisexpress.ps1` (ou a configuração `siat-iisexpress` do `.claude/launch.json`) publica o projeto,
+monta um `.iisexpress\applicationhost.config` a partir do modelo do IIS Express (seções de autenticação bloqueadas,
+como no servidor), libera a seção `windowsAuthentication` só para o site e abre `https://localhost:44371`. Exige o
+ASP.NET Core Module V2 do IIS Express (vem com o Visual Studio). Para publicar de novo, pare o IIS Express antes.
+
+Validado em 2026-11-19:
+
+- Com `-SemDesbloquear`, o IIS responde **HTTP 500.19** (0x80070021, seção bloqueada num nível pai) em **todas** as
+  rotas, inclusive `/saude`: publicar antes da liberação da infra derruba o aplicativo inteiro.
+- Liberada a seção: `/saude` e arquivos estáticos respondem 200 sem credencial; a raiz responde 401 com
+  `WWW-Authenticate: Negotiate, NTLM` (o desafio é do IIS); o log mostra "Deferring to the server's implementation of
+  Windows Authentication"; no navegador, entra sem senha, a claim `matricula` chega ao circuito do Blazor e o log
+  registra "Usuário de rede TCMNET\... vinculado à matrícula ...".
+
 ## Para testar no DSV (pedidos à infra)
 
 - [ ] Recurso "Autenticação do Windows" do IIS instalado no tcm2016web3 e no tcm2016web4.
-- [ ] Seção `system.webServer/security/authentication/windowsAuthentication` desbloqueada **só** para o aplicativo
-      do SIAT (`appcmd unlock config "<site>/siat_dsv" -section:... -commit:apphost`). Sem isso: HTTP 500.19.
+- [ ] Seção `system.webServer/security/authentication/windowsAuthentication` liberada **só** para o aplicativo
+      do SIAT (`appcmd unlock config "<site>/siat_dsv" -section:system.webServer/security/authentication/windowsAuthentication -commit:apphost`),
+      **antes** da primeira publicação. Sem isso: HTTP 500.19 em todas as rotas. A seção `anonymousAuthentication`
+      não precisa ser liberada: o `web.config` não a declara, e o anônimo já vem ligado no IIS.
+- [ ] Publicação num diretório virtual (`/siat_dsv`, como o `/sicati`): hoje o `App.razor` fixa `<base href="/" />`;
+      precisa vir da configuração, como o `BlazorBaseHref` do SiCATI. Não tem relação com a autenticação, mas impede o
+      teste no DSV.
 - [ ] GPO do Edge e do Chrome: `AuthServerAllowlist = tcmrj.tcmnet.tcm,tcmrj2.tcmnet.tcm` (só esses hosts). Sem isso
       o navegador abre uma janela pedindo usuário e senha.
 - [ ] App pool com conta de domínio de serviço, com SELECT em `vwSIRHU_Integracao` (e no que ela lê do RH) e em `Users`.
 - [ ] Teste através do ARR (`tcmrj2` -> TCM2016ARR2): NTLM costuma falhar através do ARR. Se falhar: SPN
       `HTTP/tcmrj2.tcmnet.tcm` na conta do app pool e `useAppPoolCredentials="true"`, para usar Kerberos.
-- [ ] Confirmar que a claim `matricula` aparece no IIS in-process (a transformação depende do esquema padrão
-      Negotiate, que repassa para o IIS).
 - [ ] PRD (`tcmrj`, provavelmente IP de balanceamento entre web1 e web2): confirmar que o balanceador mantém a conexão
       inteira num servidor (NTLM é por conexão).

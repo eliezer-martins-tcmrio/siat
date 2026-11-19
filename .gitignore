@@ -6,6 +6,9 @@
 # Tcmrj
 *.bak
 
+# Publicação e applicationhost.config do IIS Express (tools/iniciar-iisexpress.ps1)
+.iisexpress/
+
 # User-specific files
 *.rsuser
 *.suo
