@@ -67,5 +67,22 @@ malformado (`/siat/`, `siat`, `/`) impede a aplicação de subir. As rotas do `N
 - [ ] App pool com conta de domínio de serviço, com SELECT em `vwSIRHU_Integracao` (e no que ela lê do RH) e em `Users`.
 - [ ] Teste através do ARR (`tcmrj2` -> TCM2016ARR2): NTLM costuma falhar através do ARR. Se falhar: SPN
       `HTTP/tcmrj2.tcmnet.tcm` na conta do app pool e `useAppPoolCredentials="true"`, para usar Kerberos.
-- [ ] PRD (`tcmrj`, provavelmente IP de balanceamento entre web1 e web2): confirmar que o balanceador mantém a conexão
-      inteira num servidor (NTLM é por conexão).
+- [ ] PRD: `tcmrj` também passa por um ARR (10.5.191.202, TCM2016ARR1). Mesmo teste do ARR, e confirmar que ele mantém
+      a conexão inteira num servidor (NTLM é por conexão).
+
+## Diagnóstico do servidor (`tools/diagnostico-servidor-siat.ps1`)
+
+Só leitura: lê a configuração do IIS, o AD (`setspn -Q`/`-L`) e o SQL, sem alterar nada e sem ler senha de app pool.
+Rodar no próprio tcm2016web3 e tcm2016web4 (área de trabalho remota; por sessão remota o setspn e o SQL esbarram no
+double hop), num PowerShell de 64 bits como administrador:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\diagnostico-servidor-siat.ps1
+```
+
+Grava `siat-diagnostico-<SERVIDOR>-<data>.txt` com o resumo de `[FALTA]`, `[ATENCAO]` e `[ERRO]` no fim. Cobre os
+itens acima que dá para ver do servidor: recurso Autenticação do Windows, Hosting Bundle do .NET 10, liberação da seção
+para `/siat_dsv` e `/siat_hml`, identidade dos app pools, SPNs, quem chega pelo log do IIS (o ARR?) e o acesso das
+contas dos pools ao `CSLIB_UserManager`. Não cobre a GPO das estações nem a configuração do ARR. Validado em
+2026-11-19 nesta máquina (sem IIS) e com as seções do IIS rodando contra o `applicationhost.config` do IIS Express,
+liberado e bloqueado.
