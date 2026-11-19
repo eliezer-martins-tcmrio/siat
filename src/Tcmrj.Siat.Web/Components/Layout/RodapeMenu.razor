@@ -1,4 +1,5 @@
-@* Rodapé do menu: tema, conta e Sair (DESIGN.md, Navegação). *@
+@* Rodapé do menu: tema e conta (DESIGN.md, Navegação). PROTÓTIPO (features/prototipo_login_rede): sem "Sair",
+   porque a entrada é pelo usuário de rede e não há sessão própria para encerrar. *@
 <div class="menu-rodape">
     <SeletorTema />
 
@@ -12,15 +13,6 @@
             }
         </span>
     </div>
-
-    @* O logout só aceita POST com token antiforgery (contracts/rotas-ui.md). *@
-    <form action="Account/Logout" method="post">
-        <AntiforgeryToken />
-        <button type="submit">
-            <LucideIcon Name="log-out" Size="14" aria-hidden="true" focusable="false" />
-            Sair
-        </button>
-    </form>
 </div>
 
 @code {

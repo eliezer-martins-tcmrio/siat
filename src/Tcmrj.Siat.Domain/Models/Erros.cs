@@ -43,6 +43,15 @@ public static class Erros
             "A consulta foi cancelada.");
     }
 
+    public static class UsuariosDeRede
+    {
+        public const string CodigoCadastroIndisponivel = "usuario-de-rede.cadastro-indisponivel";
+
+        public static Erro CadastroIndisponivel(string motivo) => new(
+            CodigoCadastroIndisponivel,
+            $"Não foi possível consultar o vínculo do usuário de rede com a matrícula: {motivo}");
+    }
+
     public static class Filtros
     {
         public const string CodigoQuantidadeNaoNumerica = "filtros.quantidade-nao-numerica";

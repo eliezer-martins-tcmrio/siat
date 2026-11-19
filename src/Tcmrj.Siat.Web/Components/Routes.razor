@@ -12,8 +12,8 @@
                 }
                 else
                 {
-                    @* Circuito anônimo por inatividade: encerra o cookie e a sessão no SIA. *@
-                    <EncerrarSessao />
+                    @* Circuito anônimo por inatividade: recarregar entra de novo pelo usuário de rede. *@
+                    <SessaoEncerrada />
                 }
             </NotAuthorized>
         </AuthorizeRouteView>

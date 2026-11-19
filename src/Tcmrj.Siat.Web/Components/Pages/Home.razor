@@ -1,5 +1,6 @@
 @page "/"
 @attribute [Authorize]
+@using Tcmrj.Siat.Web.Services
 @inject IAutorizacaoConsultaService AutorizacaoConsulta
 @inject NavigationManager Navigation
 
@@ -9,15 +10,23 @@
 {
     <CabecalhoPagina Titulo="SIAT" Descricao="Sistema Integrado de Apoio Técnico do TCMRio." />
 
-    <div class="painel">
-        <div class="estado">
-            <h2>Você não tem acesso às ferramentas do SIAT</h2>
-            <p>
-                Para usar o MailQueue e o AuditLog, peça a sua inclusão no grupo <strong>Consultas</strong>
-                do SIAT no SIA. Depois de liberado, recarregue a página.
-            </p>
+    @if (situacaoVinculo is not null)
+    {
+        @* Sem matrícula não há permissão possível: o motivo é o vínculo com o RH, não o grupo do SIAT. *@
+        <AvisoVinculoDeRede Situacao="@situacaoVinculo" UsuarioDeRede="@usuarioDeRede" />
+    }
+    else
+    {
+        <div class="painel">
+            <div class="estado">
+                <h2>Você não tem acesso às ferramentas do SIAT</h2>
+                <p>
+                    Para usar o MailQueue e o AuditLog, peça a sua inclusão no grupo <strong>Consultas</strong>
+                    do SIAT no SIA. Depois de liberado, recarregue a página.
+                </p>
+            </div>
         </div>
-    </div>
+    }
 }
 else
 {
@@ -31,7 +40,12 @@ else
         (Modulo.AuditLog, Navegacao.RotaAuditLog),
     ];
 
+    [CascadingParameter]
+    private Task<AuthenticationState>? EstadoAutenticacao { get; set; }
+
     private bool semAcesso;
+    private string? situacaoVinculo;
+    private string? usuarioDeRede;
 
     protected override async Task OnInitializedAsync()
     {
@@ -42,6 +56,13 @@ else
                 Navigation.NavigateTo(rota, replace: true);
                 return;
             }
+        }
+
+        if (EstadoAutenticacao is not null)
+        {
+            var usuario = (await EstadoAutenticacao).User;
+            situacaoVinculo = VinculoDeRede.Situacao(usuario);
+            usuarioDeRede = usuario.Identity?.Name;
         }
 
         semAcesso = true;

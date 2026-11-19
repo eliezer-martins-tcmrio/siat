@@ -19,9 +19,6 @@ public static class RazorConfiguration
         builder.Services.AddRazorComponents()
             .AddInteractiveServerComponents();
 
-        // Páginas Account/Login e Account/Logout.
-        builder.Services.AddRazorPages();
-
         builder.Services.AddBlazorBlueprintComponents();
 
         return builder;
@@ -38,11 +35,14 @@ public static class RazorConfiguration
         app.UseAuthorization();
         app.UseAntiforgery();
 
-        // CSS, JS e imagens não têm dados; ficam fora da fallback policy para não disparar o login do SIA
-        // em pedidos de arquivo (ícone, folha de estilo) feitos sem sessão.
+        // CSS, JS e imagens não têm dados; ficam fora da fallback policy para não disparar o desafio Negotiate
+        // em pedidos de arquivo (ícone, folha de estilo).
         app.MapStaticAssets().AllowAnonymous();
 
-        app.MapRazorPages();
+        // Modo misto: verificação de disponibilidade (balanceador, monitoramento) sem credencial do Windows.
+        // Não lê nenhuma fonte de dados.
+        app.MapGet("/saude", () => Results.Text("ok")).AllowAnonymous();
+
         app.MapRazorComponents<Components.App>()
             .AddInteractiveServerRenderMode();
 

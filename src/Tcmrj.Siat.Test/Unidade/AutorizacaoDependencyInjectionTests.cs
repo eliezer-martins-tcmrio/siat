@@ -1,4 +1,6 @@
 using AwesomeAssertions;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Negotiate;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -12,6 +14,7 @@ using Tcmrj.Autenticacao.AspNetCore.Oidc.Sessao;
 using Tcmrj.Autorizacao.App.Services;
 using Tcmrj.CoreLib.Domain.Interfaces;
 using Tcmrj.Siat.Web.Configurations;
+using Tcmrj.Siat.Web.Services;
 
 namespace Tcmrj.Siat.Test.Unidade;
 
@@ -67,10 +70,38 @@ public class AutorizacaoDependencyInjectionTests
         provider.GetRequiredService<IOptions<UserManagerServiceOptions>>().Value.ApplicationId.Should().Be(93);
     }
 
+    [Fact]
+    public async Task Esquema_padrao_e_Negotiate_e_a_transformacao_e_a_do_usuario_de_rede()
+    {
+        using var provider = CriarProvider();
+        using var scope = provider.CreateScope();
+        var services = scope.ServiceProvider;
+
+        var esquemas = services.GetRequiredService<IAuthenticationSchemeProvider>();
+        (await esquemas.GetDefaultAuthenticateSchemeAsync())!.Name.Should().Be(NegotiateDefaults.AuthenticationScheme);
+        (await esquemas.GetDefaultChallengeSchemeAsync())!.Name.Should().Be(NegotiateDefaults.AuthenticationScheme);
+        services.GetRequiredService<IClaimsTransformation>().Should().BeOfType<ClaimsDoUsuarioDeRede>();
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(null)]
+    public async Task AplicacaoNaoSobeSemDominioDoUsuarioDeRede(string? dominio)
+    {
+        var builder = CriarBuilder("93", dominio);
+        builder.WebHost.UseUrls("http://127.0.0.1:0");
+        await using var app = builder.Build();
+
+        var iniciar = () => app.StartAsync(TestContext.Current.CancellationToken);
+
+        (await iniciar.Should().ThrowAsync<OptionsValidationException>())
+            .Which.OptionsType.Should().Be<UsuarioDeRedeOptions>();
+    }
+
     private static ServiceProvider CriarProvider()
         => CriarBuilder("93").Services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
 
-    private static WebApplicationBuilder CriarBuilder(string? applicationId)
+    private static WebApplicationBuilder CriarBuilder(string? applicationId, string? dominio = "TCMNET")
     {
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = Environments.Development });
 
@@ -79,8 +110,7 @@ public class AutorizacaoDependencyInjectionTests
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["ConnectionStrings:UserManagerConnection"] = "Server=localhost;Database=CSLIB_UserManager;Integrated Security=true;TrustServerCertificate=true",
-            ["TcmrjOidc:Authority"] = "https://localhost:44382",
-            ["TcmrjOidc:ClientId"] = "SIAT-dev",
+            ["UsuarioDeRede:Dominio"] = dominio,
             ["UserManagerService:ApplicationId"] = applicationId,
         });
         builder.AddAuthenticationConfiguration();

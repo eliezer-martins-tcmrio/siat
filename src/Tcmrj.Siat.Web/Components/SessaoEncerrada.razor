@@ -1,0 +1,18 @@
+@inject NavigationManager Navigation
+
+@* PROTÓTIPO (features/prototipo_login_rede): o circuito ficou anônimo por inatividade (TcmrjSessao). Com o usuário
+   de rede não há sessão para encerrar: recarregar a página abre um circuito novo, e o navegador entra de novo com
+   as credenciais do Windows, sem pedir senha. *@
+<div class="painel">
+    <div class="estado" role="status">
+        <h2>Sessão encerrada por inatividade</h2>
+        <p>Para continuar, recarregue a página. O SIAT entra de novo com o seu usuário de rede.</p>
+        <div class="acoes">
+            <button type="button" class="botao pequeno" @onclick="Continuar">Continuar</button>
+        </div>
+    </div>
+</div>
+
+@code {
+    private void Continuar() => Navigation.Refresh(forceReload: true);
+}

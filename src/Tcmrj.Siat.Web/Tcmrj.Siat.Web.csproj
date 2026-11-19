@@ -7,6 +7,7 @@
     <PackageReference Include="Tcmrj.Auditoria.EF" Version="140.1.4" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.15" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.15" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.Negotiate" Version="10.0.15" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.15" />
     <PackageReference Include="Tcmrj.CoreLib.DBLog.AspNetCore" Version="187.2.3" />
     <PackageReference Include="BlazorBlueprint.Components" Version="4.2.0" />
