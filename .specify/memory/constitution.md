@@ -36,15 +36,27 @@ de quem fez a alteração.
 
 ### III. Segurança e menor privilégio (INEGOCIÁVEL)
 
-- A autenticação DEVE ocorrer apenas pelo SSO do UserManager de PRD (SIA), por OpenID Connect
-  (fluxo authorization code com PKCE), com o cliente OIDC cadastrado no `OpenIddictApplications`
-  do UserManager pelo script do `dbchange`.
+- A autenticação DEVE ocorrer pelo SSO do UserManager de PRD (SIA), por OpenID Connect (fluxo
+  authorization code com PKCE), com o cliente OIDC cadastrado no `OpenIddictApplications` do
+  UserManager pelo script do `dbchange`. É o modo padrão e o único permitido na publicação de
+  produção.
+- Modo experimental temporário, enquanto a coordenação avalia a entrada pelo usuário de rede: nas
+  publicações de teste do próprio SIAT, DSV e HML (`ASPNETCORE_ENVIRONMENT` `Development` e
+  `Staging`), o modo `UsuarioDeRede` de `SiatConfiguration:Autenticacao` PODE substituir o OIDC.
+  - Nele, o IIS autentica o usuário do Windows do domínio do Tribunal (Negotiate), e o SIAT o liga
+    à matrícula pela `vwSIRHU_Integracao` do `CSLIB_UserManager`, exigindo usuário habilitado no
+    UserManager. Sem vínculo único, o usuário fica sem matrícula e sem nenhuma permissão.
+  - A autorização DEVE ser a mesma do OIDC: recursos do UserManager pela claim `matricula`.
+  - Na publicação de produção, a aplicação NÃO DEVE subir nesse modo.
+  - Ao fim da avaliação, nova emenda DEVE redefinir a autenticação (MAJOR), se a coordenação
+    aprovar, ou retirar o modo e o seu código, se recusar.
 - A leitura das claims DEVE usar `Tcmrj.Autenticacao.AspNetCore` e a autorização por recurso DEVE
   usar `Tcmrj.Autorizacao.App`, como no SiCATI.
 - Toda página que exibe dados e toda operação DEVEM exigir um recurso do UserManager, verificado
   no servidor; esconder o item na interface não é controle de acesso. Páginas que não exibem dados
   (a página inicial que só encaminha ou informa a falta de acesso, e o logout) exigem apenas
-  usuário autenticado; o login é anônimo.
+  usuário autenticado. São anônimos só o login, os arquivos estáticos e a verificação de
+  disponibilidade (`/saude`), que não lê nenhuma fonte de dados.
 - Dados de produção DEVEM ter recursos próprios, separados dos recursos de DSV/HML.
 - O acesso a SQL Server e a compartilhamentos de rede DEVE usar uma conta de serviço somente de
   leitura.
@@ -62,7 +74,10 @@ de quem fez a alteração.
 
 **Justificativa**: o SIAT concentra em um só lugar o acesso a dados de produção de vários
 sistemas. Um único ponto de entrada mal protegido exporia todos eles; por isso este princípio não
-admite exceção, e o registro em log permite auditar quem consultou o quê.
+admite exceção, e o registro em log permite auditar quem consultou o quê. O modo `UsuarioDeRede`
+troca o ponto de entrada antes da avaliação da coordenação, por isso fica fora da publicação de
+produção e vale só até a decisão. A proteção dos dados não muda nele, porque a autorização por
+recurso, inclusive a dos dados de produção, é a mesma do OIDC.
 
 ### IV. Módulos independentes e entrega incremental
 
@@ -202,5 +217,6 @@ maiúsculas de minúsculas em nomes de pasta, e prefixos com grafias diferentes 
 | 1.2.0  | 2026-11-17 | Princípio III: o `ClientSecret` do cliente OIDC do SIAT (`TcmrjOidc:ClientSecret`) passa a ficar no `appsettings`, junto do `ClientId`, no padrão do SiCATI; os demais segredos continuam fora do repositório. MINOR: muda uma regra sem remover nem redefinir o princípio |
 | 1.3.0  | 2026-11-18 | Princípio V: os fluxos principais deixam de exigir teste de interface automatizado (navegador) e passam a constar do roteiro de validação manual da feature; as regras e os componentes continuam com testes automatizados. MINOR: muda uma regra sem remover nem redefinir o princípio |
 | 1.4.0  | 2026-11-18 | Nova seção Fluxo de Trabalho no Git: padrão de nomes de branch (`features/`, `issues/`, `releases/` em minúsculo; só letras sem acento, números, `_`, `.` e `-`). MINOR: acréscimo de seção |
+| 1.5.0  | 2026-11-19 | Princípio III: modo experimental temporário `UsuarioDeRede` (usuário do Windows ligado à matrícula pela view do RH), escolhido por `SiatConfiguration:Autenticacao`, só nas publicações de DSV e HML, enquanto a coordenação avalia a entrada pelo usuário de rede; o OIDC no SIA continua o padrão e o único modo em produção, e a autorização é a mesma nos dois. Explicita também que arquivos estáticos e `/saude` são anônimos. MINOR: muda uma regra sem remover nem redefinir o princípio, como na 1.2.0; a adoção em produção exigirá emenda MAJOR |
 
-**Versão**: 1.4.0 | **Ratificada em**: 2026-11-09 | **Última emenda**: 2026-11-18
+**Versão**: 1.5.0 | **Ratificada em**: 2026-11-09 | **Última emenda**: 2026-11-19

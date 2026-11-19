@@ -1,7 +1,8 @@
 # Protótipo: entrada pelo usuário de rede (opção B, modo misto)
 
-Branch `features/prototipo_login_rede`. **Não é para publicar em PRD**: contraria o Princípio III da constituição
-(autenticação só pelo SIA, por OIDC). Adotar exige emenda MAJOR, porque redefine um princípio.
+Branch `features/prototipo_login_rede`. A constituição 1.5.0 (Princípio III) permite o modo `UsuarioDeRede` só nas
+publicações de DSV e HML, como experimento temporário enquanto a coordenação avalia; em produção, só o SIA, por OIDC.
+Adotar em produção exige emenda MAJOR, porque redefine o princípio; se a coordenação recusar, o modo e o código saem.
 
 ## Os dois modos (`SiatConfiguration:Autenticacao`)
 
