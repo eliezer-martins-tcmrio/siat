@@ -14,12 +14,13 @@ using Tcmrj.Siat.Web.Services;
 namespace Tcmrj.Siat.Test.Unidade;
 
 /// <summary>
-/// PROTÓTIPO (features/prototipo_login_rede): DOMINIO\login vira a matrícula do usuário do UserManager com o mesmo
-/// login; sem usuário habilitado, o usuário fica sem matrícula (sem nenhuma permissão) e com a situação para a tela.
+/// PROTÓTIPO (features/prototipo_login_rede): DOMINIO\login vira a matrícula do usuário interno e habilitado do
+/// UserManager com o mesmo login; sem ele, o usuário fica sem matrícula (sem nenhuma permissão) e com a situação para
+/// a tela.
 /// </summary>
 public sealed class ClaimsDoUsuarioDeRedeTests : IDisposable
 {
-    private static readonly UsuarioDeRede Fulano = new(12345, "FULANO DE TAL", "fulano@tcmrio.tc.br", Habilitado: true);
+    private static readonly UsuarioDeRede Fulano = new(12345, "FULANO DE TAL", "fulano@tcmrio.tc.br");
 
     private readonly Mock<IUsuariosDeRedeRepository> _repositorio = new(MockBehavior.Strict);
     private readonly MemoryCache _cache = new(new MemoryCacheOptions());
@@ -112,25 +113,15 @@ public sealed class ClaimsDoUsuarioDeRedeTests : IDisposable
     }
 
     [Fact]
-    public async Task Sem_usuario_com_o_login_no_UserManager_fica_sem_matricula()
+    public async Task Sem_usuario_interno_habilitado_com_o_login_fica_sem_matricula()
     {
+        // O repositório não devolve desabilitado nem externo: para a transformação, é como não existir.
         Responder("fulano", null);
 
         var usuario = await _transformacao.TransformAsync(UsuarioWindows(@"TCMNET\fulano"));
 
         usuario.GetMatricula().Should().BeNull();
         VinculoDeRede.Situacao(usuario).Should().Be(VinculoDeRede.NaoEncontrado);
-    }
-
-    [Fact]
-    public async Task Usuario_desabilitado_no_UserManager_fica_sem_matricula()
-    {
-        Responder("fulano", Fulano with { Habilitado = false });
-
-        var usuario = await _transformacao.TransformAsync(UsuarioWindows(@"TCMNET\fulano"));
-
-        usuario.GetMatricula().Should().BeNull();
-        VinculoDeRede.Situacao(usuario).Should().Be(VinculoDeRede.UsuarioDesabilitado);
     }
 
     [Fact]

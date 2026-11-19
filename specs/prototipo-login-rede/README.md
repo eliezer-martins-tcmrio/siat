@@ -29,21 +29,27 @@ Enquanto a coordenação não decide, o SIAT tem as duas entradas, uma por ambie
    policy exige usuário autenticado; sem ele, o handler Negotiate responde 401 e o navegador envia as credenciais do
    Windows. Sem a autenticação do Windows ligada no IIS, o SIAT não sobe (ver IIS Express abaixo).
 2. `ClaimsDoUsuarioDeRede` (IClaimsTransformation) recebe `TCMNET\login`, procura em `CSLIB_UserManager.dbo.Users`
-   o usuário com esse `Login` (o `Id` é a matrícula, como o SIA grava) e acrescenta as claims `matricula`, `userId`,
-   `nome` e `email`. É o mesmo cadastro em que o SIA autentica.
+   o usuário interno (`Id` abaixo de 1.000.000) e habilitado com esse `Login` (o `Id` é a matrícula, como o SIA grava)
+   e acrescenta as claims `matricula`, `userId`, `nome` e `email`. É o mesmo cadastro em que o SIA autentica.
 3. A partir daí é o que já existia: o `Tcmrj.Autorizacao.App` só lê a claim `matricula` e consulta as permissões do
    UserManager (AppId 93) a cada verificação.
-4. Sem usuário habilitado com esse login, o usuário fica sem matrícula (todas as políticas negam) e a tela explica o
-   motivo: domínio errado, sem usuário no UserManager, usuário desabilitado ou cadastro indisponível. Só o usuário
-   encontrado fica em cache (5 minutos); o resto é consultado de novo ao recarregar.
+4. Sem usuário interno e habilitado com esse login, o usuário fica sem matrícula (todas as políticas negam) e a tela
+   explica o motivo: domínio errado, sem usuário interno habilitado no UserManager ou cadastro indisponível. Só o
+   usuário encontrado fica em cache (`UsuarioDeRede:MinutosDeCache`, 5 minutos); o resto é consultado de novo ao
+   recarregar. Por isso, quem for desabilitado no UserManager ainda entra até o cache expirar, e quem já está com a
+   página aberta continua com as claims do circuito até recarregar.
 
-O `Login` é único só entre os usuários habilitados (índice filtrado `IX_Users_FilterEnabled_UniqueLogin`); no DEV, 21
-logins se repetem com usuários desabilitados. A consulta pega o habilitado e, só sem ele, um desabilitado (que vira
-"usuário desabilitado"). A primeira versão lia a `vwSIRHU_Integracao` (vínculo do RH); no DEV, os 762 vínculos ativos
-dela têm o mesmo login na `dbo.Users`, então quem entrava continua entrando. Além deles, entram os 47 usuários
-habilitados com login não numérico fora da view, que já entram no SIA. Os outros 28.631 logins são só de números
-(usuários externos), e nenhuma das 1.693 contas de usuário do AD tem login assim (conferido em 2026-11-19): uma conta
-do domínio não cai no cadastro de um externo.
+Usuário desabilitado e usuário externo não entram: a consulta filtra `Enabled = 1` e `Id < 1000000`. Os internos
+(servidores do Tribunal) têm `Id` abaixo de 1.000.000; os externos começam em 1.000.001 e, no DEV, todos têm login só de
+números. O `Login` é único só entre os usuários habilitados (índice filtrado `IX_Users_FilterEnabled_UniqueLogin`); no
+DEV, 21 logins se repetem com usuários desabilitados, que a consulta ignora. Se um dia vier mais de uma linha, o
+repositório devolve "cadastro indisponível" em vez de escolher uma: ninguém entra como outra pessoa.
+
+A primeira versão lia a `vwSIRHU_Integracao` (vínculo do RH). No DEV (conferido em 2026-11-19), os 762 vínculos ativos
+dela têm o mesmo login na `dbo.Users`, todos de usuários internos e habilitados, então quem entrava continua entrando.
+Além deles, entram os 47 usuários internos habilitados com login fora da view, que já entram no SIA (857 internos
+habilitados ao todo). Nenhuma das 1.693 contas de usuário do AD tem login só de números, então uma conta do domínio não
+cairia no cadastro de um externo; o corte por `Id` garante isso mesmo que um dia caia.
 
 Anônimos de propósito: arquivos estáticos e `/saude`, para o balanceador e o monitoramento.
 

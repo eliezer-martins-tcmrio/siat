@@ -7,8 +7,8 @@ namespace Tcmrj.Siat.Domain.Repositories;
 public interface IUsuariosDeRedeRepository
 {
     /// <summary>
-    /// O usuário com o login (sem o domínio): o habilitado, que é único; sem ele, um desabilitado; nulo quando não há
-    /// nenhum.
+    /// O usuário interno (<c>Id</c> abaixo de 1.000.000) e habilitado com o login (sem o domínio), ou nulo quando não
+    /// há: desabilitado e usuário externo não entram.
     /// </summary>
     Task<Result<UsuarioDeRede?, Erro>> ObterPorLoginAsync(string login, CancellationToken cancellationToken);
 }

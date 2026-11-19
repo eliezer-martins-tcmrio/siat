@@ -641,14 +641,12 @@ Invoke-Secao "9. SQL ($ServidorSql, $BancoUserManager)" {
         if ($env:USERDOMAIN -ieq $Dominio) {
             try {
                 $eu = @(Invoke-Consulta $conexao @'
-SELECT TOP (1) u.Id AS Matricula, u.Name AS Nome, u.Email, u.Enabled AS Habilitado
+SELECT u.Id AS Matricula, u.Name AS Nome, u.Email
 FROM dbo.Users AS u
-WHERE u.Login = @Login
-ORDER BY u.Enabled DESC
+WHERE u.Login = @Login AND u.Enabled = 1 AND u.Id < 1000000
 '@ @{ '@Login' = $env:USERNAME })
-                if ($eu.Count -eq 1 -and $eu[0].Habilitado) { Write-Status OK ('Vínculo de {0}\{1}: matrícula {2}, usuário habilitado no UserManager.' -f $env:USERDOMAIN, $env:USERNAME, $eu[0].Matricula) }
-                elseif ($eu.Count -eq 1) { Write-Status INFO ('Vínculo de {0}\{1}: usuário desabilitado no UserManager (matrícula {2}).' -f $env:USERDOMAIN, $env:USERNAME, $eu[0].Matricula) }
-                else { Write-Status INFO ('Vínculo de {0}\{1}: nenhum usuário com esse login no UserManager (a conta administrativa costuma não ter).' -f $env:USERDOMAIN, $env:USERNAME) }
+                if ($eu.Count -eq 1) { Write-Status OK ('Vínculo de {0}\{1}: matrícula {2}, usuário interno habilitado no UserManager.' -f $env:USERDOMAIN, $env:USERNAME, $eu[0].Matricula) }
+                else { Write-Status INFO ('Vínculo de {0}\{1}: {2} usuário(s) interno(s) habilitado(s) com esse login no UserManager (a conta administrativa costuma não ter).' -f $env:USERDOMAIN, $env:USERNAME, $eu.Count) }
             }
             catch { Write-Status ATENCAO ('Consulta do vínculo (dbo.Users) falhou com {0}: {1}' -f $quem.Login, (Format-Erro $_)) }
         }

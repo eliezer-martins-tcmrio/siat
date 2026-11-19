@@ -48,15 +48,21 @@ public sealed class UsuariosDeRedeRepository(IConfiguration configuration, IOpti
             comando.CommandTimeout = TempoLimiteComandoEmSegundos;
             comando.Parameters.Add(new SqlParameter("@Login", SqlDbType.VarChar, TamanhoParametroLogin) { Value = login });
 
-            UsuarioDeRede? usuario = null;
             await using var leitor = await comando.ExecuteReaderAsync(cancellationToken);
+            if (!await leitor.ReadAsync(cancellationToken))
+            {
+                return Result.Success<UsuarioDeRede?, Erro>(null);
+            }
+
+            var usuario = new UsuarioDeRede(
+                Convert.ToInt32(leitor["Matricula"], CultureInfo.InvariantCulture),
+                (string)leitor["Nome"],
+                leitor["Email"] as string);
+
+            // O índice único garante uma linha só. Se um dia deixar de garantir, ninguém entra como outra pessoa.
             if (await leitor.ReadAsync(cancellationToken))
             {
-                usuario = new UsuarioDeRede(
-                    Convert.ToInt32(leitor["Matricula"], CultureInfo.InvariantCulture),
-                    (string)leitor["Nome"],
-                    leitor["Email"] as string,
-                    (bool)leitor["Habilitado"]);
+                return Erros.UsuariosDeRede.CadastroIndisponivel("mais de um usuário habilitado com o mesmo login.");
             }
 
             return Result.Success<UsuarioDeRede?, Erro>(usuario);

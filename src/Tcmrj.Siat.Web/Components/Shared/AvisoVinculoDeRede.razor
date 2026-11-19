@@ -30,11 +30,8 @@
                 "Sua conta do Windows não é do domínio do TCMRio",
                 $"O SIAT só aceita contas do domínio do TCMRio, e você entrou com {usuario}."),
             VinculoDeRede.NaoEncontrado => (
-                "Seu usuário de rede não está cadastrado no UserManager",
-                $"Você entrou com {usuario}, e o UserManager não tem usuário com esse login. Peça o cadastro e, depois, recarregue a página."),
-            VinculoDeRede.UsuarioDesabilitado => (
-                "Seu usuário está desabilitado no UserManager",
-                "Peça a habilitação do seu usuário no UserManager e, depois, recarregue a página."),
+                "Seu usuário de rede não está habilitado no UserManager",
+                $"Você entrou com {usuario}, e o UserManager não tem usuário interno habilitado com esse login. Peça o cadastro ou a habilitação e, depois, recarregue a página."),
             VinculoDeRede.Indisponivel => (
                 "Não foi possível verificar o seu acesso agora",
                 "O cadastro de usuários não respondeu. Recarregue a página em instantes."),

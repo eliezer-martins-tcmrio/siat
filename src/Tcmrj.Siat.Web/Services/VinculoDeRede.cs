@@ -12,9 +12,8 @@ public static class VinculoDeRede
 
     public const string DominioInvalido = "dominio-invalido";
 
+    /// <summary>Sem usuário interno e habilitado no UserManager com o login de rede.</summary>
     public const string NaoEncontrado = "nao-encontrado";
-
-    public const string UsuarioDesabilitado = "usuario-desabilitado";
 
     public const string Indisponivel = "indisponivel";
 

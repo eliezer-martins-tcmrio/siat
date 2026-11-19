@@ -24,7 +24,7 @@ public sealed class UsuariosDeRedeRepositoryTests
     }
 
     [Fact]
-    public void SQL_embutido_le_a_dbo_Users_pelo_login_com_o_habilitado_primeiro()
+    public void SQL_embutido_le_da_dbo_Users_so_usuario_interno_e_habilitado_pelo_login()
     {
         var assembly = typeof(UsuariosDeRedeRepository).Assembly;
         var nome = assembly.GetManifestResourceNames().Single(n => n.EndsWith(".Sql.usuario-de-rede.sql", StringComparison.Ordinal));
@@ -32,10 +32,10 @@ public sealed class UsuariosDeRedeRepositoryTests
 
         var sql = leitor.ReadToEnd();
 
-        // O login é único só entre os habilitados (índice filtrado): sem a ordem, um desabilitado com o mesmo login
-        // poderia esconder o habilitado.
+        // Desabilitado não entra, e o login só é único entre os habilitados (índice filtrado). Externos têm Id a partir
+        // de 1.000.001.
         sql.Should().Contain("FROM dbo.Users").And.Contain("u.Login = @Login")
-            .And.Contain("TOP (1)").And.Contain("ORDER BY u.Enabled DESC")
+            .And.Contain("u.Enabled = 1").And.Contain("u.Id < 1000000")
             .And.NotContain("vwSIRHU_Integracao");
     }
 }

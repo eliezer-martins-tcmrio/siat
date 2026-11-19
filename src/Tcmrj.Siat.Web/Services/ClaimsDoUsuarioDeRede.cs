@@ -11,11 +11,11 @@ using Tcmrj.Siat.Web.Configurations;
 namespace Tcmrj.Siat.Web.Services;
 
 /// <summary>
-/// Liga o usuário de rede (<c>DOMINIO\login</c>, da autenticação Windows) ao usuário do UserManager com o mesmo
-/// <c>Login</c> e acrescenta as claims que o <c>Tcmrj.Autorizacao.App</c> e o <c>ITcmrjContext</c> leem:
-/// <c>matricula</c>, <c>userId</c>, <c>nome</c> e <c>email</c>. As permissões continuam sendo as do UserManager,
-/// verificadas a cada uso. Sem usuário habilitado com esse login, o usuário fica sem matrícula (todas as políticas
-/// negam) e a situação vai na claim <see cref="VinculoDeRede.TipoClaim"/>.
+/// Liga o usuário de rede (<c>DOMINIO\login</c>, da autenticação Windows) ao usuário interno e habilitado do
+/// UserManager com o mesmo <c>Login</c> e acrescenta as claims que o <c>Tcmrj.Autorizacao.App</c> e o
+/// <c>ITcmrjContext</c> leem: <c>matricula</c>, <c>userId</c>, <c>nome</c> e <c>email</c>. As permissões continuam
+/// sendo as do UserManager, verificadas a cada uso. Sem esse usuário (inclusive desabilitado ou externo), o usuário
+/// fica sem matrícula (todas as políticas negam) e a situação vai na claim <see cref="VinculoDeRede.TipoClaim"/>.
 /// </summary>
 public sealed partial class ClaimsDoUsuarioDeRede(
     IUsuariosDeRedeRepository repositorio,
@@ -58,17 +58,11 @@ public sealed partial class ClaimsDoUsuarioDeRede(
             return ComSituacao(principal, VinculoDeRede.Indisponivel);
         }
 
-        // O login é único só entre os habilitados; o repositório já devolve o habilitado antes de qualquer desabilitado.
+        // O repositório só devolve usuário interno e habilitado: desabilitado e externo caem aqui.
         if (resultado.Value is not { } usuario)
         {
             LogNaoEncontrado(logger, nome);
             return ComSituacao(principal, VinculoDeRede.NaoEncontrado);
-        }
-
-        if (!usuario.Habilitado)
-        {
-            LogUsuarioDesabilitado(logger, nome, usuario.Matricula);
-            return ComSituacao(principal, VinculoDeRede.UsuarioDesabilitado);
         }
 
         // Só o vínculo encontrado fica em memória: quem acabou de ser cadastrado entra ao recarregar a página.
@@ -124,11 +118,8 @@ public sealed partial class ClaimsDoUsuarioDeRede(
     [LoggerMessage(Level = LogLevel.Warning, Message = "Usuário de rede {UsuarioDeRede} fora do domínio {Dominio}: sem vínculo.")]
     private static partial void LogDominioInvalido(ILogger logger, string usuarioDeRede, string dominio);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Usuário de rede {UsuarioDeRede} sem usuário com esse login no UserManager.")]
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Usuário de rede {UsuarioDeRede} sem usuário interno habilitado com esse login no UserManager.")]
     private static partial void LogNaoEncontrado(ILogger logger, string usuarioDeRede);
-
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Usuário de rede {UsuarioDeRede} com usuário desabilitado no UserManager (matrícula {Matricula}).")]
-    private static partial void LogUsuarioDesabilitado(ILogger logger, string usuarioDeRede, int matricula);
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Vínculo do usuário de rede {UsuarioDeRede} não consultado: {Motivo}")]
     private static partial void LogCadastroIndisponivel(ILogger logger, string usuarioDeRede, string motivo);
