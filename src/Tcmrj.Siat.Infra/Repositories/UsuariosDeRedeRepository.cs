@@ -11,7 +11,7 @@ using Tcmrj.Siat.Infra.Configurations;
 namespace Tcmrj.Siat.Infra.Repositories;
 
 /// <summary>
-/// Lê o vínculo do login de rede com a matrícula (<c>Sql/usuario-de-rede.sql</c>) na connection string
+/// Lê o usuário do UserManager pelo login de rede (<c>Sql/usuario-de-rede.sql</c>) na connection string
 /// <see cref="ConnectionString"/>, a mesma das permissões do UserManager. Roda na entrada do usuário, por isso o
 /// tempo limite do comando é curto e fixo.
 /// </summary>
@@ -22,13 +22,13 @@ public sealed class UsuariosDeRedeRepository(IConfiguration configuration, IOpti
 
     internal const int TempoLimiteComandoEmSegundos = 10;
 
-    // LoginRede é varchar(25). O parâmetro é maior de propósito: com o tamanho exato o SqlClient cortaria um login
+    // Users.Login é varchar(50). O parâmetro é maior de propósito: com o tamanho exato o SqlClient cortaria um login
     // mais longo, e o pedaço poderia coincidir com o login de outra pessoa.
     private const int TamanhoParametroLogin = 128;
 
     private static readonly Lazy<string> Sql = new(() => LerSql("usuario-de-rede.sql"));
 
-    public async Task<Result<IReadOnlyList<UsuarioDeRede>, Erro>> ObterPorLoginAsync(string login, CancellationToken cancellationToken)
+    public async Task<Result<UsuarioDeRede?, Erro>> ObterPorLoginAsync(string login, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(login);
 
@@ -46,20 +46,20 @@ public sealed class UsuariosDeRedeRepository(IConfiguration configuration, IOpti
             comando.CommandText = Sql.Value;
             comando.CommandType = CommandType.Text;
             comando.CommandTimeout = TempoLimiteComandoEmSegundos;
-            comando.Parameters.Add(new SqlParameter("@LoginRede", SqlDbType.VarChar, TamanhoParametroLogin) { Value = login });
+            comando.Parameters.Add(new SqlParameter("@Login", SqlDbType.VarChar, TamanhoParametroLogin) { Value = login });
 
-            var itens = new List<UsuarioDeRede>(2);
+            UsuarioDeRede? usuario = null;
             await using var leitor = await comando.ExecuteReaderAsync(cancellationToken);
-            while (await leitor.ReadAsync(cancellationToken))
+            if (await leitor.ReadAsync(cancellationToken))
             {
-                itens.Add(new UsuarioDeRede(
+                usuario = new UsuarioDeRede(
                     Convert.ToInt32(leitor["Matricula"], CultureInfo.InvariantCulture),
-                    leitor["Nome"] as string,
+                    (string)leitor["Nome"],
                     leitor["Email"] as string,
-                    (bool)leitor["Habilitado"]));
+                    (bool)leitor["Habilitado"]);
             }
 
-            return Result.Success<IReadOnlyList<UsuarioDeRede>, Erro>(itens);
+            return Result.Success<UsuarioDeRede?, Erro>(usuario);
         }
         catch (SqlException ex)
         {

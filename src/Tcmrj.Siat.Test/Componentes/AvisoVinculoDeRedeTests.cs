@@ -15,9 +15,8 @@ public sealed class AvisoVinculoDeRedeTests : BunitContext
 {
     [Theory]
     [InlineData(VinculoDeRede.DominioInvalido, "não é do domínio do TCMRio")]
-    [InlineData(VinculoDeRede.NaoEncontrado, "não está ligado a uma matrícula")]
-    [InlineData(VinculoDeRede.Duplicado, "mais de uma matrícula")]
-    [InlineData(VinculoDeRede.UsuarioDesabilitado, "não tem usuário habilitado no UserManager")]
+    [InlineData(VinculoDeRede.NaoEncontrado, "não está cadastrado no UserManager")]
+    [InlineData(VinculoDeRede.UsuarioDesabilitado, "desabilitado no UserManager")]
     [InlineData(VinculoDeRede.Indisponivel, "Não foi possível verificar o seu acesso")]
     public void Cada_situacao_tem_titulo_proprio_em_alerta(string situacao, string trechoDoTitulo)
     {
@@ -54,11 +53,11 @@ public sealed class AvisoVinculoDeRedeTests : BunitContext
     {
         var autorizacao = AddAuthorization();
         autorizacao.SetAuthorized(@"TCMNET\fulano");
-        autorizacao.SetClaims(new Claim(VinculoDeRede.TipoClaim, VinculoDeRede.Duplicado));
+        autorizacao.SetClaims(new Claim(VinculoDeRede.TipoClaim, VinculoDeRede.NaoEncontrado));
 
         var pagina = Render<AcessoNegado>(p => p.Add(c => c.Recurso, "MailQueue.CanSelect"));
 
-        pagina.Markup.Should().Contain("mais de uma matrícula");
+        pagina.Markup.Should().Contain("não está cadastrado no UserManager");
         pagina.Markup.Should().NotContain("MailQueue.CanSelect");
     }
 

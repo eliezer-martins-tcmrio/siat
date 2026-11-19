@@ -44,8 +44,8 @@ de quem fez a alteração.
   publicações de teste do próprio SIAT, DSV e HML (`ASPNETCORE_ENVIRONMENT` `Development` e
   `Staging`), o modo `UsuarioDeRede` de `SiatConfiguration:Autenticacao` PODE substituir o OIDC.
   - Nele, o IIS autentica o usuário do Windows do domínio do Tribunal (Negotiate), e o SIAT o liga
-    à matrícula pela `vwSIRHU_Integracao` do `CSLIB_UserManager`, exigindo usuário habilitado no
-    UserManager. Sem vínculo único, o usuário fica sem matrícula e sem nenhuma permissão.
+    ao usuário habilitado do UserManager com o mesmo `Login` (`dbo.Users`, o cadastro em que o SIA
+    autentica). Sem esse usuário, ele fica sem matrícula e sem nenhuma permissão.
   - A autorização DEVE ser a mesma do OIDC: recursos do UserManager pela claim `matricula`.
   - Na publicação de produção, a aplicação NÃO DEVE subir nesse modo.
   - Ao fim da avaliação, nova emenda DEVE redefinir a autenticação (MAJOR), se a coordenação
@@ -217,6 +217,6 @@ maiúsculas de minúsculas em nomes de pasta, e prefixos com grafias diferentes 
 | 1.2.0  | 2026-11-17 | Princípio III: o `ClientSecret` do cliente OIDC do SIAT (`TcmrjOidc:ClientSecret`) passa a ficar no `appsettings`, junto do `ClientId`, no padrão do SiCATI; os demais segredos continuam fora do repositório. MINOR: muda uma regra sem remover nem redefinir o princípio |
 | 1.3.0  | 2026-11-18 | Princípio V: os fluxos principais deixam de exigir teste de interface automatizado (navegador) e passam a constar do roteiro de validação manual da feature; as regras e os componentes continuam com testes automatizados. MINOR: muda uma regra sem remover nem redefinir o princípio |
 | 1.4.0  | 2026-11-18 | Nova seção Fluxo de Trabalho no Git: padrão de nomes de branch (`features/`, `issues/`, `releases/` em minúsculo; só letras sem acento, números, `_`, `.` e `-`). MINOR: acréscimo de seção |
-| 1.5.0  | 2026-11-19 | Princípio III: modo experimental temporário `UsuarioDeRede` (usuário do Windows ligado à matrícula pela view do RH), escolhido por `SiatConfiguration:Autenticacao`, só nas publicações de DSV e HML, enquanto a coordenação avalia a entrada pelo usuário de rede; o OIDC no SIA continua o padrão e o único modo em produção, e a autorização é a mesma nos dois. Explicita também que arquivos estáticos e `/saude` são anônimos. MINOR: muda uma regra sem remover nem redefinir o princípio, como na 1.2.0; a adoção em produção exigirá emenda MAJOR |
+| 1.5.0  | 2026-11-19 | Princípio III: modo experimental temporário `UsuarioDeRede` (usuário do Windows ligado ao usuário do UserManager com o mesmo login), escolhido por `SiatConfiguration:Autenticacao`, só nas publicações de DSV e HML, enquanto a coordenação avalia a entrada pelo usuário de rede; o OIDC no SIA continua o padrão e o único modo em produção, e a autorização é a mesma nos dois. Explicita também que arquivos estáticos e `/saude` são anônimos. MINOR: muda uma regra sem remover nem redefinir o princípio, como na 1.2.0; a adoção em produção exigirá emenda MAJOR |
 
 **Versão**: 1.5.0 | **Ratificada em**: 2026-11-09 | **Última emenda**: 2026-11-19

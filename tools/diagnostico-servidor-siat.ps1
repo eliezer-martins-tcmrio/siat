@@ -20,8 +20,8 @@
       6. Certificados das associações https.
       7. DNS dos nomes de acesso e SPNs HTTP (Kerberos).
       8. Log do IIS dos caminhos: de onde vêm as requisições (ARR?), usuários autenticados e códigos de status.
-      9. SQL: a view do vínculo lida com o usuário que roda o script, e o acesso das contas dos app pools ao
-         CSLIB_UserManager.
+      9. SQL: o vínculo de quem roda o script (dbo.Users pelo login, a mesma consulta do SIAT) e o acesso das
+         contas dos app pools ao CSLIB_UserManager.
      10. Pastas de publicação (W:\TcmRoot\<ambiente>\Sites).
      Resumo: as linhas [FALTA], [ATENCAO] e [ERRO].
 
@@ -637,36 +637,23 @@ Invoke-Secao "9. SQL ($ServidorSql, $BancoUserManager)" {
         $quem = @(Invoke-Consulta $conexao 'SELECT SUSER_SNAME() AS Login, @@SERVERNAME AS Servidor, DB_NAME() AS Banco')[0]
         Write-Status OK ('Conectado como {0} em {1}/{2} (com a conta de quem roda o script, não a do app pool).' -f $quem.Login, $quem.Servidor, $quem.Banco)
 
-        try {
-            $vinculos = @(Invoke-Consulta $conexao @'
-SELECT COUNT(*) AS Ativos,
-       COUNT(DISTINCT LoginRede) AS Logins,
-       (SELECT COUNT(*) FROM (SELECT LoginRede FROM dbo.vwSIRHU_Integracao
-                              WHERE Ativo = 1 AND LoginRede <> '' GROUP BY LoginRede HAVING COUNT(*) > 1) d) AS Duplicados
-FROM dbo.vwSIRHU_Integracao
-WHERE Ativo = 1 AND LoginRede IS NOT NULL AND LoginRede <> ''
-'@)[0]
-            Write-Status OK ('vwSIRHU_Integracao: {0} linhas ativas com LoginRede, {1} logins distintos.' -f $vinculos.Ativos, $vinculos.Logins)
-            if ($vinculos.Duplicados -gt 0) { Write-Status INFO ('{0} logins com mais de uma matrícula ativa: esses usuários veem "mais de uma matrícula" e ficam sem acesso.' -f $vinculos.Duplicados) }
-        }
-        catch { Write-Status ATENCAO ('vwSIRHU_Integracao não pôde ser lida com {0}: {1}' -f $quem.Login, (Format-Erro $_)) }
-
         # A mesma consulta do SIAT (src/Tcmrj.Siat.Infra/Sql/usuario-de-rede.sql), para quem roda o script.
         if ($env:USERDOMAIN -ieq $Dominio) {
             try {
                 $eu = @(Invoke-Consulta $conexao @'
-SELECT TOP (2) f.Matricula, u.Name AS Nome, u.Email, CAST(ISNULL(u.Enabled, 0) AS bit) AS Habilitado
-FROM dbo.vwSIRHU_Integracao f
-LEFT JOIN dbo.Users u ON u.Id = f.Matricula
-WHERE f.LoginRede = @LoginRede AND f.Ativo = 1
-'@ @{ '@LoginRede' = $env:USERNAME })
+SELECT TOP (1) u.Id AS Matricula, u.Name AS Nome, u.Email, u.Enabled AS Habilitado
+FROM dbo.Users AS u
+WHERE u.Login = @Login
+ORDER BY u.Enabled DESC
+'@ @{ '@Login' = $env:USERNAME })
                 if ($eu.Count -eq 1 -and $eu[0].Habilitado) { Write-Status OK ('Vínculo de {0}\{1}: matrícula {2}, usuário habilitado no UserManager.' -f $env:USERDOMAIN, $env:USERNAME, $eu[0].Matricula) }
-                else { Write-Status INFO ('Vínculo de {0}\{1}: {2} linha(s); habilitado: {3}.' -f $env:USERDOMAIN, $env:USERNAME, $eu.Count, $(if ($eu.Count -gt 0) { $eu[0].Habilitado } else { '-' })) }
+                elseif ($eu.Count -eq 1) { Write-Status INFO ('Vínculo de {0}\{1}: usuário desabilitado no UserManager (matrícula {2}).' -f $env:USERDOMAIN, $env:USERNAME, $eu[0].Matricula) }
+                else { Write-Status INFO ('Vínculo de {0}\{1}: nenhum usuário com esse login no UserManager (a conta administrativa costuma não ter).' -f $env:USERDOMAIN, $env:USERNAME) }
             }
-            catch { Write-Status ATENCAO ('Consulta do vínculo falhou: {0}' -f (Format-Erro $_)) }
+            catch { Write-Status ATENCAO ('Consulta do vínculo (dbo.Users) falhou com {0}: {1}' -f $quem.Login, (Format-Erro $_)) }
         }
 
-        # Contas que os app pools usam na rede: precisam de SELECT em dbo.vwSIRHU_Integracao (e no que ela lê) e dbo.Users.
+        # Contas que os app pools usam na rede: precisam de SELECT em dbo.Users (vínculo) e nas tabelas das permissões.
         $contas = @($script:pools.Values | Where-Object { $_.ContaDeRede } | ForEach-Object { $_.ContaDeRede } | Sort-Object -Unique)
         Write-Linha ''
         Write-Linha 'Contas dos app pools no banco (o acesso por grupo do AD não aparece aqui; sem permissão de ver, a conta some):'

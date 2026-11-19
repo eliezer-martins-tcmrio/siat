@@ -30,13 +30,10 @@
                 "Sua conta do Windows não é do domínio do TCMRio",
                 $"O SIAT só aceita contas do domínio do TCMRio, e você entrou com {usuario}."),
             VinculoDeRede.NaoEncontrado => (
-                "Seu usuário de rede não está ligado a uma matrícula",
-                $"Não há matrícula ativa no cadastro do RH com {usuario} como login de rede. Peça a correção ao RH e, depois, recarregue a página."),
-            VinculoDeRede.Duplicado => (
-                "Seu usuário de rede está ligado a mais de uma matrícula",
-                $"O cadastro do RH tem mais de uma matrícula ativa com {usuario} como login de rede. Por segurança, o SIAT não escolhe uma delas. Peça a correção ao RH."),
+                "Seu usuário de rede não está cadastrado no UserManager",
+                $"Você entrou com {usuario}, e o UserManager não tem usuário com esse login. Peça o cadastro e, depois, recarregue a página."),
             VinculoDeRede.UsuarioDesabilitado => (
-                "Sua matrícula não tem usuário habilitado no UserManager",
+                "Seu usuário está desabilitado no UserManager",
                 "Peça a habilitação do seu usuário no UserManager e, depois, recarregue a página."),
             VinculoDeRede.Indisponivel => (
                 "Não foi possível verificar o seu acesso agora",

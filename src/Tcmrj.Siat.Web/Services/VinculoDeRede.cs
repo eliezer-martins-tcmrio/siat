@@ -14,8 +14,6 @@ public static class VinculoDeRede
 
     public const string NaoEncontrado = "nao-encontrado";
 
-    public const string Duplicado = "duplicado";
-
     public const string UsuarioDesabilitado = "usuario-desabilitado";
 
     public const string Indisponivel = "indisponivel";

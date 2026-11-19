@@ -28,14 +28,22 @@ Enquanto a coordenação não decide, o SIAT tem as duas entradas, uma por ambie
    aplicativo, como no SuporteASI; o projeto não tem `web.config` próprio (a publicação gera o padrão). A fallback
    policy exige usuário autenticado; sem ele, o handler Negotiate responde 401 e o navegador envia as credenciais do
    Windows. Sem a autenticação do Windows ligada no IIS, o SIAT não sobe (ver IIS Express abaixo).
-2. `ClaimsDoUsuarioDeRede` (IClaimsTransformation) recebe `TCMNET\login`, consulta
-   `CSLIB_UserManager.dbo.vwSIRHU_Integracao` (`LoginRede` -> `Matricula`, linha ativa) e `dbo.Users`
-   (usuário habilitado com `Id` = matrícula) e acrescenta as claims `matricula`, `userId`, `nome` e `email`.
+2. `ClaimsDoUsuarioDeRede` (IClaimsTransformation) recebe `TCMNET\login`, procura em `CSLIB_UserManager.dbo.Users`
+   o usuário com esse `Login` (o `Id` é a matrícula, como o SIA grava) e acrescenta as claims `matricula`, `userId`,
+   `nome` e `email`. É o mesmo cadastro em que o SIA autentica.
 3. A partir daí é o que já existia: o `Tcmrj.Autorizacao.App` só lê a claim `matricula` e consulta as permissões do
    UserManager (AppId 93) a cada verificação.
-4. Sem vínculo único com usuário habilitado, o usuário fica sem matrícula (todas as políticas negam) e a tela
-   explica o motivo: domínio errado, sem matrícula no RH, mais de uma matrícula, usuário desabilitado ou cadastro
-   indisponível. Só o vínculo encontrado fica em cache (5 minutos); o resto é consultado de novo ao recarregar.
+4. Sem usuário habilitado com esse login, o usuário fica sem matrícula (todas as políticas negam) e a tela explica o
+   motivo: domínio errado, sem usuário no UserManager, usuário desabilitado ou cadastro indisponível. Só o usuário
+   encontrado fica em cache (5 minutos); o resto é consultado de novo ao recarregar.
+
+O `Login` é único só entre os usuários habilitados (índice filtrado `IX_Users_FilterEnabled_UniqueLogin`); no DEV, 21
+logins se repetem com usuários desabilitados. A consulta pega o habilitado e, só sem ele, um desabilitado (que vira
+"usuário desabilitado"). A primeira versão lia a `vwSIRHU_Integracao` (vínculo do RH); no DEV, os 762 vínculos ativos
+dela têm o mesmo login na `dbo.Users`, então quem entrava continua entrando. Além deles, entram os 47 usuários
+habilitados com login não numérico fora da view, que já entram no SIA. Os outros 28.631 logins são só de números
+(usuários externos), e nenhuma das 1.693 contas de usuário do AD tem login assim (conferido em 2026-11-19): uma conta
+do domínio não cai no cadastro de um externo.
 
 Anônimos de propósito: arquivos estáticos e `/saude`, para o balanceador e o monitoramento.
 
@@ -100,9 +108,9 @@ Diagnóstico como administrador no tcm2016web3 e no tcm2016web4, mais requisiç�
   `https://tcm2016web3.tcmnet.tcm/sicati_dsv/`. Só o SCAF, dos verificados, passa pelo ARR.
 - Direto no servidor, o Kerberos funciona sem SPN novo (ticket `HTTP/tcm2016web3`, coberto pelo `HOST/` do computador):
   a preocupação com NTLM através do ARR e com SPN em `tcmrj2` deixa de existir se o SIAT seguir o mesmo caminho.
-- O SiCATI roda com `TCMNET\svc-intranet`. No DEV ela tem `db_datareader` no `CSLIB_UserManager` e no `SIRHU`; a
-  `vwSIRHU_Integracao` lê 8 tabelas do `SIRHU`, sem encadeamento de propriedade entre bancos, então a conta precisa dos
-  dois. A `svc-etcm` (SCAF) tem no `SIRHU` só o papel `ComDireitoDeLeitura_ParaViews`, não verificado.
+- O SiCATI roda com `TCMNET\svc-intranet`. No DEV ela tem `db_datareader` no `CSLIB_UserManager`, que basta: o vínculo
+  só lê a `dbo.Users`, e as permissões, o mesmo banco. (Com a `vwSIRHU_Integracao` da primeira versão, a conta
+  precisaria também do `SIRHU`, porque a view lê 8 tabelas de lá sem encadeamento de propriedade entre bancos.)
 
 ## Para testar no DSV (pedidos à infra)
 

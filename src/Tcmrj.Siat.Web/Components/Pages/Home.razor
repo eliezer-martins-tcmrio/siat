@@ -12,7 +12,7 @@
 
     @if (situacaoVinculo is not null)
     {
-        @* Sem matrícula não há permissão possível: o motivo é o vínculo com o RH, não o grupo do SIAT. *@
+        @* Sem matrícula não há permissão possível: o motivo é o cadastro no UserManager, não o grupo do SIAT. *@
         <AvisoVinculoDeRede Situacao="@situacaoVinculo" UsuarioDeRede="@usuarioDeRede" />
     }
     else

@@ -57,7 +57,8 @@ public static class AuthenticationConfiguration
     {
         builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme).AddNegotiate();
 
-        // DOMINIO\login -> matrícula (view do RH no CSLIB_UserManager) -> claims que o pacote de autorização lê.
+        // DOMINIO\login -> usuário habilitado com esse Login na dbo.Users do CSLIB_UserManager -> claims que o pacote
+        // de autorização lê.
         builder.Services.AddOptions<UsuarioDeRedeOptions>()
             .Bind(builder.Configuration.GetSection(UsuarioDeRedeOptions.Secao))
             .Validate(o => !string.IsNullOrWhiteSpace(o.Dominio), $"{UsuarioDeRedeOptions.Secao}:{nameof(UsuarioDeRedeOptions.Dominio)} ausente.")

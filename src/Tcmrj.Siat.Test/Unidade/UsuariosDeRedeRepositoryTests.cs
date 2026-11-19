@@ -24,7 +24,7 @@ public sealed class UsuariosDeRedeRepositoryTests
     }
 
     [Fact]
-    public void SQL_embutido_filtra_por_login_e_por_linha_ativa_e_limita_a_duas()
+    public void SQL_embutido_le_a_dbo_Users_pelo_login_com_o_habilitado_primeiro()
     {
         var assembly = typeof(UsuariosDeRedeRepository).Assembly;
         var nome = assembly.GetManifestResourceNames().Single(n => n.EndsWith(".Sql.usuario-de-rede.sql", StringComparison.Ordinal));
@@ -32,6 +32,10 @@ public sealed class UsuariosDeRedeRepositoryTests
 
         var sql = leitor.ReadToEnd();
 
-        sql.Should().Contain("f.LoginRede = @LoginRede").And.Contain("f.Ativo = 1").And.Contain("TOP (2)");
+        // O login é único só entre os habilitados (índice filtrado): sem a ordem, um desabilitado com o mesmo login
+        // poderia esconder o habilitado.
+        sql.Should().Contain("FROM dbo.Users").And.Contain("u.Login = @Login")
+            .And.Contain("TOP (1)").And.Contain("ORDER BY u.Enabled DESC")
+            .And.NotContain("vwSIRHU_Integracao");
     }
 }

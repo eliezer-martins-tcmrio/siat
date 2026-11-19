@@ -11,11 +11,11 @@ using Tcmrj.Siat.Web.Configurations;
 namespace Tcmrj.Siat.Web.Services;
 
 /// <summary>
-/// Liga o usuário de rede (<c>DOMINIO\login</c>, da autenticação Windows) à matrícula pela view do RH e acrescenta as
-/// claims que o <c>Tcmrj.Autorizacao.App</c> e o <c>ITcmrjContext</c> leem: <c>matricula</c>, <c>userId</c>,
-/// <c>nome</c> e <c>email</c>. As permissões continuam sendo as do UserManager, verificadas a cada uso.
-/// Sem vínculo único com usuário habilitado, o usuário fica sem matrícula (todas as políticas negam) e a
-/// situação vai na claim <see cref="VinculoDeRede.TipoClaim"/>.
+/// Liga o usuário de rede (<c>DOMINIO\login</c>, da autenticação Windows) ao usuário do UserManager com o mesmo
+/// <c>Login</c> e acrescenta as claims que o <c>Tcmrj.Autorizacao.App</c> e o <c>ITcmrjContext</c> leem:
+/// <c>matricula</c>, <c>userId</c>, <c>nome</c> e <c>email</c>. As permissões continuam sendo as do UserManager,
+/// verificadas a cada uso. Sem usuário habilitado com esse login, o usuário fica sem matrícula (todas as políticas
+/// negam) e a situação vai na claim <see cref="VinculoDeRede.TipoClaim"/>.
 /// </summary>
 public sealed partial class ClaimsDoUsuarioDeRede(
     IUsuariosDeRedeRepository repositorio,
@@ -58,21 +58,13 @@ public sealed partial class ClaimsDoUsuarioDeRede(
             return ComSituacao(principal, VinculoDeRede.Indisponivel);
         }
 
-        var vinculos = resultado.Value;
-        if (vinculos.Count == 0)
+        // O login é único só entre os habilitados; o repositório já devolve o habilitado antes de qualquer desabilitado.
+        if (resultado.Value is not { } usuario)
         {
             LogNaoEncontrado(logger, nome);
             return ComSituacao(principal, VinculoDeRede.NaoEncontrado);
         }
 
-        if (vinculos.Count > 1)
-        {
-            // Nunca escolhe uma das matrículas: o erro no cadastro do RH daria a uma pessoa o acesso de outra.
-            LogDuplicado(logger, nome);
-            return ComSituacao(principal, VinculoDeRede.Duplicado);
-        }
-
-        var usuario = vinculos[0];
         if (!usuario.Habilitado)
         {
             LogUsuarioDesabilitado(logger, nome, usuario.Matricula);
@@ -109,7 +101,7 @@ public sealed partial class ClaimsDoUsuarioDeRede(
                 new Claim(TcmClaimTypes.Matricula, matricula),
                 // No UserManager o Id do usuário é a matrícula (o SIA grava as duas claims com o mesmo valor).
                 new Claim(TcmClaimTypes.UserId, matricula),
-                new Claim(TcmClaimTypes.Nome, usuario.Nome ?? string.Empty),
+                new Claim(TcmClaimTypes.Nome, usuario.Nome),
                 new Claim(TcmClaimTypes.Email, usuario.Email ?? string.Empty),
             ],
             TipoAutenticacao));
@@ -132,13 +124,10 @@ public sealed partial class ClaimsDoUsuarioDeRede(
     [LoggerMessage(Level = LogLevel.Warning, Message = "Usuário de rede {UsuarioDeRede} fora do domínio {Dominio}: sem vínculo.")]
     private static partial void LogDominioInvalido(ILogger logger, string usuarioDeRede, string dominio);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Usuário de rede {UsuarioDeRede} sem matrícula ativa no cadastro do RH.")]
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Usuário de rede {UsuarioDeRede} sem usuário com esse login no UserManager.")]
     private static partial void LogNaoEncontrado(ILogger logger, string usuarioDeRede);
 
-    [LoggerMessage(Level = LogLevel.Error, Message = "Usuário de rede {UsuarioDeRede} ligado a mais de uma matrícula ativa no cadastro do RH: acesso negado.")]
-    private static partial void LogDuplicado(ILogger logger, string usuarioDeRede);
-
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Usuário de rede {UsuarioDeRede} ligado à matrícula {Matricula}, sem usuário habilitado no UserManager.")]
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Usuário de rede {UsuarioDeRede} com usuário desabilitado no UserManager (matrícula {Matricula}).")]
     private static partial void LogUsuarioDesabilitado(ILogger logger, string usuarioDeRede, int matricula);
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Vínculo do usuário de rede {UsuarioDeRede} não consultado: {Motivo}")]

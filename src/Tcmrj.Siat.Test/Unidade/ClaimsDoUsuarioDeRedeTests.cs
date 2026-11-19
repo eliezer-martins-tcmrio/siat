@@ -14,8 +14,8 @@ using Tcmrj.Siat.Web.Services;
 namespace Tcmrj.Siat.Test.Unidade;
 
 /// <summary>
-/// PROTÓTIPO (features/prototipo_login_rede): DOMINIO\login vira matrícula pela view do RH; sem vínculo único com
-/// usuário habilitado, o usuário fica sem matrícula (sem nenhuma permissão) e com a situação para a tela.
+/// PROTÓTIPO (features/prototipo_login_rede): DOMINIO\login vira a matrícula do usuário do UserManager com o mesmo
+/// login; sem usuário habilitado, o usuário fica sem matrícula (sem nenhuma permissão) e com a situação para a tela.
 /// </summary>
 public sealed class ClaimsDoUsuarioDeRedeTests : IDisposable
 {
@@ -37,7 +37,7 @@ public sealed class ClaimsDoUsuarioDeRedeTests : IDisposable
     public void Dispose() => _cache.Dispose();
 
     [Fact]
-    public async Task Vinculo_unico_e_habilitado_acrescenta_as_claims_lidas_pelo_pacote_de_autorizacao()
+    public async Task Usuario_habilitado_acrescenta_as_claims_lidas_pelo_pacote_de_autorizacao()
     {
         Responder("fulano", Fulano);
 
@@ -112,9 +112,9 @@ public sealed class ClaimsDoUsuarioDeRedeTests : IDisposable
     }
 
     [Fact]
-    public async Task Sem_matricula_ativa_no_RH_fica_sem_matricula()
+    public async Task Sem_usuario_com_o_login_no_UserManager_fica_sem_matricula()
     {
-        Responder("fulano");
+        Responder("fulano", null);
 
         var usuario = await _transformacao.TransformAsync(UsuarioWindows(@"TCMNET\fulano"));
 
@@ -123,18 +123,7 @@ public sealed class ClaimsDoUsuarioDeRedeTests : IDisposable
     }
 
     [Fact]
-    public async Task Mais_de_uma_matricula_ativa_nao_escolhe_nenhuma()
-    {
-        Responder("fulano", Fulano, Fulano with { Matricula = 67890 });
-
-        var usuario = await _transformacao.TransformAsync(UsuarioWindows(@"TCMNET\fulano"));
-
-        usuario.GetMatricula().Should().BeNull();
-        VinculoDeRede.Situacao(usuario).Should().Be(VinculoDeRede.Duplicado);
-    }
-
-    [Fact]
-    public async Task Matricula_sem_usuario_habilitado_no_UserManager_fica_sem_matricula()
+    public async Task Usuario_desabilitado_no_UserManager_fica_sem_matricula()
     {
         Responder("fulano", Fulano with { Habilitado = false });
 
@@ -171,8 +160,8 @@ public sealed class ClaimsDoUsuarioDeRedeTests : IDisposable
     [Fact]
     public async Task Vinculo_nao_encontrado_nao_fica_em_cache()
     {
-        // Quem acabou de ser corrigido no RH entra ao recarregar a página, sem esperar o cache expirar.
-        Responder("fulano");
+        // Quem acabou de ser cadastrado no UserManager entra ao recarregar a página, sem esperar o cache expirar.
+        Responder("fulano", null);
         await _transformacao.TransformAsync(UsuarioWindows(@"TCMNET\fulano"));
         Responder("fulano", Fulano);
 
@@ -182,9 +171,9 @@ public sealed class ClaimsDoUsuarioDeRedeTests : IDisposable
         _repositorio.Verify(r => r.ObterPorLoginAsync("fulano", It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
 
-    private void Responder(string login, params UsuarioDeRede[] vinculos)
+    private void Responder(string login, UsuarioDeRede? usuario)
         => _repositorio.Setup(r => r.ObterPorLoginAsync(login, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result.Success<IReadOnlyList<UsuarioDeRede>, Erro>(vinculos));
+            .ReturnsAsync(Result.Success<UsuarioDeRede?, Erro>(usuario));
 
     // Como o Negotiate entrega o usuário: identidade autenticada, nome DOMINIO\login e os grupos como papéis.
     private static ClaimsPrincipal UsuarioWindows(string nome, string? grupo = null)
