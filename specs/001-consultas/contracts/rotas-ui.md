@@ -1,17 +1,20 @@
 # Contrato: rotas e parâmetros de URL
 
-Toda rota exige usuário autenticado (fallback policy), menos `/Account/Login`. Pela constituição 1.1.1 (Princípio III), páginas que exibem dados exigem também um recurso do UserManager; a página inicial e o logout não exibem dados e exigem só autenticação. Sem sessão, o usuário vai para `Account/Login` (challenge OIDC no SIA de PRD) e volta para a URL pedida.
+Toda rota exige usuário autenticado (fallback policy), menos `/Account/Login`, os arquivos estáticos e `/saude`. Pela constituição 1.5.0 (Princípio III), páginas que exibem dados exigem também um recurso do UserManager; a página inicial e o logout não exibem dados e exigem só autenticação. Sem sessão, o usuário vai para `Account/Login` (challenge OIDC no SIA de PRD) e volta para a URL pedida.
+
+As rotas são relativas ao caminho do aplicativo no IIS (`SiatConfiguration:BlazorBaseHref`, por exemplo `/siat_dsv`). Esta tabela é a do modo padrão, `SiatConfiguration:Autenticacao = Oidc`; no modo experimental `UsuarioDeRede` (só DSV e HML), `/Account/Login`, `/Account/Logout` e os callbacks do OIDC não existem, o menu não tem **Sair**, e a entrada é pelo usuário do Windows ([prototipo-login-rede](../../prototipo-login-rede/README.md)).
 
 | Rota | Acesso | Comportamento |
 |---|---|---|
 | `/` | autenticado | Vai para a primeira ferramenta de Consultas permitida (MailQueue, depois AuditLog). Sem nenhuma: mensagem "Você não tem acesso às ferramentas do SIAT", com a orientação de pedir acesso ao grupo `Consultas` no SIA (FR-006). |
 | `/consultas/mailqueue` | `MailQueue.CanSelect` | Tela MailQueue (DSV, HML e PRD). Sem o recurso: acesso negado. |
 | `/consultas/auditlog` | `AuditLog.CanSelect` | Tela AuditLog (DSV, HML e PRD). Sem o recurso: acesso negado. |
-| `/Account/Login` | anônimo | Challenge no esquema `oidc` (`TcmrjOidcDefaults.OidcScheme`); `returnUrl` só se for local, senão `/`. |
-| `/Account/Logout` | autenticado | Só **POST** com token antiforgery: sign-out do `oidc` e do cookie `Cookies`. GET apenas redireciona para `/` (impede logout por link de outro site). O botão **Sair** do menu é um formulário POST com `<AntiforgeryToken />`. |
+| `/Account/Login` | anônimo | Challenge no esquema `oidc` (`TcmrjOidcDefaults.OidcScheme`); `returnUrl` só se for local, senão a página inicial do aplicativo (`~/`). |
+| `/Account/Logout` | autenticado | Só **POST** com token antiforgery: sign-out do `oidc` e do cookie `Cookies`, com volta do SIA para a página inicial do aplicativo (`~/`). GET apenas redireciona para ela (impede logout por link de outro site). O botão **Sair** do menu é um formulário POST com `<AntiforgeryToken />`. |
 | `/signin-oidc`, `/signout-callback-oidc` | handler OIDC | Callbacks cadastrados no `OpenIddictApplications`. |
+| `/saude` | anônimo | Responde `ok` (texto), para o balanceador e o monitoramento. Não lê nenhuma fonte de dados. |
 
-**Fim de sessão por inatividade**: depois de `TcmrjSessao:MinutosSemUsoParaLogout` minutos sem navegação nem ação de consulta, o circuito passa a anônimo e o `<NotAuthorized>` do `Routes.razor` renderiza `EncerrarSessao`, que envia o POST de `/Account/Logout`. Isso encerra o cookie e a sessão no SIA; na próxima ação o usuário volta ao login e, depois dele, à URL pedida (que refaz a consulta).
+**Fim de sessão por inatividade**: depois de `TcmrjSessao:MinutosSemUsoParaLogout` minutos sem navegação nem ação de consulta, o circuito passa a anônimo e o `<NotAuthorized>` do `Routes.razor` renderiza `EncerrarSessao`, que envia o POST de `/Account/Logout`. Isso encerra o cookie e a sessão no SIA; na próxima ação o usuário volta ao login e, depois dele, à URL pedida (que refaz a consulta). No modo `UsuarioDeRede` não há sessão para encerrar: renderiza `SessaoEncerrada`, cujo botão **Continuar** recarrega a página e entra de novo pelo usuário do Windows.
 
 ## Parâmetros de consulta
 
