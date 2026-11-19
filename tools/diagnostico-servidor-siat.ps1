@@ -537,7 +537,9 @@ Invoke-Secao '7. DNS e Kerberos (SPN)' {
         elseif ($donos.Count -eq 1) { Write-Status INFO ('SPN {0} registrado em {1}' -f $spn, $donos[0]) }
         elseif ($nome -eq $script:fqdn) { Write-Status INFO "Sem SPN $spn explícito (o HOST/ da conta do computador já cobre o nome do próprio servidor)." }
         elseif ($passaPorOutroServidor[$nome]) {
-            Write-Status ATENCAO "Sem SPN ${spn}: por esse nome o navegador não consegue Kerberos e usa NTLM, que costuma falhar através do ARR. Se o teste falhar: SPN na conta do app pool e useAppPoolCredentials=true."
+            # O SIAT vai pelo redirecionamento 302 do ARR, como o SiCATI e o SuporteASI: o navegador fala direto com
+            # este servidor, e o SPN do nome do ARR não entra. Só seria pendência se o ARR fizesse proxy (como no SCAF).
+            Write-Status INFO "Sem SPN ${spn}: não importa com o redirecionamento 302 do ARR (como no SiCATI), em que o navegador fala direto com este servidor e o Kerberos usa o HOST/ dele. Só importaria se o ARR fizesse proxy do SIAT (como no SCAF): aí, sem o SPN, o navegador cai para NTLM, que costuma falhar através do ARR."
         }
         else { Write-Status INFO "Sem SPN ${spn}." }
     }
