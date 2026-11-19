@@ -13,10 +13,10 @@
       1. Servidor: nome, domínio, sistema, usuário, elevação, IPs.
       2. IIS: versão, serviços, recursos "Autenticação do Windows" e "WebSocket".
       3. ASP.NET Core: ASP.NET Core Module V2, runtime Microsoft.AspNetCore.App 10, Hosting Bundle.
-      4. applicationHost.config: bloqueio das seções de autenticação, liberações por caminho, ARR.
-      5. Sites, aplicativos e app pools (identidade, nunca a senha). Para cada caminho de -Caminhos: se a seção
-         windowsAuthentication está liberada, a autenticação efetiva e o ASPNETCORE_ENVIRONMENT. E quais aplicativos
-         do servidor já usam autenticação do Windows.
+      4. applicationHost.config: bloqueio das seções de autenticação, autenticação do Windows por caminho, ARR.
+      5. Sites, aplicativos e app pools (identidade, nunca a senha). Para cada caminho de -Caminhos: se a autenticação
+         do Windows está ligada (no applicationHost.config, como no SuporteASI), a autenticação efetiva e o
+         ASPNETCORE_ENVIRONMENT. E quais aplicativos do servidor já usam autenticação do Windows.
       6. Certificados das associações https.
       7. DNS dos nomes de acesso e SPNs HTTP (Kerberos).
       8. Log do IIS dos caminhos: de onde vêm as requisições (ARR?), usuários autenticados e códigos de status.
@@ -143,7 +143,7 @@ function ConvertTo-TokenChecking($Valor) {
     switch ("$Valor") { '0' { 'None' } '1' { 'Allow' } '2' { 'Require' } default { "$Valor" } }
 }
 
-# Allow ou Deny: se o web.config do caminho pode configurar a autenticação do Windows (o que o appcmd unlock muda).
+# Allow ou Deny: se um web.config no caminho poderia declarar a autenticação do Windows (o que o appcmd unlock muda).
 function Get-LiberacaoWindowsAuth([string] $Site, [string] $Caminho) {
     try {
         $secao = $script:gerenciador.GetApplicationHostConfiguration().GetSection(
@@ -151,6 +151,20 @@ function Get-LiberacaoWindowsAuth([string] $Site, [string] $Caminho) {
         [string] $secao.OverrideModeEffective
     }
     catch { 'desconhecido ({0})' -f (Format-Erro $_) }
+}
+
+# Se o applicationHost.config liga a autenticação do Windows no caminho, mesmo que o aplicativo ainda não exista.
+function Test-WindowsAuthNoApplicationHost([string] $Site, [string] $Caminho) {
+    try {
+        [bool] $script:gerenciador.GetApplicationHostConfiguration().GetSection(
+            'system.webServer/security/authentication/windowsAuthentication', $Site + $Caminho).GetAttributeValue('enabled')
+    }
+    catch { $false }
+}
+
+# O pedido à infra (opção do SuporteASI): liga só para o caminho, no applicationHost.config, sem mexer no anônimo.
+function Get-ComandoWindowsAuth([string] $Local) {
+    'Pedir: appcmd set config "{0}" -section:system.webServer/security/authentication/windowsAuthentication /enabled:true /commit:apphost' -f $Local
 }
 
 # Autenticação efetiva de um caminho, como o IIS vai aplicar (applicationHost.config + web.config). Lança exceção quando
@@ -304,7 +318,8 @@ Invoke-Secao '4. applicationHost.config (bloqueio das seções de autenticação
     else { Write-Status INFO 'ARR não instalado neste servidor.' }
 
     # Cada windowsAuthentication declarado no applicationHost.config e a liberação (overrideMode) do location dele.
-    # O "appcmd unlock config <site>/siat_dsv" grava um location overrideMode="Allow" com essa seção vazia.
+    # O "appcmd set config <site>/siat_dsv ... /enabled:true /commit:apphost" grava um location com enabled="true";
+    # um "appcmd unlock config" grava um location overrideMode="Allow" com a seção vazia.
     Write-Linha ''
     Write-Linha 'windowsAuthentication no applicationHost.config (por location):'
     foreach ($wa in $xml.SelectNodes('//system.webServer/security/authentication/windowsAuthentication')) {
@@ -411,22 +426,20 @@ Invoke-Secao '5. Sites, aplicativos e app pools' {
             if ($doSiat) { Write-Status INFO "Aplicativo $caminho ainda não existe neste servidor (a infra cria antes do primeiro deploy)." }
             else { Write-Status INFO "Aplicativo $caminho não existe neste servidor." }
             if (-not $doSiat) { continue }
-            # O SIAT ainda não existe: verifica se a seção já está liberada para esse caminho em cada site.
-            $liberado = $false
+            # O SIAT ainda não existe: a infra pode já ter ligado a autenticação para o caminho no applicationHost.config.
+            $ligada = $false
             foreach ($site in $sm.Sites) {
-                $liberacao = Get-LiberacaoWindowsAuth $site.Name $caminho
-                if ($liberacao -eq 'Allow') {
-                    $liberado = $true
-                    Write-Status OK ('Seção windowsAuthentication já liberada para "{0}{1}".' -f $site.Name, $caminho)
+                if (Test-WindowsAuthNoApplicationHost $site.Name $caminho) {
+                    $ligada = $true
+                    Write-Status OK ('Autenticação do Windows já ligada para "{0}{1}" no applicationHost.config.' -f $site.Name, $caminho)
                 }
-                else { Write-Detalhe ('Seção windowsAuthentication para "{0}{1}": {2}' -f $site.Name, $caminho, $liberacao) }
             }
-            if (-not $liberado) {
+            if (-not $ligada) {
                 # Sugere o site onde estão os outros aplicativos do mesmo deploy (SiCATI).
                 $vizinho = @($script:apps | Where-Object { $_.Caminho -like '/sicati*' } | Select-Object -First 1)
                 $siteSugerido = '<site>'
                 if ($vizinho.Count -gt 0) { $siteSugerido = $vizinho[0].Site }
-                Write-Status FALTA ('{0}: antes do primeiro deploy, a infra cria o aplicativo e libera a seção só para ele: appcmd unlock config "{1}{0}" -section:system.webServer/security/authentication/windowsAuthentication -commit:apphost' -f $caminho, $siteSugerido)
+                Write-Status FALTA ('{0}: antes do primeiro deploy, a infra cria o aplicativo e liga a autenticação do Windows só para ele, sem desligar o anônimo (sem isso o SIAT não sobe: HTTP 500.30). {1}' -f $caminho, (Get-ComandoWindowsAuth ($siteSugerido + $caminho)))
             }
             continue
         }
@@ -437,18 +450,15 @@ Invoke-Secao '5. Sites, aplicativos e app pools' {
             Write-Status INFO ('{0}: pool {1}, identidade {2}, rede {3}; pasta {4}' -f $local, $app.Pool, $pool.Conta,
                 $(if ($pool.ContaDeRede) { $pool.ContaDeRede } else { '-' }), $app.Fisico)
 
-            $liberacao = Get-LiberacaoWindowsAuth $app.Site $app.Caminho
-            if ($liberacao -eq 'Allow') { Write-Status OK "Seção windowsAuthentication liberada para $local." }
-            elseif ($doSiat) {
-                Write-Status FALTA ('Seção windowsAuthentication bloqueada ({0}) para {1}: com o web.config do protótipo, HTTP 500.19 em todas as rotas. Pedir: appcmd unlock config "{1}" -section:system.webServer/security/authentication/windowsAuthentication -commit:apphost' -f $liberacao, $local)
-            }
-            else { Write-Status INFO "Seção windowsAuthentication para ${local}: $liberacao." }
+            Write-Detalhe ('Seção windowsAuthentication para {0}: {1} (só importa se um web.config declarar a seção; o do SIAT não declara)' -f
+                $local, (Get-LiberacaoWindowsAuth $app.Site $app.Caminho))
 
             try {
                 $a = Get-Autenticacao $app.Site $app.Caminho
                 Write-Status INFO ('Autenticação efetiva: {0}' -f (Format-Autenticacao $a))
                 if ($doSiat) {
-                    if (-not $a.Windows) { Write-Status ATENCAO "Autenticação do Windows desligada em $local (o web.config do protótipo liga ao publicar)." }
+                    if ($a.Windows) { Write-Status OK "Autenticação do Windows ligada para $local." }
+                    else { Write-Status FALTA ('Autenticação do Windows desligada para {0}: o SIAT não sobe (HTTP 500.30). {1}' -f $local, (Get-ComandoWindowsAuth $local)) }
                     if (-not $a.Anonimo) { Write-Status ATENCAO "Anônimo desligado em ${local}: /saude e os arquivos estáticos deixam de responder sem credencial (modo misto precisa dos dois)." }
                     if ($a.TokenChecking -eq 'Require') { Write-Status ATENCAO "extendedProtection=Require em ${local}: costuma quebrar a autenticação através do ARR." }
                     if ($a.WebSocket -eq $false) { Write-Status ATENCAO "WebSocket desligado em ${local}." }

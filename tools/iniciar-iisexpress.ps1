@@ -2,7 +2,7 @@
 .SYNOPSIS
     PROTÓTIPO (features/prototipo_login_rede): roda o SIAT no IIS Express a partir da publicação, para testar a parte da
     autenticação Windows que o Kestrel não cobre: o repasse do Negotiate para o IIS, a transformação de claims no
-    hosting in-process e a seção windowsAuthentication do web.config, que vem bloqueada como no servidor.
+    hosting in-process e a autenticação do Windows ligada no applicationHost.config, como a infra faz no servidor.
 
 .DESCRIPTION
     1. Publica o projeto Web, como o build do asi_builds, com o ambiente no web.config (no deploy quem faz isso é o XDT),
@@ -10,9 +10,9 @@
        appsettings do ambiente que vem do asi_builds).
     2. Recria .iisexpress\applicationhost.config a partir do modelo do IIS Express, com o ASP.NET Core Module V2.
     3. Cria o site SIAT em https://localhost:<Porta>, com o SIAT como aplicativo em <Caminho> (diretório virtual,
-       como no servidor), e libera a seção windowsAuthentication só para ele, com o mesmo comando que a infra roda no
-       servidor (appcmd unlock config). Com -SemDesbloquear, não libera: o IIS responde HTTP 500.19, que é o erro do
-       servidor antes do pedido à infra.
+       como no servidor), e liga a autenticação do Windows só para ele, com o mesmo comando que a infra roda no
+       servidor (appcmd set config ... /commit:apphost, como no SuporteASI). O anônimo continua ligado (modo misto).
+       Com -SemAutenticacaoWindows, não liga: é o servidor antes do pedido à infra.
     4. Inicia o IIS Express em primeiro plano (Q para parar). Para publicar de novo, pare o IIS Express antes.
 
 .EXAMPLE
@@ -22,10 +22,10 @@
     .\tools\iniciar-iisexpress.ps1 -Caminho /
     O SIAT na raiz do site.
 .EXAMPLE
-    .\tools\iniciar-iisexpress.ps1 -SemDesbloquear
+    .\tools\iniciar-iisexpress.ps1 -SemAutenticacaoWindows
 #>
 param(
-    [switch] $SemDesbloquear,
+    [switch] $SemAutenticacaoWindows,
 
     # Caminho do aplicativo no site: "/" para a raiz ou um diretório virtual como no servidor (/siat_dsv).
     [ValidatePattern('^(/|(/[A-Za-z0-9_.\-]+)+)$')]
@@ -101,13 +101,14 @@ else {
 if ($LASTEXITCODE -ne 0) { throw 'appcmd add site/app falhou.' }
 
 $caminhoDeConfiguracao = 'SIAT' + $(if ($naRaiz) { '/' } else { $Caminho })
-if ($SemDesbloquear) {
-    Write-Warning 'Seção windowsAuthentication bloqueada (-SemDesbloquear): espere HTTP 500.19.'
+if ($SemAutenticacaoWindows) {
+    Write-Warning 'Autenticação do Windows desligada (-SemAutenticacaoWindows): o servidor antes do pedido à infra.'
 }
 else {
-    # O mesmo pedido que vai para a infra: liberar a seção só para o aplicativo do SIAT, nunca para o servidor todo.
-    & $appcmd unlock config $caminhoDeConfiguracao -section:system.webServer/security/authentication/windowsAuthentication /commit:apphost /apphostconfig:$config
-    if ($LASTEXITCODE -ne 0) { throw 'appcmd unlock config falhou.' }
+    # O mesmo pedido que vai para a infra: ligar a autenticação do Windows só para o aplicativo do SIAT (location no
+    # applicationHost.config), nunca para o servidor todo, e sem mexer no anônimo.
+    & $appcmd set config $caminhoDeConfiguracao -section:system.webServer/security/authentication/windowsAuthentication /enabled:true /commit:apphost /apphostconfig:$config
+    if ($LASTEXITCODE -ne 0) { throw 'appcmd set config falhou.' }
 }
 
 Write-Host "4/4 Iniciando o IIS Express em $url (Q para parar)..."

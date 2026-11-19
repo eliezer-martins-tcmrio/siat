@@ -16,9 +16,11 @@ public static class AuthenticationConfiguration
         ArgumentNullException.ThrowIfNull(builder);
 
         // PROTÓTIPO (features/prototipo_login_rede): entrada pelo usuário de rede em vez do OIDC no SIA.
-        // Modo misto: o IIS aceita anônimo e Windows (web.config). A fallback policy abaixo exige usuário autenticado
-        // e, sem ele, o desafio Negotiate faz o navegador enviar as credenciais do Windows. No IIS o handler repassa a
-        // autenticação para o próprio IIS; no Kestrel (dotnet run) ele mesmo faz o Negotiate (Kerberos ou NTLM).
+        // Modo misto: o IIS aceita anônimo e Windows. A autenticação do Windows é ligada pela infra no
+        // applicationHost.config, só para o aplicativo (como no SuporteASI); o projeto não tem web.config próprio,
+        // porque a seção vem bloqueada no servidor e declará-la daria HTTP 500.19. A fallback policy abaixo exige
+        // usuário autenticado e, sem ele, o desafio Negotiate faz o navegador enviar as credenciais do Windows. No IIS
+        // o handler repassa a autenticação para o próprio IIS; no Kestrel (dotnet run) ele mesmo faz o Negotiate.
         builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme).AddNegotiate();
 
         // DOMINIO\login -> matrícula (view do RH no CSLIB_UserManager) -> claims que o pacote de autorização lê.
