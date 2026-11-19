@@ -11,7 +11,8 @@ namespace Tcmrj.Siat.Test.Unidade;
 
 /// <summary>
 /// <c>SiatConfiguration:BlazorBaseHref</c> é o caminho do aplicativo no IIS (<c>/siat_dsv</c>); vazio na raiz. Um valor
-/// malformado quebraria todas as URLs da aplicação, por isso ela não sobe.
+/// malformado quebraria todas as URLs da aplicação, por isso ela não sobe. <c>SiatConfiguration:Autenticacao</c> escolhe
+/// a entrada: OIDC no SIA (padrão) ou usuário de rede (protótipo, fora de produção).
 /// </summary>
 public sealed class SiatOptionsTests
 {
@@ -66,5 +67,46 @@ public sealed class SiatOptionsTests
         using var provider = builder.Services.BuildServiceProvider();
 
         provider.GetRequiredService<IOptions<SiatOptions>>().Value.BaseHref.Should().Be("/");
+        provider.GetRequiredService<IOptions<SiatOptions>>().Value.Autenticacao.Should().Be(ModoDeAutenticacao.Oidc);
     }
+
+    [Theory]
+    [InlineData(null, ModoDeAutenticacao.Oidc)]
+    [InlineData("Oidc", ModoDeAutenticacao.Oidc)]
+    [InlineData("UsuarioDeRede", ModoDeAutenticacao.UsuarioDeRede)]
+    [InlineData("usuarioderede", ModoDeAutenticacao.UsuarioDeRede)]
+    public void Autenticacao_ausente_e_OIDC_e_o_valor_ignora_maiusculas(string? valor, ModoDeAutenticacao esperado)
+        => SiatOptions.LerAutenticacao(Configuracao(valor), Ambiente(Environments.Development)).Should().Be(esperado);
+
+    [Theory]
+    [InlineData("Windows")]
+    [InlineData("7")]
+    public void Autenticacao_desconhecida_impede_a_subida(string valor)
+        => FluentActions.Invoking(() => SiatOptions.LerAutenticacao(Configuracao(valor), Ambiente(Environments.Development)))
+            .Should().Throw<InvalidOperationException>()
+            .WithMessage("*SiatConfiguration:Autenticacao*");
+
+    [Fact]
+    public void Usuario_de_rede_nao_sobe_em_producao()
+        => FluentActions.Invoking(() => SiatOptions.LerAutenticacao(Configuracao("UsuarioDeRede"), Ambiente(Environments.Production)))
+            .Should().Throw<InvalidOperationException>()
+            .WithMessage("*não é permitido em produção*");
+
+    [Theory]
+    [InlineData("Development")]
+    [InlineData("Staging")]
+    public void Usuario_de_rede_sobe_no_DSV_e_no_HML(string ambiente)
+        => SiatOptions.LerAutenticacao(Configuracao("UsuarioDeRede"), Ambiente(ambiente)).Should().Be(ModoDeAutenticacao.UsuarioDeRede);
+
+    [Fact]
+    public void OIDC_sobe_em_producao()
+        => SiatOptions.LerAutenticacao(Configuracao("Oidc"), Ambiente(Environments.Production)).Should().Be(ModoDeAutenticacao.Oidc);
+
+    private static IConfiguration Configuracao(string? autenticacao)
+        => new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["SiatConfiguration:Autenticacao"] = autenticacao })
+            .Build();
+
+    private static IHostEnvironment Ambiente(string nome)
+        => WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = nome }).Environment;
 }

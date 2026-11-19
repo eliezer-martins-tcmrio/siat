@@ -15,9 +15,23 @@
       "url": "https://localhost:7271"
     },
     {
+      "name": "siat-usuario-de-rede",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "src/Tcmrj.Siat.Web", "--launch-profile", "https-usuario-de-rede", "--no-launch-profile-arguments"],
+      "port": 7271,
+      "url": "https://localhost:7271"
+    },
+    {
       "name": "siat-iisexpress",
       "runtimeExecutable": "pwsh",
       "runtimeArgs": ["-NoProfile", "-File", "tools/iniciar-iisexpress.ps1"],
+      "port": 44371,
+      "url": "https://localhost:44371"
+    },
+    {
+      "name": "siat-iisexpress-oidc",
+      "runtimeExecutable": "pwsh",
+      "runtimeArgs": ["-NoProfile", "-File", "tools/iniciar-iisexpress.ps1", "-Autenticacao", "Oidc", "-SemAutenticacaoWindows"],
       "port": 44371,
       "url": "https://localhost:44371"
     }

@@ -1,5 +1,9 @@
-@* Rodapé do menu: tema e conta (DESIGN.md, Navegação). PROTÓTIPO (features/prototipo_login_rede): sem "Sair",
-   porque a entrada é pelo usuário de rede e não há sessão própria para encerrar. *@
+@using Microsoft.Extensions.Options
+@using Tcmrj.Siat.Web.Configurations
+@inject IOptions<SiatOptions> SiatConfig
+
+@* Rodapé do menu: tema, conta e Sair (DESIGN.md, Navegação). Com o usuário de rede (PROTÓTIPO,
+   features/prototipo_login_rede) não há "Sair": não há sessão própria para encerrar. *@
 <div class="menu-rodape">
     <SeletorTema />
 
@@ -13,6 +17,18 @@
             }
         </span>
     </div>
+
+    @if (SiatConfig.Value.Autenticacao == ModoDeAutenticacao.Oidc)
+    {
+        @* O logout só aceita POST com token antiforgery (contracts/rotas-ui.md). *@
+        <form action="Account/Logout" method="post">
+            <AntiforgeryToken />
+            <button type="submit">
+                <LucideIcon Name="log-out" Size="14" aria-hidden="true" focusable="false" />
+                Sair
+            </button>
+        </form>
+    }
 </div>
 
 @code {

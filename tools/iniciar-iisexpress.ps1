@@ -6,8 +6,8 @@
 
 .DESCRIPTION
     1. Publica o projeto Web, como o build do asi_builds, com o ambiente no web.config (no deploy quem faz isso é o XDT),
-       e grava um appsettings.Development.json com o SiatConfiguration:BlazorBaseHref do caminho (no deploy, é o
-       appsettings do ambiente que vem do asi_builds).
+       e grava um appsettings.Development.json com o SiatConfiguration:BlazorBaseHref do caminho e o
+       SiatConfiguration:Autenticacao de -Autenticacao (no deploy, é o appsettings do ambiente que vem do asi_builds).
     2. Recria .iisexpress\applicationhost.config a partir do modelo do IIS Express, com o ASP.NET Core Module V2.
     3. Cria o site SIAT em https://localhost:<Porta>, com o SIAT como aplicativo em <Caminho> (diretório virtual,
        como no servidor), e liga a autenticação do Windows só para ele, com o mesmo comando que a infra roda no
@@ -23,9 +23,16 @@
     O SIAT na raiz do site.
 .EXAMPLE
     .\tools\iniciar-iisexpress.ps1 -SemAutenticacaoWindows
+.EXAMPLE
+    .\tools\iniciar-iisexpress.ps1 -Autenticacao Oidc -SemAutenticacaoWindows
+    O SIAT entrando pelo SIA, como na main, num servidor sem a autenticação do Windows.
 #>
 param(
     [switch] $SemAutenticacaoWindows,
+
+    # Como o usuário entra (SiatConfiguration:Autenticacao). O padrão do script é o do protótipo; o do SIAT é Oidc.
+    [ValidateSet('UsuarioDeRede', 'Oidc')]
+    [string] $Autenticacao = 'UsuarioDeRede',
 
     # Caminho do aplicativo no site: "/" para a raiz ou um diretório virtual como no servidor (/siat_dsv).
     [ValidatePattern('^(/|(/[A-Za-z0-9_.\-]+)+)$')]
@@ -57,7 +64,7 @@ dotnet publish (Join-Path $raiz 'src\Tcmrj.Siat.Web') -c Debug -o $publicacao -p
 if ($LASTEXITCODE -ne 0) { throw 'dotnet publish falhou. Se o IIS Express estiver rodando, pare-o antes (ele prende as DLLs).' }
 
 # O <base href> tem de ser o caminho do aplicativo no IIS, senão as rotas e os arquivos estáticos saem dele.
-@{ SiatConfiguration = @{ BlazorBaseHref = $baseHref } } | ConvertTo-Json |
+@{ SiatConfiguration = @{ BlazorBaseHref = $baseHref; Autenticacao = $Autenticacao } } | ConvertTo-Json |
     Set-Content (Join-Path $publicacao 'appsettings.Development.json') -Encoding utf8
 
 Write-Host '2/4 Recriando o applicationhost.config...'

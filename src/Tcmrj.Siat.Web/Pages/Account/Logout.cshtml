@@ -1,0 +1,17 @@
+@page
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Mvc
+@using Tcmrj.Autenticacao.AspNetCore.Oidc
+
+@* Só POST com token antiforgery (validado pelas Razor Pages) encerra a sessão no SIAT e no SIA. Um GET apenas
+   volta para a página inicial, para que outro site não deslogue o usuário com um link ou imagem (CSRF). A volta do
+   SIA é para a página inicial do aplicativo ("~/"), que num diretório virtual (/siat_dsv) não é a raiz do site. *@
+@functions {
+    public IActionResult OnGet() => LocalRedirect("~/");
+
+    public async Task OnPostAsync()
+    {
+        await HttpContext.SignOutAsync(TcmrjOidcDefaults.OidcScheme, new AuthenticationProperties { RedirectUri = Url.Content("~/") });
+        await HttpContext.SignOutAsync(TcmrjOidcDefaults.CookieScheme);
+    }
+}

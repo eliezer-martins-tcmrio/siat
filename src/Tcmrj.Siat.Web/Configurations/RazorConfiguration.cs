@@ -1,4 +1,5 @@
 using BlazorBlueprint.Components;
+using Microsoft.Extensions.Options;
 
 namespace Tcmrj.Siat.Web.Configurations;
 
@@ -18,6 +19,9 @@ public static class RazorConfiguration
 
         builder.Services.AddRazorComponents()
             .AddInteractiveServerComponents();
+
+        // Páginas Account/Login e Account/Logout (só mapeadas no OIDC).
+        builder.Services.AddRazorPages();
 
         builder.Services.AddBlazorBlueprintComponents();
 
@@ -43,13 +47,20 @@ public static class RazorConfiguration
         app.UseAuthorization();
         app.UseAntiforgery();
 
-        // CSS, JS e imagens não têm dados; ficam fora da fallback policy para não disparar o desafio Negotiate
-        // em pedidos de arquivo (ícone, folha de estilo).
+        // CSS, JS e imagens não têm dados; ficam fora da fallback policy para não disparar o login (SIA ou desafio
+        // Negotiate) em pedidos de arquivo (ícone, folha de estilo) feitos sem sessão.
         app.MapStaticAssets().AllowAnonymous();
 
-        // Modo misto: verificação de disponibilidade (balanceador, monitoramento) sem credencial do Windows.
-        // Não lê nenhuma fonte de dados.
+        // Verificação de disponibilidade (balanceador, monitoramento) sem login; no usuário de rede, sem credencial do
+        // Windows (modo misto). Não lê nenhuma fonte de dados.
         app.MapGet("/saude", () => Results.Text("ok")).AllowAnonymous();
+
+        // Login e logout no SIA. No usuário de rede não há tela de login nem sessão própria para encerrar, e os
+        // esquemas do OIDC nem existem.
+        if (app.Services.GetRequiredService<IOptions<SiatOptions>>().Value.Autenticacao == ModoDeAutenticacao.Oidc)
+        {
+            app.MapRazorPages();
+        }
 
         app.MapRazorComponents<Components.App>()
             .AddInteractiveServerRenderMode();

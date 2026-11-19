@@ -1,0 +1,14 @@
+@page
+@attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Mvc
+@using Tcmrj.Autenticacao.AspNetCore.Oidc
+
+@* Challenge no SIA (esquema "oidc"). Só aceita returnUrl local, para o login não virar redirecionamento aberto. Sem
+   ele, volta para a página inicial do aplicativo ("~/"), que num diretório virtual (/siat_dsv) não é a raiz do site. *@
+@functions {
+    public ChallengeResult OnGet(string? returnUrl = null)
+        => Challenge(
+            new AuthenticationProperties { RedirectUri = Url.Content(Url.IsLocalUrl(returnUrl) ? returnUrl : "~/") },
+            TcmrjOidcDefaults.OidcScheme);
+}

@@ -138,5 +138,12 @@ window.siat = (function () {
     setTimeout(() => URL.revokeObjectURL(url), 10000);
   }
 
-  return { temaSalvo, definirTema, aplicarTema, copiar, mostrarOpcao, baixarArquivo };
+  // ---------- Formulário ----------
+  // Envia o formulário pelo método nativo, sem passar pelo evento submit (usado por EncerrarSessao.razor, que não pode
+  // chamar "HTMLFormElement.prototype.submit.call" direto: o resolvedor do Blazor recusa o segmento "prototype").
+  function enviarFormulario(formulario) {
+    HTMLFormElement.prototype.submit.call(formulario);
+  }
+
+  return { temaSalvo, definirTema, aplicarTema, copiar, mostrarOpcao, baixarArquivo, enviarFormulario };
 })();

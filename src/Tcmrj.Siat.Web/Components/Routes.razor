@@ -1,5 +1,8 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.Extensions.Options
+@using Tcmrj.Siat.Web.Configurations
+@inject IOptions<SiatOptions> SiatConfig
 
 <Router AppAssembly="typeof(Program).Assembly">
     <Found Context="routeData">
@@ -10,10 +13,15 @@
                     @* Usuário logado sem a política de uma página com [Authorize(Policy = ...)]: não é fim de sessão. *@
                     <Tcmrj.Siat.Web.Components.Pages.AcessoNegado />
                 }
-                else
+                else if (SiatConfig.Value.Autenticacao == ModoDeAutenticacao.UsuarioDeRede)
                 {
                     @* Circuito anônimo por inatividade: recarregar entra de novo pelo usuário de rede. *@
                     <SessaoEncerrada />
+                }
+                else
+                {
+                    @* Circuito anônimo por inatividade: encerra o cookie e a sessão no SIA. *@
+                    <EncerrarSessao />
                 }
             </NotAuthorized>
         </AuthorizeRouteView>

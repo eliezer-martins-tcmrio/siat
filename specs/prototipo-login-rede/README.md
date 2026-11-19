@@ -3,7 +3,25 @@
 Branch `features/prototipo_login_rede`. **Não é para publicar em PRD**: contraria o Princípio III da constituição
 (autenticação só pelo SIA, por OIDC). Adotar exige emenda MAJOR, porque redefine um princípio.
 
-## Como funciona
+## Os dois modos (`SiatConfiguration:Autenticacao`)
+
+Enquanto a coordenação não decide, o SIAT tem as duas entradas, uma por ambiente, escolhida no `appsettings`:
+
+| Valor | Entrada | Onde |
+| --- | --- | --- |
+| `Oidc` (padrão; também quando a chave falta) | SSO do SIA, como na main: tela de login do SIA, "Sair" no menu, `Account/Login` e `Account/Logout` | Qualquer ambiente |
+| `UsuarioDeRede` | Usuário do Windows, sem tela de login e sem "Sair" (abaixo) | DSV e HML: em produção a aplicação não sobe |
+
+- É lido na subida (os esquemas de autenticação dependem dele): trocar exige reiniciar o aplicativo (no IIS, reciclar
+  o pool). Valor desconhecido também impede a subida.
+- O resto não muda entre os modos: as permissões vêm do UserManager pela claim `matricula`, e a inatividade
+  (`TcmrjSessao`) vale para os dois. Sem a claim do vínculo de rede, as telas de acesso negado são as da main.
+- `Oidc` sobe em qualquer servidor, com ou sem a autenticação do Windows ligada no IIS: dá para publicar no DSV antes
+  do pedido à infra e voltar para o SIA depois dele. `UsuarioDeRede` exige a autenticação do Windows ligada (abaixo).
+- Na máquina: perfil `https` (OIDC) ou `https-usuario-de-rede` do `launchSettings.json`.
+- O bloqueio em produção sai junto com a emenda da constituição, se a coordenação aprovar.
+
+## Como funciona (`UsuarioDeRede`)
 
 1. O IIS aceita anônimo e Windows. A autenticação do Windows é ligada pela infra no `applicationHost.config`, só para o
    aplicativo, como no SuporteASI; o projeto não tem `web.config` próprio (a publicação gera o padrão). A fallback
@@ -20,14 +38,16 @@ Branch `features/prototipo_login_rede`. **Não é para publicar em PRD**: contra
 
 Anônimos de propósito: arquivos estáticos e `/saude`, para o balanceador e o monitoramento.
 
-O que saiu: o OIDC no SIA (`TcmrjOidc`, `Account/Login`, `Account/Logout`) e o botão "Sair". A inatividade
-(`TcmrjSessao`) continua: o circuito fica anônimo e a tela oferece "Continuar", que recarrega a página e entra de novo.
+Neste modo ficam fora o OIDC no SIA (os esquemas, `Account/Login` e `Account/Logout` nem são mapeados) e o botão
+"Sair". A inatividade (`TcmrjSessao`) continua: o circuito fica anônimo e a tela oferece "Continuar", que recarrega a
+página e entra de novo (no OIDC, como na main, o fim da sessão encerra o cookie e a sessão no SIA).
 
 ## Testar na máquina (Kestrel)
 
-`dotnet run --project src/Tcmrj.Siat.Web --launch-profile https` e abrir `https://localhost:7271`. Em `localhost` o
-navegador envia as credenciais sem perguntar. Validado em 2026-11-19: entra sem senha, mostra nome e matrícula e
-libera os módulos conforme o UserManager do DEV.
+`dotnet run --project src/Tcmrj.Siat.Web --launch-profile https-usuario-de-rede` e abrir `https://localhost:7271`. Em
+`localhost` o navegador envia as credenciais sem perguntar. Validado em 2026-11-19: entra sem senha, mostra nome e
+matrícula, sem "Sair", e libera os módulos conforme o UserManager do DEV. Com `--launch-profile https` (OIDC), `/` e
+`Account/Login` levam à tela de login do SIA, como na main, e `/saude` responde 200.
 
 ## Testar na máquina (IIS Express)
 
@@ -35,8 +55,9 @@ libera os módulos conforme o UserManager do DEV.
 monta um `.iisexpress\applicationhost.config` a partir do modelo do IIS Express (seções de autenticação bloqueadas,
 como no servidor), põe o SIAT como aplicativo em `/siat_dsv` (diretório virtual, como no servidor; `-Caminho /` para a
 raiz), liga a autenticação do Windows só para ele com o mesmo comando da infra (`appcmd set config ...
-/enabled:true /commit:apphost`) e sobe em `https://localhost:44371/siat_dsv/`. Exige o ASP.NET Core Module V2 do IIS
-Express (vem com o Visual Studio). Para publicar de novo, pare o IIS Express antes.
+/enabled:true /commit:apphost`) e sobe em `https://localhost:44371/siat_dsv/`. O modo é `UsuarioDeRede`; com
+`-Autenticacao Oidc`, o da main. Exige o ASP.NET Core Module V2 do IIS Express (vem com o Visual Studio). Para
+publicar de novo, pare o IIS Express antes.
 
 Validado em 2026-11-19:
 
@@ -51,6 +72,10 @@ Validado em 2026-11-19:
   registra "Usuário de rede TCMNET\... vinculado à matrícula ...".
 - Em `/siat_dsv`: `<base href="/siat_dsv/">`; CSS, `_framework`, `_blazor`, menu, marca, redirecionamento da página
   inicial e URL dos filtros ficam todos dentro de `/siat_dsv/`; link direto (`/siat_dsv/consultas/auditlog`) abre.
+- Com `-Autenticacao Oidc`, com e sem `-SemAutenticacaoWindows`: sobe, `/siat_dsv/` e `Account/Login` levam ao SIA
+  (com `redirect_uri` em `/siat_dsv/signin-oidc`) e `/saude` responde 200. A autenticação do Windows ligada no IIS
+  não atrapalha o OIDC. O login completo no SIA não foi testado aqui: o cliente `SIAT-dev` precisa aceitar esse
+  `redirect_uri`.
 
 ## Caminho do aplicativo (`SiatConfiguration:BlazorBaseHref`)
 
@@ -88,7 +113,8 @@ Diagnóstico como administrador no tcm2016web3 e no tcm2016web4, mais requisiç�
       Sem isso o SIAT não sobe (HTTP 500 em todas as rotas, com a mensagem acima no Visualizador de Eventos).
 - [ ] Regra no ARR2: `/siat_dsv` com 302 para `https://tcm2016web3.tcmnet.tcm/siat_dsv/`, como a do SiCATI (o Blazor
       Server precisa ficar num servidor só; e direto no servidor a autenticação do Windows funciona).
-- [ ] `appsettings.Development.json` do SIAT no `asi_builds` com `SiatConfiguration:BlazorBaseHref = /siat_dsv`.
+- [ ] `appsettings.Development.json` do SIAT no `asi_builds` com `SiatConfiguration:BlazorBaseHref = /siat_dsv` e
+      `SiatConfiguration:Autenticacao = UsuarioDeRede` (só depois da autenticação do Windows ligada; antes, `Oidc`).
 - [ ] Login sem senha: o Edge só envia a credencial sem perguntar para a zona Intranet local do Windows. Numa estação,
       `http://tcm2016web3` (sem ponto) é intranet e entra sem senha (validado com o Edge); `https://tcm2016web3.tcmnet.tcm`
       é zona Internet e pede usuário e senha. Para usar https sem senha: incluir o host na GPO de zonas que já existe

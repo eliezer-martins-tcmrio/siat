@@ -8,7 +8,7 @@ builder.Configuration.AddServidoresJson();  // Lista fechada de servidores (serv
 
 builder.AddDBLogConfiguration();            // Serilog + DBLog em AUDITORIADB.audit.Log
 builder.AddRazorConfiguration();            // Blazor (Interactive Server), Razor Pages, Blazor Blueprint, pt-BR
-builder.AddAuthenticationConfiguration();   // OIDC no SIA, permissões do UserManager, inatividade, fallback policy
+builder.AddAuthenticationConfiguration();   // OIDC no SIA ou usuário de rede, permissões do UserManager, inatividade, fallback policy
 builder.AddTcmrjSiat();                     // Mediador, validadores, services do App, servidores e consultas
 
 var app = builder.Build();
