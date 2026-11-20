@@ -38,19 +38,17 @@ de quem fez a alteração.
 
 - A autenticação DEVE ocorrer pelo SSO do UserManager de PRD (SIA), por OpenID Connect (fluxo
   authorization code com PKCE), com o cliente OIDC cadastrado no `OpenIddictApplications` do
-  UserManager pelo script do `dbchange`. É o modo padrão e o único permitido na publicação de
-  produção.
-- Modo experimental temporário, enquanto a coordenação avalia a entrada pelo usuário de rede: nas
-  publicações de teste do próprio SIAT, DSV e HML (`ASPNETCORE_ENVIRONMENT` `Development` e
-  `Staging`), o modo `UsuarioDeRede` de `SiatConfiguration:Autenticacao` PODE substituir o OIDC.
+  UserManager pelo script do `dbchange`. É o modo padrão.
+- Modo experimental temporário, enquanto a coordenação avalia a entrada pelo usuário de rede: em
+  qualquer publicação do SIAT (DSV, HML e produção), o modo `UsuarioDeRede` de
+  `SiatConfiguration:Autenticacao` PODE substituir o OIDC.
   - Nele, o IIS autentica o usuário do Windows do domínio do Tribunal (Negotiate), e o SIAT o liga
     ao usuário interno (`Id` abaixo de 1.000.000) e habilitado do UserManager com o mesmo `Login`
     (`dbo.Users`, o cadastro em que o SIA autentica). Sem esse usuário, ele fica sem matrícula e sem
     nenhuma permissão: usuário desabilitado ou externo NÃO DEVE entrar.
   - A autorização DEVE ser a mesma do OIDC: recursos do UserManager pela claim `matricula`.
-  - Na publicação de produção, a aplicação NÃO DEVE subir nesse modo.
-  - Ao fim da avaliação, nova emenda DEVE redefinir a autenticação (MAJOR), se a coordenação
-    aprovar, ou retirar o modo e o seu código, se recusar.
+  - Ao fim da avaliação, nova emenda DEVE torná-lo definitivo, se a coordenação aprovar, ou
+    retirar o modo e o seu código, se recusar.
 - A leitura das claims DEVE usar `Tcmrj.Autenticacao.AspNetCore` e a autorização por recurso DEVE
   usar `Tcmrj.Autorizacao.App`, como no SiCATI.
 - Toda página que exibe dados e toda operação DEVEM exigir um recurso do UserManager, verificado
@@ -76,9 +74,10 @@ de quem fez a alteração.
 **Justificativa**: o SIAT concentra em um só lugar o acesso a dados de produção de vários
 sistemas. Um único ponto de entrada mal protegido exporia todos eles; por isso este princípio não
 admite exceção, e o registro em log permite auditar quem consultou o quê. O modo `UsuarioDeRede`
-troca o ponto de entrada antes da avaliação da coordenação, por isso fica fora da publicação de
-produção e vale só até a decisão. A proteção dos dados não muda nele, porque a autorização por
-recurso, inclusive a dos dados de produção, é a mesma do OIDC.
+troca o ponto de entrada, mas não a proteção dos dados: só entra quem tem usuário interno e
+habilitado no UserManager, e a autorização por recurso, inclusive a dos dados de produção, é a
+mesma do OIDC. Por isso ele pode valer em todas as publicações, inclusive a de produção, até a
+decisão da coordenação.
 
 ### IV. Módulos independentes e entrega incremental
 
@@ -219,5 +218,6 @@ maiúsculas de minúsculas em nomes de pasta, e prefixos com grafias diferentes 
 | 1.3.0  | 2026-11-18 | Princípio V: os fluxos principais deixam de exigir teste de interface automatizado (navegador) e passam a constar do roteiro de validação manual da feature; as regras e os componentes continuam com testes automatizados. MINOR: muda uma regra sem remover nem redefinir o princípio |
 | 1.4.0  | 2026-11-18 | Nova seção Fluxo de Trabalho no Git: padrão de nomes de branch (`features/`, `issues/`, `releases/` em minúsculo; só letras sem acento, números, `_`, `.` e `-`). MINOR: acréscimo de seção |
 | 1.5.0  | 2026-11-19 | Princípio III: modo experimental temporário `UsuarioDeRede` (usuário do Windows ligado ao usuário interno e habilitado do UserManager com o mesmo login), escolhido por `SiatConfiguration:Autenticacao`, só nas publicações de DSV e HML, enquanto a coordenação avalia a entrada pelo usuário de rede; o OIDC no SIA continua o padrão e o único modo em produção, e a autorização é a mesma nos dois. Explicita também que arquivos estáticos e `/saude` são anônimos. MINOR: muda uma regra sem remover nem redefinir o princípio, como na 1.2.0; a adoção em produção exigirá emenda MAJOR |
+| 2.0.0  | 2026-11-19 | Princípio III: o modo experimental `UsuarioDeRede` passa a ser permitido também na publicação de produção, além de DSV e HML; o OIDC no SIA continua o padrão, a autorização continua a mesma nos dois modos, e ao fim da avaliação da coordenação nova emenda torna o modo definitivo ou o retira. MAJOR: redefine a regra de autenticação do princípio, como a 1.5.0 previu para a adoção em produção |
 
-**Versão**: 1.5.0 | **Ratificada em**: 2026-11-09 | **Última emenda**: 2026-11-19
+**Versão**: 2.0.0 | **Ratificada em**: 2026-11-09 | **Última emenda**: 2026-11-19
