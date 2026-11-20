@@ -56,7 +56,7 @@ public sealed class UsuariosDeRedeRepository(IConfiguration configuration, IOpti
 
             var usuario = new UsuarioDeRede(
                 Convert.ToInt32(leitor["Matricula"], CultureInfo.InvariantCulture),
-                (string)leitor["Nome"],
+                leitor["Nome"] as string ?? string.Empty,
                 leitor["Email"] as string);
 
             // O índice único garante uma linha só. Se um dia deixar de garantir, ninguém entra como outra pessoa.
