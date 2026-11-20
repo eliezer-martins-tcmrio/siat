@@ -21,6 +21,7 @@ public sealed class SiatOptionsTests
     [InlineData("/siat", "/siat/")]
     [InlineData("/siat_dsv", "/siat_dsv/")]
     [InlineData("/ferramentas/siat-hml", "/ferramentas/siat-hml/")]
+    [InlineData("/siat.hml", "/siat.hml/")]
     public void Caminho_valido_vira_base_href_com_barra_final(string caminho, string baseHref)
     {
         SiatOptions.BaseHrefValido(caminho).Should().BeTrue();
@@ -36,6 +37,12 @@ public sealed class SiatOptionsTests
     [InlineData("/si at")]
     [InlineData("/siat?x=1")]
     [InlineData("https://tcmrj.tcmnet.tcm/siat")]
+    [InlineData("/.")]
+    [InlineData("/..")]
+    [InlineData("/siat_dsv/.")]
+    [InlineData("/siat_dsv/..")]
+    [InlineData("/../siat")]
+    [InlineData("/siat/./dsv")]
     public void Caminho_malformado_e_recusado(string? caminho)
         => SiatOptions.BaseHrefValido(caminho).Should().BeFalse();
 

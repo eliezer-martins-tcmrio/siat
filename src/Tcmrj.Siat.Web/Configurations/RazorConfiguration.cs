@@ -30,7 +30,7 @@ public static class RazorConfiguration
             .Bind(builder.Configuration.GetSection(SiatOptions.Secao))
             .Validate(
                 o => SiatOptions.BaseHrefValido(o.BlazorBaseHref),
-                $"{SiatOptions.Secao}:{nameof(SiatOptions.BlazorBaseHref)} deve ser vazio ou começar com \"/\" e não terminar com \"/\" (por exemplo, /siat_dsv).")
+                $"{SiatOptions.Secao}:{nameof(SiatOptions.BlazorBaseHref)} deve ser vazio ou começar com \"/\" e não terminar com \"/\", sem segmentos \".\" ou \"..\" (por exemplo, /siat_dsv).")
             .ValidateOnStart();
 
         return builder;

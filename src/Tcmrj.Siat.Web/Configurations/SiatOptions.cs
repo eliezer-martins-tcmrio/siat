@@ -44,9 +44,12 @@ public sealed partial class SiatOptions
         return modo;
     }
 
-    /// <summary>Vazio, ou "/" seguido de segmentos com letras, números, "_", "-" e ".", sem barra no fim.</summary>
+    /// <summary>
+    /// Vazio, ou "/" seguido de segmentos com letras, números, "_", "-" e ".", sem barra no fim. Segmentos "." e ".."
+    /// são recusados: o navegador os resolve e o <c>&lt;base href&gt;</c> apontaria para outro caminho.
+    /// </summary>
     public static bool BaseHrefValido(string? valor) => valor is not null && (valor.Length == 0 || PadraoBaseHref().IsMatch(valor));
 
-    [GeneratedRegex(@"^(/[A-Za-z0-9_.\-]+)+$")]
+    [GeneratedRegex(@"^(/(?!\.\.?(/|$))[A-Za-z0-9_.\-]+)+$")]
     private static partial Regex PadraoBaseHref();
 }
