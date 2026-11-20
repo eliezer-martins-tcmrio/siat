@@ -2,7 +2,7 @@
 
 Toda rota exige usuário autenticado (fallback policy), menos `/Account/Login`, os arquivos estáticos e `/saude`. Pela constituição 1.5.0 (Princípio III), páginas que exibem dados exigem também um recurso do UserManager; a página inicial e o logout não exibem dados e exigem só autenticação. Sem sessão, o usuário vai para `Account/Login` (challenge OIDC no SIA de PRD) e volta para a URL pedida.
 
-As rotas são relativas ao caminho do aplicativo no IIS (`SiatConfiguration:BlazorBaseHref`, por exemplo `/siat_dsv`). Esta tabela é a do modo padrão, `SiatConfiguration:Autenticacao = Oidc`; no modo experimental `UsuarioDeRede` (só DSV e HML), `/Account/Login`, `/Account/Logout` e os callbacks do OIDC não existem, o menu não tem **Sair**, e a entrada é pelo usuário do Windows ([prototipo-login-rede](../../prototipo-login-rede/README.md)).
+As rotas são relativas ao caminho do aplicativo no IIS (`SiatConfiguration:BlazorBaseHref`, por exemplo `/siat_dsv`). Esta tabela é a do modo padrão, `SiatConfiguration:Autenticacao = Oidc`; no modo experimental `UsuarioDeRede` (qualquer ambiente, pela constituição 2.0.0), `/Account/Login`, `/Account/Logout` e os callbacks do OIDC não existem, o menu não tem **Sair**, e a entrada é pelo usuário do Windows ([prototipo-login-rede](../../prototipo-login-rede/README.md)).
 
 | Rota | Acesso | Comportamento |
 |---|---|---|

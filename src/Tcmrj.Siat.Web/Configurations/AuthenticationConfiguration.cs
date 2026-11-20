@@ -17,7 +17,7 @@ public static class AuthenticationConfiguration
 
         // Como o usuário entra (SiatConfiguration:Autenticacao): OIDC no SIA, o padrão, ou o usuário de rede do
         // protótipo. Daqui para baixo, o resto não muda: as permissões dependem só da claim "matricula".
-        if (SiatOptions.LerAutenticacao(builder.Configuration, builder.Environment) == ModoDeAutenticacao.UsuarioDeRede)
+        if (SiatOptions.LerAutenticacao(builder.Configuration) == ModoDeAutenticacao.UsuarioDeRede)
         {
             builder.AddUsuarioDeRede();
         }

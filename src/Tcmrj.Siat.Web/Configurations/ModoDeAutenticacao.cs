@@ -8,8 +8,8 @@ public enum ModoDeAutenticacao
 
     /// <summary>
     /// PROTÓTIPO (features/prototipo_login_rede): usuário do Windows (Negotiate), ligado ao usuário do UserManager com
-    /// o mesmo login, sem tela de login. Exige a autenticação do Windows ligada no IIS para o aplicativo e não sobe em produção
-    /// enquanto a coordenação não decidir e a constituição não mudar.
+    /// o mesmo login, sem tela de login. Exige a autenticação do Windows ligada no IIS para o aplicativo. Vale em qualquer
+    /// ambiente, inclusive produção, enquanto a coordenação avalia (constituição 2.0.0, Princípio III).
     /// </summary>
     UsuarioDeRede,
 }

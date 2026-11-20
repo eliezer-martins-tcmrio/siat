@@ -1,8 +1,8 @@
 # Protótipo: entrada pelo usuário de rede (opção B, modo misto)
 
-Branch `features/prototipo_login_rede`. A constituição 1.5.0 (Princípio III) permite o modo `UsuarioDeRede` só nas
-publicações de DSV e HML, como experimento temporário enquanto a coordenação avalia; em produção, só o SIA, por OIDC.
-Adotar em produção exige emenda MAJOR, porque redefine o princípio; se a coordenação recusar, o modo e o código saem.
+Branch `features/prototipo_login_rede`. A constituição 2.0.0 (Princípio III) permite o modo `UsuarioDeRede` em todas
+as publicações (DSV, HML e produção), como experimento temporário enquanto a coordenação avalia; o OIDC no SIA continua
+o padrão. Ao fim da avaliação, nova emenda torna o modo definitivo ou o retira junto com o código.
 
 ## Os dois modos (`SiatConfiguration:Autenticacao`)
 
@@ -11,7 +11,7 @@ Enquanto a coordenação não decide, o SIAT tem as duas entradas, uma por ambie
 | Valor | Entrada | Onde |
 | --- | --- | --- |
 | `Oidc` (padrão; também quando a chave falta) | SSO do SIA, como na main: tela de login do SIA, "Sair" no menu, `Account/Login` e `Account/Logout` | Qualquer ambiente |
-| `UsuarioDeRede` | Usuário do Windows, sem tela de login e sem "Sair" (abaixo) | DSV e HML: em produção a aplicação não sobe |
+| `UsuarioDeRede` | Usuário do Windows, sem tela de login e sem "Sair" (abaixo) | Qualquer ambiente, com a autenticação do Windows ligada no IIS |
 
 - É lido na subida (os esquemas de autenticação dependem dele): trocar exige reiniciar o aplicativo (no IIS, reciclar
   o pool). Valor desconhecido também impede a subida.
@@ -20,7 +20,6 @@ Enquanto a coordenação não decide, o SIAT tem as duas entradas, uma por ambie
 - `Oidc` sobe em qualquer servidor, com ou sem a autenticação do Windows ligada no IIS: dá para publicar no DSV antes
   do pedido à infra e voltar para o SIA depois dele. `UsuarioDeRede` exige a autenticação do Windows ligada (abaixo).
 - Na máquina: perfil `https` (OIDC) ou `https-usuario-de-rede` do `launchSettings.json`.
-- O bloqueio em produção sai junto com a emenda da constituição, se a coordenação aprovar.
 
 ## Como funciona (`UsuarioDeRede`)
 

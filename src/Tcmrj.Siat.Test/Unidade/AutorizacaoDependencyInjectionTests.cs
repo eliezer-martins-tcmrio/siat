@@ -132,10 +132,13 @@ public class AutorizacaoDependencyInjectionTests
     }
 
     [Fact]
-    public void Usuario_de_rede_nao_sobe_em_producao()
-        => FluentActions.Invoking(() => CriarBuilder("93", UsuarioDeRede, ambiente: Environments.Production))
-            .Should().Throw<InvalidOperationException>()
-            .WithMessage("*não é permitido em produção*");
+    public async Task Usuario_de_rede_vale_em_producao()
+    {
+        using var provider = CriarBuilder("93", UsuarioDeRede, ambiente: Environments.Production).Services.BuildServiceProvider();
+
+        (await provider.GetRequiredService<IAuthenticationSchemeProvider>().GetDefaultAuthenticateSchemeAsync())!
+            .Name.Should().Be(NegotiateDefaults.AuthenticationScheme);
+    }
 
     private static ServiceProvider CriarProvider(string? modo = null)
         => CriarBuilder("93", modo).Services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });

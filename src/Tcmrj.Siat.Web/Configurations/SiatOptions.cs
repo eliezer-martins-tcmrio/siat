@@ -26,27 +26,19 @@ public sealed partial class SiatOptions
     /// <summary>
     /// Lê o modo de autenticação já no registro dos serviços, porque os esquemas dependem dele. Usa o mesmo binder do
     /// <c>IOptions&lt;SiatOptions&gt;</c>, para que os componentes vejam o modo que decidiu os esquemas. Ausente é
-    /// OIDC; valor desconhecido e usuário de rede em produção impedem a aplicação de subir.
+    /// OIDC; valor desconhecido impede a aplicação de subir. Os dois modos valem em qualquer ambiente (constituição
+    /// 2.0.0, Princípio III).
     /// </summary>
-    public static ModoDeAutenticacao LerAutenticacao(IConfiguration configuracao, IHostEnvironment ambiente)
+    public static ModoDeAutenticacao LerAutenticacao(IConfiguration configuracao)
     {
         ArgumentNullException.ThrowIfNull(configuracao);
-        ArgumentNullException.ThrowIfNull(ambiente);
 
-        var chave = $"{Secao}:{nameof(Autenticacao)}";
         var modo = configuracao.GetSection(Secao).Get<SiatOptions>()?.Autenticacao ?? ModoDeAutenticacao.Oidc;
         if (!Enum.IsDefined(modo))
         {
             throw new InvalidOperationException(
-                $"{chave} deve ser {nameof(ModoDeAutenticacao.Oidc)} ou {nameof(ModoDeAutenticacao.UsuarioDeRede)}.");
-        }
-
-        // Princípio III: em produção, só o SIA, até a coordenação decidir e a constituição mudar.
-        if (modo == ModoDeAutenticacao.UsuarioDeRede && ambiente.IsProduction())
-        {
-            throw new InvalidOperationException(
-                $"{chave} = {nameof(ModoDeAutenticacao.UsuarioDeRede)} não é permitido em produção: a constituição " +
-                "(Princípio III) exige a entrada pelo SIA. Use Oidc.");
+                $"{Secao}:{nameof(Autenticacao)} deve ser {nameof(ModoDeAutenticacao.Oidc)} ou " +
+                $"{nameof(ModoDeAutenticacao.UsuarioDeRede)}.");
         }
 
         return modo;
