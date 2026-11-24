@@ -1,13 +1,13 @@
-@page "/catalogo/sistemas"
+@page "/sistemas/catalogo"
 @attribute [Authorize]
 @implements IDisposable
 @using CSharpFunctionalExtensions
 @using NetDevPack.SimpleMediator
-@using Tcmrj.Siat.App.Web.ViewModels.Sistemas
+@using Tcmrj.Siat.App.Web.ViewModels.Catalogo
 @using Tcmrj.Siat.Domain.Models
 @using Tcmrj.Siat.Web.Services
 @using Servicos = Tcmrj.Siat.App.Web.Services
-@using ObterCatalogo = Tcmrj.Siat.App.Web.Features.Sistemas.ObterCatalogo
+@using ObterCatalogo = Tcmrj.Siat.App.Web.Features.Catalogo.ObterCatalogo
 @inject IAutorizacaoConsultaService AutorizacaoConsulta
 @inject IMediator Mediator
 @inject NavigationManager Navigation
@@ -15,8 +15,8 @@
 @inject TimeProvider Relogio
 @inject IJSRuntime JS
 
-@* Catálogo › Sistemas (specs/002-catalogo-sistemas; contrato visual design/sistemas.html).
-   - Acesso: no OnInitializedAsync, Sistemas.CanSelect; sem ele, AcessoNegado e nenhuma chamada à feature, que
+@* Sistemas › Catálogo (specs/002-catalogo-sistemas; contrato visual design/sistemas.html).
+   - Acesso: no OnInitializedAsync, Catalogo_Sistemas.CanSelect; sem ele, AcessoNegado e nenhuma chamada à feature, que
      autoriza de novo antes de devolver dados (FR-003).
    - Leitura: uma por vez no ControleConsulta, com o seu CancellationTokenSource; depois de 1 s, tempo decorrido e
      Cancelar (EstadoCarregando), que interrompe a leitura no GitLab quando ninguém mais espera por ela. Cancelar volta
@@ -27,17 +27,17 @@
 
 @if (acesso is null)
 {
-    <PageTitle>Sistemas · SIAT</PageTitle>
+    <PageTitle>Catálogo · SIAT</PageTitle>
 }
 else if (acesso == false)
 {
-    <AcessoNegado Mensagem="Você não tem acesso ao catálogo de sistemas" Recurso="@Modulo.Sistemas.Politica()" />
+    <AcessoNegado Mensagem="Você não tem acesso ao catálogo de sistemas" Recurso="@Modulo.Catalogo_Sistemas.Politica()" />
 }
 else
 {
-    <CabecalhoPagina Titulo="Sistemas" Descricao="Onde cada sistema roda: URL, máquina e caminho por ambiente.">
+    <CabecalhoPagina Titulo="Catálogo" Descricao="Onde cada sistema roda: URL, máquina e caminho por ambiente.">
         <Status>
-            @if (Catalogo is { } lido)
+            @if (CatalogoAtual is { } lido)
             {
                 <span class="status" role="status">Catálogo lido às @Hora(lido.LidoEm)</span>
             }
@@ -50,20 +50,20 @@ else
         </Acoes>
     </CabecalhoPagina>
 
-    @if (Catalogo?.Falha is { } falha)
+    @if (CatalogoAtual?.Falha is { } falha)
     {
         <Aviso>
-            Não foi possível atualizar o catálogo: @SemPontoFinal(falha.Mensagem). Mostrando os dados lidos às @Hora(Catalogo.LidoEm).
+            Não foi possível atualizar o catálogo: @SemPontoFinal(falha.Mensagem). Mostrando os dados lidos às @Hora(CatalogoAtual.LidoEm).
         </Aviso>
     }
-    else if (leituras.Estado == Servicos.EstadoConsulta.ComErro && Catalogo is not null && leituras.Erro is { } erroDaReleitura)
+    else if (leituras.Estado == Servicos.EstadoConsulta.ComErro && CatalogoAtual is not null && leituras.Erro is { } erroDaReleitura)
     {
         <Aviso>
-            Não foi possível atualizar o catálogo: @SemPontoFinal(erroDaReleitura.Message). Mostrando os dados lidos às @Hora(Catalogo.LidoEm).
+            Não foi possível atualizar o catálogo: @SemPontoFinal(erroDaReleitura.Message). Mostrando os dados lidos às @Hora(CatalogoAtual.LidoEm).
         </Aviso>
     }
 
-    @if (Catalogo is { Ignorados: > 0 } comIgnorados)
+    @if (CatalogoAtual is { Ignorados: > 0 } comIgnorados)
     {
         <Aviso>@TextoDosIgnorados(comIgnorados.Ignorados)</Aviso>
     }
@@ -71,22 +71,22 @@ else
     <section class="painel" aria-label="Catálogo de sistemas">
         @if (Lendo)
         {
-            <EstadoCarregando Mensagem="Lendo o catálogo no GitLab…" Linhas="@(Catalogo is null ? 6 : 0)"
+            <EstadoCarregando Mensagem="Lendo o catálogo no GitLab…" Linhas="@(CatalogoAtual is null ? 6 : 0)"
                               Inicio="leituras.InicioAtual" AoCancelar="Cancelar"
                               DicaCancelar="Interrompe a leitura no GitLab" />
         }
-        else if (Catalogo is null && leituras.Estado == Servicos.EstadoConsulta.ComErro && leituras.Erro is { } erro)
+        else if (CatalogoAtual is null && leituras.Estado == Servicos.EstadoConsulta.ComErro && leituras.Erro is { } erro)
         {
             <EstadoErro Titulo="Não foi possível ler o catálogo" Motivo="@erro.Message" AoTentarDeNovo="TentarDeNovoAsync"
                         Orientacao="O catálogo vem do sistemasDb.js no GitLab. Os outros módulos continuam funcionando." />
         }
-        else if (Catalogo is null && leituras.Cancelada)
+        else if (CatalogoAtual is null && leituras.Cancelada)
         {
             <EstadoErro Titulo="Leitura do catálogo cancelada" Motivo="@Erros.Catalogo.Cancelada.Message" AoTentarDeNovo="TentarDeNovoAsync"
                         Orientacao="Nenhum dado foi lido. Tente de novo quando quiser." />
         }
 
-        @if (Catalogo is { } catalogo)
+        @if (CatalogoAtual is { } catalogo)
         {
             <FiltroLocal TItem="SistemaVM" Itens="catalogo.Sistemas" TextoDe="TextoDoSistema" Texto="@busca" TextoChanged="AoBuscar"
                          Unidade="sistemas" Rotulo="Buscar sistemas" Placeholder="Sistema, máquina, URL ou caminho" Id="@IdDaBusca">
@@ -147,7 +147,7 @@ else
     <footer class="rodape">
         <span>
             Fonte: <span class="mono">sistemasDb.js</span> no TCMRJDoc (GitLab). Para corrigir um dado,
-            @if (Catalogo is { } comOrigem && EhHttp(comOrigem.Origem))
+            @if (CatalogoAtual is { } comOrigem && EhHttp(comOrigem.Origem))
             {
                 <a href="@comOrigem.Origem" target="_blank" rel="noopener noreferrer">edite esse arquivo<span class="so-leitor"> (abre em nova aba)</span></a><text>.</text>
             }
@@ -182,7 +182,7 @@ else
     private string? buscaDaUrl;
     private readonly List<string?> buscasGravadas = [];
 
-    private CatalogoVM? Catalogo => leituras.Resultado;
+    private CatalogoVM? CatalogoAtual => leituras.Resultado;
 
     private bool Lendo => leituras.Estado == Servicos.EstadoConsulta.Consultando;
 
@@ -190,7 +190,7 @@ else
     {
         leituras = new(Relogio);
         busca = buscaDaUrl = Normalizar(BuscaParametro);
-        acesso = await AutorizacaoConsulta.PodeAcessarModuloAsync(Modulo.Sistemas);
+        acesso = await AutorizacaoConsulta.PodeAcessarModuloAsync(Modulo.Catalogo_Sistemas);
         if (acesso == true)
         {
             await LerAsync(atualizar: false);
@@ -225,7 +225,7 @@ else
         busca = texto;
         var gravada = Normalizar(texto);
         buscasGravadas.Add(gravada);
-        Navigation.NavigateTo(Navegacao.Sistemas(gravada), replace: true);
+        Navigation.NavigateTo(Navegacao.Catalogo(gravada), replace: true);
     }
 
     private async Task LimparBuscaAsync()

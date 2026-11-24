@@ -21,7 +21,7 @@
             <div class="estado">
                 <h2>Você não tem acesso às ferramentas do SIAT</h2>
                 <p>
-                    Para usar o SIAT, peça acesso no SIA ao grupo <strong>Catalogo</strong> (catálogo de sistemas)
+                    Para usar o SIAT, peça acesso no SIA ao grupo <strong>Sistemas</strong> (catálogo de sistemas)
                     ou ao grupo <strong>Consultas</strong> (MailQueue e AuditLog). Depois de liberado, recarregue a página.
                 </p>
             </div>
@@ -36,7 +36,7 @@ else
 @code {
     private static readonly (Modulo Modulo, string Rota)[] Ferramentas =
     [
-        (Modulo.Sistemas, Navegacao.RotaSistemas),
+        (Modulo.Catalogo_Sistemas, Navegacao.RotaCatalogo),
         (Modulo.MailQueue, Navegacao.RotaMailQueue),
         (Modulo.AuditLog, Navegacao.RotaAuditLog),
     ];

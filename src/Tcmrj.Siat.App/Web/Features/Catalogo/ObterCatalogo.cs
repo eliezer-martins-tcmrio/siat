@@ -1,14 +1,14 @@
 using CSharpFunctionalExtensions;
 using NetDevPack.SimpleMediator;
 using Tcmrj.Siat.App.Web.Services.Interfaces;
-using Tcmrj.Siat.App.Web.ViewModels.Sistemas;
+using Tcmrj.Siat.App.Web.ViewModels.Catalogo;
 using Tcmrj.Siat.Domain.Enums;
 using Tcmrj.Siat.Domain.Models;
 
-namespace Tcmrj.Siat.App.Web.Features.Sistemas;
+namespace Tcmrj.Siat.App.Web.Features.Catalogo;
 
 /// <summary>
-/// Catálogo de sistemas para a tela. Autoriza pela política do módulo (<c>Sistemas.CanSelect</c>) antes de ler e,
+/// Catálogo de sistemas para a tela. Autoriza pela política do módulo (<c>Catalogo_Sistemas.CanSelect</c>) antes de ler e,
 /// sem ela, não devolve nada do catálogo (FR-003). A leitura não vai para o registro de consultas: o catálogo não é
 /// dado sensível (research.md R5).
 /// </summary>
@@ -25,7 +25,7 @@ public static class ObterCatalogo
         {
             ArgumentNullException.ThrowIfNull(request);
 
-            if (!await autorizacao.PodeAcessarModuloAsync(Modulo.Sistemas))
+            if (!await autorizacao.PodeAcessarModuloAsync(Modulo.Catalogo_Sistemas))
             {
                 return Erros.Catalogo.AcessoNegado;
             }

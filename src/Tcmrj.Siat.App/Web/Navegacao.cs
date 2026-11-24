@@ -12,7 +12,7 @@ public static class Navegacao
 {
     public const string Home = "";
 
-    public const string RotaSistemas = "catalogo/sistemas";
+    public const string RotaCatalogo = "sistemas/catalogo";
 
     public const string RotaMailQueue = "consultas/mailqueue";
 
@@ -43,8 +43,8 @@ public static class Navegacao
     public const int QuantidadePadrao = 50;
 
     /// <summary>URL do catálogo de sistemas; busca vazia ou só com espaços fica fora da URL.</summary>
-    public static string Sistemas(string? busca = null) =>
-        Montar(RotaSistemas, (ParametroBusca, string.IsNullOrWhiteSpace(busca) ? null : busca));
+    public static string Catalogo(string? busca = null) =>
+        Montar(RotaCatalogo, (ParametroBusca, string.IsNullOrWhiteSpace(busca) ? null : busca));
 
     public static string MailQueue(string? servidor = null, int? smtp = null, string? texto = null, int? qtd = null, string? sel = null) =>
         Montar(

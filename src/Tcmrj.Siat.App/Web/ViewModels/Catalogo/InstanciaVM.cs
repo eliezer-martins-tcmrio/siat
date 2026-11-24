@@ -1,6 +1,6 @@
 using Tcmrj.Siat.Domain.Models.Catalogo;
 
-namespace Tcmrj.Siat.App.Web.ViewModels.Sistemas;
+namespace Tcmrj.Siat.App.Web.ViewModels.Catalogo;
 
 /// <summary>Um lugar onde o sistema roda num ambiente.</summary>
 public sealed record InstanciaVM(IReadOnlyList<EnderecoVM> Enderecos, IReadOnlyList<string> Maquinas, string? Caminho)

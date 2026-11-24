@@ -1,6 +1,6 @@
 using Tcmrj.Siat.App.Web.Services.Interfaces;
 
-namespace Tcmrj.Siat.App.Web.ViewModels.Sistemas;
+namespace Tcmrj.Siat.App.Web.ViewModels.Catalogo;
 
 /// <summary>Catálogo para a tela (data-model.md).</summary>
 /// <param name="Sistemas">Na ordem do catálogo (nome, pt-BR).</param>

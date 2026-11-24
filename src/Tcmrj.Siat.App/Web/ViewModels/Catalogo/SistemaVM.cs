@@ -2,7 +2,7 @@ using Tcmrj.Siat.Domain.Enums;
 using Tcmrj.Siat.Domain.Extensions;
 using Tcmrj.Siat.Domain.Models.Catalogo;
 
-namespace Tcmrj.Siat.App.Web.ViewModels.Sistemas;
+namespace Tcmrj.Siat.App.Web.ViewModels.Catalogo;
 
 /// <summary>Uma linha da tabela de Sistemas.</summary>
 /// <param name="Ambientes">Sempre as quatro entradas, na ordem DSV, HML, PRD e CONT.</param>

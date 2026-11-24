@@ -10,7 +10,7 @@ Funcionalidade: Permissões por módulo
     E a política tem o formato do UserManager para o recurso "<recurso>"
 
     Exemplos:
-      | modulo    | politica            | recurso   |
-      | MailQueue | MailQueue.CanSelect | MailQueue |
-      | AuditLog  | AuditLog.CanSelect  | AuditLog  |
-      | Sistemas  | Sistemas.CanSelect  | Sistemas  |
+      | modulo           | politica                   | recurso          |
+      | MailQueue        | MailQueue.CanSelect        | MailQueue        |
+      | AuditLog         | AuditLog.CanSelect         | AuditLog         |
+      | Catalogo_Sistemas | Catalogo_Sistemas.CanSelect | Catalogo_Sistemas |

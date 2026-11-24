@@ -35,11 +35,11 @@ public sealed class HomeTests : BunitContext
     [Fact]
     public void Com_Sistemas_vai_para_o_catalogo_substituindo_o_historico()
     {
-        Permitir(Modulo.Sistemas, Modulo.MailQueue, Modulo.AuditLog);
+        Permitir(Modulo.Catalogo_Sistemas, Modulo.MailQueue, Modulo.AuditLog);
 
         Render<Home>();
 
-        Navegacao.Uri.Should().EndWith("/catalogo/sistemas");
+        Navegacao.Uri.Should().EndWith("/sistemas/catalogo");
         Navegacao.History.First().Options.ReplaceHistoryEntry.Should().BeTrue();
     }
 
@@ -62,7 +62,7 @@ public sealed class HomeTests : BunitContext
 
         Navegacao.History.Should().BeEmpty();
         var texto = pagina.Find(".estado").TextContent;
-        texto.Should().Contain("Catalogo").And.Contain("catálogo de sistemas").And.Contain("Consultas")
+        texto.Should().Contain("Sistemas").And.Contain("catálogo de sistemas").And.Contain("Consultas")
             .And.Contain("MailQueue").And.Contain("AuditLog");
     }
 }

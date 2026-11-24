@@ -62,8 +62,8 @@ Quem dá suporte ou desenvolve perde tempo para responder perguntas rotineiras (
 
 | Recurso | Permite |
 |---|---|
-| `Sistemas.CanSelect` | Ver o catálogo de sistemas |
-| `Versoes.CanSelect` | Ver as versões publicadas |
+| `Catalogo_Sistemas.CanSelect` | Ver o catálogo de sistemas |
+| `Versoes_Sistemas.CanSelect` | Ver as versões publicadas |
 | `MailQueue.CanSelect` | Consultar MailQueue em DSV, HML e PRD |
 | `AuditLog.CanSelect` | Consultar AuditLog em DSV, HML e PRD |
 | `Documentacao.CanSelect` | Ler documentação e handbook |

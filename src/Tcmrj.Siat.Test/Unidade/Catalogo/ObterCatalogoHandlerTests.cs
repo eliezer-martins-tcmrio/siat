@@ -1,9 +1,9 @@
 using AwesomeAssertions;
 using CSharpFunctionalExtensions;
 using Moq;
-using Tcmrj.Siat.App.Web.Features.Sistemas;
+using Tcmrj.Siat.App.Web.Features.Catalogo;
 using Tcmrj.Siat.App.Web.Services.Interfaces;
-using Tcmrj.Siat.App.Web.ViewModels.Sistemas;
+using Tcmrj.Siat.App.Web.ViewModels.Catalogo;
 using Tcmrj.Siat.Domain.Enums;
 using Tcmrj.Siat.Domain.Models;
 using Tcmrj.Siat.Domain.Models.Catalogo;
@@ -21,7 +21,7 @@ public class ObterCatalogoHandlerTests
 
     public ObterCatalogoHandlerTests()
     {
-        _autorizacao.Setup(a => a.PodeAcessarModuloAsync(Modulo.Sistemas)).ReturnsAsync(true);
+        _autorizacao.Setup(a => a.PodeAcessarModuloAsync(Modulo.Catalogo_Sistemas)).ReturnsAsync(true);
         _handler = new ObterCatalogo.Handler(_autorizacao.Object, _servico.Object);
     }
 
@@ -56,7 +56,7 @@ public class ObterCatalogoHandlerTests
     [Fact]
     public async Task Sem_a_politica_devolve_AcessoNegado_sem_chamar_o_servico()
     {
-        _autorizacao.Setup(a => a.PodeAcessarModuloAsync(Modulo.Sistemas)).ReturnsAsync(false);
+        _autorizacao.Setup(a => a.PodeAcessarModuloAsync(Modulo.Catalogo_Sistemas)).ReturnsAsync(false);
 
         var resultado = await _handler.Handle(new ObterCatalogo.Query(false), CancellationToken.None);
 

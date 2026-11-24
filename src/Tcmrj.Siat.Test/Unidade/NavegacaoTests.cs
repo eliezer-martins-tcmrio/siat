@@ -57,14 +57,14 @@ public class NavegacaoTests
     [Fact]
     public void Sistemas_sem_busca_devolve_somente_a_rota()
     {
-        Navegacao.Sistemas().Should().Be("catalogo/sistemas");
-        Navegacao.RotaSistemas.Should().Be("catalogo/sistemas");
+        Navegacao.Catalogo().Should().Be("sistemas/catalogo");
+        Navegacao.RotaCatalogo.Should().Be("sistemas/catalogo");
     }
 
     [Fact]
     public void Sistemas_com_busca_codifica_o_texto()
     {
-        Navegacao.Sistemas("multas hml").Should().Be("catalogo/sistemas?busca=multas%20hml");
+        Navegacao.Catalogo("multas hml").Should().Be("sistemas/catalogo?busca=multas%20hml");
     }
 
     [Theory]
@@ -73,6 +73,6 @@ public class NavegacaoTests
     [InlineData("   ")]
     public void Sistemas_com_busca_vazia_fica_sem_parametro(string? busca)
     {
-        Navegacao.Sistemas(busca).Should().Be("catalogo/sistemas");
+        Navegacao.Catalogo(busca).Should().Be("sistemas/catalogo");
     }
 }

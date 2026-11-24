@@ -71,38 +71,38 @@ public sealed class MenuTests : BunitContext
     }
 
     [Fact]
-    public void Com_Sistemas_CanSelect_mostra_o_grupo_Catalogo_com_Sistemas()
+    public void Com_Catalogo_Sistemas_CanSelect_mostra_o_grupo_Sistemas_com_Catalogo()
     {
-        var menu = RenderizarCom("Sistemas.CanSelect");
+        var menu = RenderizarCom("Catalogo_Sistemas.CanSelect");
 
         var grupo = menu.Find(".menu-grupo");
-        grupo.GetAttribute("aria-label").Should().Be("Catálogo");
-        grupo.QuerySelector(".menu-titulo")!.TextContent.Should().Be("Catálogo");
+        grupo.GetAttribute("aria-label").Should().Be("Sistemas");
+        grupo.QuerySelector(".menu-titulo")!.TextContent.Should().Be("Sistemas");
         var itens = menu.FindAll("a.menu-item");
         itens.Should().ContainSingle();
-        itens[0].TextContent.Trim().Should().Be("Sistemas");
-        itens[0].GetAttribute("href").Should().Be("catalogo/sistemas");
+        itens[0].TextContent.Trim().Should().Be("Catálogo");
+        itens[0].GetAttribute("href").Should().Be("sistemas/catalogo");
         menu.Markup.Should().NotContain("Consultas");
     }
 
     [Fact]
-    public void O_grupo_Catalogo_vem_antes_de_Consultas()
+    public void O_grupo_Sistemas_vem_antes_de_Consultas()
     {
-        var menu = RenderizarCom("MailQueue.CanSelect", "Sistemas.CanSelect", "AuditLog.CanSelect");
+        var menu = RenderizarCom("MailQueue.CanSelect", "Catalogo_Sistemas.CanSelect", "AuditLog.CanSelect");
 
         menu.FindAll(".menu-grupo").Select(g => g.GetAttribute("aria-label"))
-            .Should().Equal("Catálogo", "Consultas");
+            .Should().Equal("Sistemas", "Consultas");
         menu.FindAll("a.menu-item").Select(a => a.TextContent.Trim())
-            .Should().Equal("Sistemas", "MailQueue", "AuditLog");
+            .Should().Equal("Catálogo", "MailQueue", "AuditLog");
     }
 
     [Fact]
-    public void Sem_Sistemas_CanSelect_o_grupo_Catalogo_nao_aparece()
+    public void Sem_Catalogo_Sistemas_CanSelect_o_grupo_Sistemas_nao_aparece()
     {
         var menu = RenderizarCom("MailQueue.CanSelect", "AuditLog.CanSelect");
 
         menu.FindAll(".menu-grupo").Select(g => g.GetAttribute("aria-label")).Should().Equal("Consultas");
-        menu.Markup.Should().NotContain("Catálogo");
-        menu.Markup.Should().NotContain("catalogo/sistemas");
+        menu.Markup.Should().NotContain("Sistemas");
+        menu.Markup.Should().NotContain("sistemas/catalogo");
     }
 }

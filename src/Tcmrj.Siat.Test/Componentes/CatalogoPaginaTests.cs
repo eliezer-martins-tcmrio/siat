@@ -6,29 +6,29 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NetDevPack.SimpleMediator;
-using Tcmrj.Siat.App.Web.Features.Sistemas;
+using Tcmrj.Siat.App.Web.Features.Catalogo;
 using Tcmrj.Siat.App.Web.Services.Interfaces;
-using Tcmrj.Siat.App.Web.ViewModels.Sistemas;
+using Tcmrj.Siat.App.Web.ViewModels.Catalogo;
 using Tcmrj.Siat.Domain.Enums;
 using Tcmrj.Siat.Domain.Models;
 using Tcmrj.Siat.Domain.Models.Catalogo;
-using Tcmrj.Siat.Web.Components.Pages.Catalogo;
+using Tcmrj.Siat.Web.Components.Pages.Sistemas;
 using Tcmrj.Siat.Web.Services;
 
 namespace Tcmrj.Siat.Test.Componentes;
 
 /// <summary>
-/// Página Catálogo › Sistemas: sem <c>Sistemas.CanSelect</c>, nada do catálogo sai (FR-003); com ele, tabela, busca
+/// Página Sistemas › Catálogo: sem <c>Catalogo_Sistemas.CanSelect</c>, nada do catálogo sai (FR-003); com ele, tabela, busca
 /// da URL, avisos e rodapé (contracts/rotas-ui.md).
 /// </summary>
-public sealed class SistemasPaginaTests : BunitContext
+public sealed class CatalogoPaginaTests : BunitContext
 {
     private static readonly DateTimeOffset LidoEm = new(2026, 11, 24, 13, 5, 0, TimeSpan.Zero);
 
     private readonly Mock<IAutorizacaoConsultaService> _autorizacao = new();
     private readonly Mock<IMediator> _mediador = new(MockBehavior.Strict);
 
-    public SistemasPaginaTests()
+    public CatalogoPaginaTests()
     {
         Services.AddSingleton(_autorizacao.Object);
         Services.AddSingleton(_mediador.Object);
@@ -53,21 +53,21 @@ public sealed class SistemasPaginaTests : BunitContext
     private void Devolver(Result<CatalogoVM, Erro> resultado) =>
         _mediador.Setup(m => m.Send(It.IsAny<ObterCatalogo.Query>(), It.IsAny<CancellationToken>())).ReturnsAsync(resultado);
 
-    private IRenderedComponent<Sistemas> Abrir(string url = "catalogo/sistemas", bool acesso = true)
+    private IRenderedComponent<Catalogo> Abrir(string url = "sistemas/catalogo", bool acesso = true)
     {
-        _autorizacao.Setup(a => a.PodeAcessarModuloAsync(Modulo.Sistemas)).ReturnsAsync(acesso);
+        _autorizacao.Setup(a => a.PodeAcessarModuloAsync(Modulo.Catalogo_Sistemas)).ReturnsAsync(acesso);
         Services.GetRequiredService<NavigationManager>().NavigateTo(url);
-        return Render<Sistemas>();
+        return Render<Catalogo>();
     }
 
     [Theory]
-    [InlineData("catalogo/sistemas")]
-    [InlineData("catalogo/sistemas?busca=etcm")]
+    [InlineData("sistemas/catalogo")]
+    [InlineData("sistemas/catalogo?busca=etcm")]
     public void Sem_Sistemas_CanSelect_mostra_acesso_negado_sem_chamar_a_feature(string url)
     {
         var pagina = Abrir(url, acesso: false);
 
-        pagina.Find(".mono").TextContent.Should().Be("Sistemas.CanSelect");
+        pagina.Find(".mono").TextContent.Should().Be("Catalogo_Sistemas.CanSelect");
         _mediador.VerifyNoOtherCalls();
         pagina.Markup.Should().NotContain("eTCM").And.NotContain("SGQ").And.NotContain("<table");
     }
@@ -98,7 +98,7 @@ public sealed class SistemasPaginaTests : BunitContext
     {
         Devolver(Catalogo());
 
-        var pagina = Abrir("catalogo/sistemas?busca=sgq");
+        var pagina = Abrir("sistemas/catalogo?busca=sgq");
 
         pagina.Find("input#busca-sistemas").GetAttribute("value").Should().Be("sgq");
         pagina.FindAll("tbody td.nome").Select(td => td.TextContent).Should().Equal("SGQ");
@@ -114,7 +114,7 @@ public sealed class SistemasPaginaTests : BunitContext
         pagina.Find("input#busca-sistemas").Input("multas hml");
 
         var navegacao = Services.GetRequiredService<Bunit.TestDoubles.BunitNavigationManager>();
-        navegacao.Uri.Should().EndWith("catalogo/sistemas?busca=multas%20hml");
+        navegacao.Uri.Should().EndWith("sistemas/catalogo?busca=multas%20hml");
         navegacao.History.First().Options.ReplaceHistoryEntry.Should().BeTrue();
     }
 
@@ -122,7 +122,7 @@ public sealed class SistemasPaginaTests : BunitContext
     public void Sem_resultado_mostra_o_estado_vazio_e_Limpar_busca_volta_a_lista()
     {
         Devolver(Catalogo());
-        var pagina = Abrir("catalogo/sistemas?busca=xyzxyz");
+        var pagina = Abrir("sistemas/catalogo?busca=xyzxyz");
 
         pagina.FindAll("table").Should().BeEmpty();
         pagina.Find(".estado h2").TextContent.Should().Be("Nenhum sistema encontrado");
@@ -130,7 +130,7 @@ public sealed class SistemasPaginaTests : BunitContext
         pagina.Find("#limpar-busca").Click();
 
         pagina.FindAll("tbody tr").Should().HaveCount(3);
-        Services.GetRequiredService<NavigationManager>().Uri.Should().EndWith("catalogo/sistemas");
+        Services.GetRequiredService<NavigationManager>().Uri.Should().EndWith("sistemas/catalogo");
         JSInterop.VerifyInvoke("siat.focar").Arguments.Should().Equal("busca-sistemas");
     }
 

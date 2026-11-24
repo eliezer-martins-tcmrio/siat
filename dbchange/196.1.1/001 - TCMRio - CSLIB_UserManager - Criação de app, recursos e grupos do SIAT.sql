@@ -51,13 +51,13 @@ BEGIN TRY
 	IF NOT EXISTS (SELECT * FROM AppResources WHERE [AppId] = @SIAT_AppID AND [Id] = @Recurso_Catalogo)
 	BEGIN
 		INSERT INTO AppResources ([AppId], [Id], [ParentId], [Description], [ResourceKey])
-		VALUES (@SIAT_AppID, @Recurso_Catalogo, NULL, 'Catálogo de sistemas', 'Catalogo_Sistema');
+		VALUES (@SIAT_AppID, @Recurso_Catalogo, NULL, 'Catálogo de sistemas', 'Catalogo_Sistemas');
 	END
 
 	IF NOT EXISTS (SELECT * FROM AppResources WHERE [AppId] = @SIAT_AppID AND [Id] = @Recurso_Versoes)
 	BEGIN
 		INSERT INTO AppResources ([AppId], [Id], [ParentId], [Description], [ResourceKey])
-		VALUES (@SIAT_AppID, @Recurso_Versoes, NULL, 'Versões de sistemas', 'Versoes_Sistema');
+		VALUES (@SIAT_AppID, @Recurso_Versoes, NULL, 'Versões de sistemas', 'Versoes_Sistemas');
 	END
 
 	-- GRUPOS

@@ -2,7 +2,7 @@
 
 Sistema Integrado de Apoio Técnico do TCMRio. Tem duas seções, ambas somente leitura:
 
-- **Catálogo › Sistemas**: onde cada sistema roda (URL, máquina e caminho por ambiente), lido do `sistemasDb.js` do TCMRJDoc no GitLab.
+- **Sistemas › Catálogo**: onde cada sistema roda (URL, máquina e caminho por ambiente), lido do `sistemasDb.js` do TCMRJDoc no GitLab.
 - **Consultas**: **MailQueue** e **AuditLog**, sobre uma lista fechada de servidores SQL Server.
 
 Especificação, plano e tarefas: `specs/001-consultas/` e `specs/002-catalogo-sistemas/`. Design: `DESIGN.md`.
@@ -13,7 +13,7 @@ O passo a passo completo, com os cenários de validação, está em [specs/001-c
 
 1. Instalar o SDK do .NET (veja [Versão do SDK](#versão-do-sdk)) e ter acesso ao feed `TCMRIO INTERNO` no `NuGet.Config`.
 2. Aplicar os scripts de `dbchange/196.1.1` no `CSLIB_UserManager` (veja [Scripts do banco](#scripts-do-banco-dbchange)).
-3. Gravar o token do GitLab do catálogo em `CatalogoSistemas:GitLab:Token` no `appsettings.json` (veja [Catálogo de sistemas](#catálogo-de-sistemas-catalogosistemas)). Sem ele o SIAT sobe e só a tela Sistemas mostra o erro.
+3. Gravar o token do GitLab do catálogo em `CatalogoSistemas:GitLab:Token` no `appsettings.json` (veja [Catálogo de sistemas](#catálogo-de-sistemas-catalogosistemas)). Sem ele o SIAT sobe e só a tela Catálogo mostra o erro.
 4. Conferir `TcmrjOidc:ClientId` e `TcmrjOidc:ClientSecret` no `appsettings` (veja [ClientSecret](#clientsecret)).
 5. Rodar:
 
@@ -45,11 +45,11 @@ O `ClientSecret` vem do `appsettings`, como o `ClientId`: `TcmrjOidc:ClientSecre
 
 ### Catálogo de sistemas (`CatalogoSistemas`)
 
-A tela **Catálogo › Sistemas** lê o `sistemasDb.js` do projeto `asi/TCMRJDoc` (o mesmo arquivo usado pelo `sistemas.html`) pela API de arquivos do GitLab, com um token de acesso do projeto TCMRJDoc (papel Reporter, escopo `read_repository`), criado pelo mantenedor do TCMRJDoc ([contracts/configuracao.md](specs/002-catalogo-sistemas/contracts/configuracao.md)). A leitura fica em cache por `MinutosDeCache` minutos; "Atualizar agora" relê na hora. Para corrigir um dado, edite o `sistemasDb.js` no GitLab (o rodapé da tela tem o link).
+A tela **Sistemas › Catálogo** lê o `sistemasDb.js` do projeto `asi/TCMRJDoc` (o mesmo arquivo usado pelo `sistemas.html`) pela API de arquivos do GitLab, com um token de acesso do projeto TCMRJDoc (papel Reporter, escopo `read_repository`), criado pelo mantenedor do TCMRJDoc ([contracts/configuracao.md](specs/002-catalogo-sistemas/contracts/configuracao.md)). A leitura fica em cache por `MinutosDeCache` minutos; "Atualizar agora" relê na hora. Para corrigir um dado, edite o `sistemasDb.js` no GitLab (o rodapé da tela tem o link).
 
 O token vai em `CatalogoSistemas:GitLab:Token`, no `appsettings.json`, junto do resto da seção, como o `ClientSecret` (constituição, Princípio III). Isso vale em desenvolvimento e no `appsettings.json` publicado no IIS. O SIAT não usa `dotnet user-secrets`. O token nunca aparece em mensagem de erro nem em log.
 
-Sem token, ou com a configuração inválida, o SIAT sobe normalmente e só a tela Sistemas mostra "A origem do catálogo não está configurada". O token do GitLab expira em até 365 dias: **renove-o uma vez por ano**, antes do vencimento, e troque o valor no `appsettings.json` de cada ambiente. Token vencido aparece na tela como "O GitLab recusou o acesso ao catálogo (token inválido ou expirado)".
+Sem token, ou com a configuração inválida, o SIAT sobe normalmente e só a tela Catálogo mostra "A origem do catálogo não está configurada". O token do GitLab expira em até 365 dias: **renove-o uma vez por ano**, antes do vencimento, e troque o valor no `appsettings.json` de cada ambiente. Token vencido aparece na tela como "O GitLab recusou o acesso ao catálogo (token inválido ou expirado)".
 
 ## Publicação no IIS
 
@@ -67,9 +67,8 @@ Em `dbchange/196.1.1`, para o `CSLIB_UserManager` (veja [contracts/usermanager.m
 
 | Script | O que faz |
 |---|---|
-| `001 ... Criação de app, recursos e grupos do SIAT.sql` | Cadastra a aplicação SIAT, os recursos `MailQueue` e `AuditLog` e o grupo `Consultas`. Idempotente. |
+| `001 ... Criação de app, recursos e grupos do SIAT.sql` | Cadastra a aplicação SIAT, os recursos `MailQueue` (`Id` 10), `AuditLog` (20), `Catalogo_Sistemas` (30) e `Versoes_Sistemas` (40) e os grupos `Consultas` (MailQueue e AuditLog) e `Sistemas` (catálogo e versões), com `CanSelect`. Idempotente. |
 | `002 ... OpenIddictApplications do SIAT.sql` | Cadastra os clientes OIDC `SIAT-dev` e `SIAT`. Idempotente. |
-| `003 ... Recurso Sistemas e grupo Catalogo do SIAT.sql` | Cadastra o recurso `Sistemas` (`Id` 30) e o grupo `Catalogo`, com `CanSelect`. Idempotente; exige o `001` já aplicado. |
 
 Antes de executar:
 
@@ -105,7 +104,7 @@ Quem tem o recurso do módulo vê e consulta os três, inclusive quando roda o S
 
 ### Permissões
 
-Um recurso por módulo (permissão `CanSelect`): `Sistemas` (grupo `Catalogo`), `MailQueue` e `AuditLog` (grupo `Consultas`). Nas consultas, o recurso libera os três ambientes (DSV, HML e PRD).
+Um recurso por módulo (permissão `CanSelect`): `Catalogo_Sistemas` e `Versoes_Sistemas` (grupo `Sistemas`), `MailQueue` e `AuditLog` (grupo `Consultas`). Nas consultas, o recurso libera os três ambientes (DSV, HML e PRD).
 
 Quem não tem o recurso do módulo não vê o item no menu (nem servidores no seletor, nas consultas), e a URL da consulta mostra "Acesso negado" sem consultar o banco. Em PRD a faixa de contexto fica destacada e avisa que a consulta é registrada em log. Toda tentativa de consulta, inclusive a negada, é registrada em `AUDITORIADB.audit.Log` (`TypeID` 10).
 

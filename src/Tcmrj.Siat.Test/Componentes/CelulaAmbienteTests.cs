@@ -1,6 +1,6 @@
 using AwesomeAssertions;
 using Bunit;
-using Tcmrj.Siat.App.Web.ViewModels.Sistemas;
+using Tcmrj.Siat.App.Web.ViewModels.Catalogo;
 using Tcmrj.Siat.Domain.Enums;
 using Tcmrj.Siat.Domain.Models.Catalogo;
 using Tcmrj.Siat.Web.Components.Shared;

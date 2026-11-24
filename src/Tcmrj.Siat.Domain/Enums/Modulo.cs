@@ -5,5 +5,5 @@ public enum Modulo
 {
     MailQueue,
     AuditLog,
-    Sistemas,
+    Catalogo_Sistemas,
 }
