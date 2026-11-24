@@ -56,7 +56,6 @@ de quem fez a alteração.
   (a página inicial que só encaminha ou informa a falta de acesso, e o logout) exigem apenas
   usuário autenticado. São anônimos só o login, os arquivos estáticos e a verificação de
   disponibilidade (`/saude`), que não lê nenhuma fonte de dados.
-- Dados de produção DEVEM ter recursos próprios, separados dos recursos de DSV/HML.
 - O acesso a SQL Server e a compartilhamentos de rede DEVE usar uma conta de serviço somente de
   leitura.
 - O usuário DEVE escolher o servidor apenas de uma lista fechada, em que cada servidor tem seu
@@ -73,7 +72,9 @@ de quem fez a alteração.
 
 **Justificativa**: o SIAT concentra em um só lugar o acesso a dados de produção de vários
 sistemas. Um único ponto de entrada mal protegido exporia todos eles; por isso este princípio não
-admite exceção, e o registro em log permite auditar quem consultou o quê. O modo `UsuarioDeRede`
+admite exceção, e o registro em log permite auditar quem consultou o quê. Cada módulo decide no
+seu plano se um só recurso libera todos os ambientes ou se produção tem recurso próprio, conforme
+a sensibilidade do que mostra. O modo `UsuarioDeRede`
 troca o ponto de entrada, mas não a proteção dos dados: só entra quem tem usuário interno e
 habilitado no UserManager, e a autorização por recurso, inclusive a dos dados de produção, é a
 mesma do OIDC. Por isso ele pode valer em todas as publicações, inclusive a de produção, até a
@@ -219,5 +220,6 @@ maiúsculas de minúsculas em nomes de pasta, e prefixos com grafias diferentes 
 | 1.4.0  | 2026-11-18 | Nova seção Fluxo de Trabalho no Git: padrão de nomes de branch (`features/`, `issues/`, `releases/` em minúsculo; só letras sem acento, números, `_`, `.` e `-`). MINOR: acréscimo de seção |
 | 1.5.0  | 2026-11-19 | Princípio III: modo experimental temporário `UsuarioDeRede` (usuário do Windows ligado ao usuário interno e habilitado do UserManager com o mesmo login), escolhido por `SiatConfiguration:Autenticacao`, só nas publicações de DSV e HML, enquanto a coordenação avalia a entrada pelo usuário de rede; o OIDC no SIA continua o padrão e o único modo em produção, e a autorização é a mesma nos dois. Explicita também que arquivos estáticos e `/saude` são anônimos. MINOR: muda uma regra sem remover nem redefinir o princípio, como na 1.2.0; a adoção em produção exigirá emenda MAJOR |
 | 2.0.0  | 2026-11-19 | Princípio III: o modo experimental `UsuarioDeRede` passa a ser permitido também na publicação de produção, além de DSV e HML; o OIDC no SIA continua o padrão, a autorização continua a mesma nos dois modos, e ao fim da avaliação da coordenação nova emenda torna o modo definitivo ou o retira. MAJOR: redefine a regra de autenticação do princípio, como a 1.5.0 previu para a adoção em produção |
+| 3.0.0  | 2026-11-24 | Princípio III: retirada a regra "Dados de produção DEVEM ter recursos próprios, separados dos recursos de DSV/HML". A exigência de recurso do UserManager verificado no servidor continua valendo para toda página que exibe dados e toda operação; cada módulo decide no plano se produção tem recurso próprio. Motivo: o catálogo de sistemas (feature 002) mostra a localização de produção ao lado das de DSV e HML, e a regra obrigava a separar o que o PRD define como um só recurso (`Sistemas.CanSelect`); as Consultas (feature 001) já usam um recurso por módulo para os três ambientes. MAJOR: afrouxa a proteção de dados de produção num princípio inegociável, mesmo critério da 2.0.0 |
 
-**Versão**: 2.0.0 | **Ratificada em**: 2026-11-09 | **Última emenda**: 2026-11-19
+**Versão**: 3.0.0 | **Ratificada em**: 2026-11-09 | **Última emenda**: 2026-11-24
