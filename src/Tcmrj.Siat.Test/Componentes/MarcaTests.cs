@@ -8,8 +8,8 @@ using Tcmrj.Siat.Web.Components.Layout;
 namespace Tcmrj.Siat.Test.Componentes;
 
 /// <summary>
-/// Marca do menu: sigla do TCMRio e "SIAT", o nome do sistema embaixo e, só fora de produção, o ambiente da
-/// publicação (Development = DSV, Staging = HML), como no SiCATI.
+/// Marca do menu: sigla do TCMRio e "SIAT", o nome do sistema embaixo e, só fora de produção, a fita da publicação
+/// (Development = desenvolvimento, Staging = homologação), separada da etiqueta de ambiente dos servidores.
 /// </summary>
 public sealed class MarcaTests : BunitContext
 {
@@ -34,17 +34,28 @@ public sealed class MarcaTests : BunitContext
     [Theory]
     [InlineData("Development", "dsv", "Desenvolvimento")]
     [InlineData("Staging", "hml", "Homologação")]
-    public void Fora_de_producao_mostra_o_ambiente(string ambiente, string sigla, string nome)
+    public void Fora_de_producao_mostra_a_fita_da_publicacao_antes_do_logo(string ambiente, string chave, string nome)
     {
-        var etiqueta = RenderizarEm(ambiente).Find(".marca-ambiente");
+        var marca = RenderizarEm(ambiente);
+        var fita = marca.Find(".fita-publicacao");
 
-        etiqueta.GetAttribute("data-amb").Should().Be(sigla);
-        etiqueta.TextContent.Should().Be(nome);
+        fita.GetAttribute("data-publicacao").Should().Be(chave);
+        fita.TextContent.Should().Be(nome);
+        marca.Find(".marca").FirstElementChild!.ClassName.Should().Be("fita-publicacao");
     }
 
     [Fact]
-    public void Em_producao_nao_mostra_ambiente()
+    public void A_publicacao_nao_usa_a_etiqueta_de_ambiente_de_servidor()
     {
-        RenderizarEm("Production").FindAll(".marca-ambiente").Should().BeEmpty();
+        var marca = RenderizarEm("Development");
+
+        marca.FindAll(".amb").Should().BeEmpty();
+        marca.FindAll("[data-amb]").Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Em_producao_nao_mostra_a_fita()
+    {
+        RenderizarEm("Production").FindAll(".fita-publicacao").Should().BeEmpty();
     }
 }

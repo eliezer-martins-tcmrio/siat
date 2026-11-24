@@ -1,10 +1,17 @@
 @inject IWebHostEnvironment Ambiente
 
 @* Marca no topo do menu, no padrão do SiCATI: sigla do TCMRio (positiva no claro, negativa no escuro, trocadas pelo
-   siat.css conforme data-theme) e "SIAT" após um divisor fino; embaixo, o nome do sistema e, fora de produção, o
-   ambiente da publicação (Development = DSV, Staging = HML), nas cores de ambiente do DESIGN.md.
+   siat.css conforme data-theme) e "SIAT" após um divisor fino; embaixo, o nome do sistema.
+   Fora de produção, uma fita de borda a borda no topo do menu diz em que publicação do SIAT o usuário está
+   (Development = desenvolvimento, vermelho; Staging = homologação, verde), na convenção dos outros sistemas do
+   Tribunal. A fita é a única forma e o único lugar dessa informação: o ambiente do servidor consultado continua com a
+   sigla em caixa (.amb) e a faixa de contexto, com as cores de ambiente (DESIGN.md, Publicação).
    Não alterar cores nem proporções do logo (DESIGN.md, Marca). *@
 <div class="marca">
+    @if (PublicacaoAtual() is var (chave, nome))
+    {
+        <p class="fita-publicacao" data-publicacao="@chave">@nome</p>
+    }
     <a class="marca-link" href="" aria-label="SIAT, Sistema Integrado de Apoio Técnico do TCMRio. Ir para o início">
         <span class="marca-linha">
             <img class="logo-claro" src="img/tcmrio-sigla.png" width="109" height="20" alt="" />
@@ -13,18 +20,14 @@
         </span>
         <span class="marca-nome">Sistema Integrado de Apoio Técnico</span>
     </a>
-    @if (AmbienteDaPublicacao() is var (sigla, nome))
-    {
-        <span class="amb marca-ambiente" data-amb="@sigla">@nome</span>
-    }
 </div>
 
 @code {
     /// <summary>
-    /// Ambiente em que o SIAT está publicado, pelo <c>ASPNETCORE_ENVIRONMENT</c>, como no SiCATI. Em produção não
-    /// mostra nada: a etiqueta só serve para não confundir uma cópia de teste com a de produção.
+    /// Publicação do SIAT, pelo <c>ASPNETCORE_ENVIRONMENT</c>, como no SiCATI. Em produção não mostra nada: a fita só
+    /// serve para não confundir uma cópia de teste com a de produção.
     /// </summary>
-    private (string Sigla, string Nome)? AmbienteDaPublicacao() =>
+    private (string Chave, string Nome)? PublicacaoAtual() =>
         Ambiente.IsDevelopment() ? ("dsv", "Desenvolvimento")
         : Ambiente.IsStaging() ? ("hml", "Homologação")
         : null;

@@ -46,6 +46,11 @@
   --color-env-prd-soft: oklch(95.5% 0.025 20);
   --color-env-prd-line: oklch(80% 0.08 22);
   --color-env-prd-solid: oklch(44% 0.155 27);
+  /* Publicação do próprio SIAT (fita no topo do menu), na convenção dos sistemas do Tribunal: vermelho em DSV,
+     verde em HML. Só a .fita-publicacao usa estes tokens; não confundir com --color-env-* (servidor consultado). */
+  --color-publicacao-dsv: oklch(50% 0.19 27);
+  --color-publicacao-hml: oklch(48% 0.13 150);
+  --color-publicacao-tinta: oklch(99% 0 0);
   --color-env-cont: oklch(44% 0.015 250);
   --color-env-cont-soft: oklch(95% 0.005 250);
   --color-env-cont-line: oklch(80% 0.012 250);
@@ -185,7 +190,18 @@ a { color: var(--color-brand); text-decoration-line: underline; text-underline-o
   font-weight: 700; font-size: 15px; letter-spacing: 0.01em;
 }
 .marca-nome { font-size: 11px; line-height: 1.35; white-space: nowrap; color: var(--color-sidebar-ink); }
-.marca-ambiente { text-transform: uppercase; }
+
+/* Fita da publicação: de borda a borda no topo do menu (desfaz o padding do .menu e o da .marca), palavra inteira em
+   fundo sólido. Forma e lugar exclusivos, para não ser lida como ambiente de servidor nem como estado. */
+.fita-publicacao {
+  align-self: stretch;
+  margin: -20px -14px 4px; padding: 5px 14px;
+  background: var(--fita); color: var(--color-publicacao-tinta);
+  font-size: 11px; font-weight: 700; line-height: 16px; letter-spacing: 0.08em;
+  text-transform: uppercase; text-align: center;
+}
+.fita-publicacao[data-publicacao="dsv"] { --fita: var(--color-publicacao-dsv); }
+.fita-publicacao[data-publicacao="hml"] { --fita: var(--color-publicacao-hml); }
 
 .menu-nav { display: flex; flex-direction: column; gap: 14px; }
 .menu-grupo { display: flex; flex-direction: column; gap: 2px; }
@@ -256,7 +272,10 @@ a.menu-item:hover { background: oklch(from var(--color-sidebar-strong) l c h / 0
   }
   .menu-nav { flex-direction: row; gap: 2px; overflow-x: auto; margin: 0 -8px; padding: 0 8px; }
   .menu-grupo { flex-direction: row; }
-  .menu-titulo, .menu-fase, .conta, .menu-rodape .so-desktop, .marca-nome { display: none; }  .menu-item[aria-current="page"] { box-shadow: inset 0 -3px 0 var(--color-accent); }
+  .menu-titulo, .menu-fase, .conta, .menu-rodape .so-desktop, .marca-nome { display: none; }
+  .fita-publicacao { margin: -12px -18px 4px; }
+  /* O rodapé fica no canto superior da barra: desce para baixo da fita (26px). */
+  .menu:has(.fita-publicacao) .menu-rodape { top: 36px; }  .menu-item[aria-current="page"] { box-shadow: inset 0 -3px 0 var(--color-accent); }
   .menu-rodape { flex-direction: row; margin: 0; padding: 0; border: 0; position: absolute; right: 16px; top: 10px; }
   .menu-rodape a, .menu-rodape button { margin: 0; }
   /* Em coluna, o margin auto impedia o esticamento: o conteúdo crescia até a largura mínima das tabelas e a página

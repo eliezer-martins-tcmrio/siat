@@ -10,7 +10,7 @@ Identidade do TCMRio em versão contida, mais o ambiente em primeiro plano. Toke
 - Cores da marca do TCMRio: marinho `#083050` e celeste `#3499b8`. O marinho fica só no que é clicável (ação primária, links) e no item ativo do menu; o celeste, na barra do item ativo e em decoração.
 - Texto em grafite neutro, quase sem matiz, inclusive nos títulos: `ink` para corpo e títulos, `muted` para o auxiliar. Nada de texto azulado.
 - Menu lateral claro, separado do conteúdo por uma borda fina, sem bloco de cor. Conteúdo em fundo branco, painéis de borda fina. Sem degradês.
-- Cor forte só para duas coisas: ambiente (DSV, HML, PRD, Contingência) e estado (ok, aviso, erro).
+- Cor forte só para três coisas: ambiente do servidor (DSV, HML, PRD, Contingência), estado (ok, aviso, erro) e a fita da publicação do próprio SIAT fora de produção (ver Publicação).
 - Densidade maior apenas nas listas de resultado (13px); o resto segue 14px.
 
 ## Navegação
@@ -19,7 +19,7 @@ Menu lateral de 208px, fixo, em grupos: **Sistemas** (Catálogo, Versões), **Co
 
 ## Marca
 
-Logo simplificado do TCMRio (sigla) no topo do menu, com 20px de altura, seguido de "SIAT" após um divisor fino. Versão positiva no tema claro (`design/img/tcmrio-sigla.png`) e negativa no escuro (`design/img/tcmrio-sigla-negativo.png`), conforme o manual de marca. Não alterar cores nem proporções do logo.
+Logo simplificado do TCMRio (sigla) no topo do menu, com 20px de altura, seguido de "SIAT" após um divisor fino; embaixo, "Sistema Integrado de Apoio Técnico" numa linha só (11px). Fora de produção, a fita da publicação fica acima do logo (ver Publicação). Versão positiva no tema claro (`design/img/tcmrio-sigla.png`) e negativa no escuro (`design/img/tcmrio-sigla-negativo.png`), conforme o manual de marca. Não alterar cores nem proporções do logo.
 
 Do restante da identidade, o SIAT usa só o marinho e o celeste. Areia, coral, gradientes, ondas e Lato/Merriweather ficam de fora: são para peças de comunicação, e coral competiria com o vermelho de PRD e de erro.
 
@@ -37,6 +37,20 @@ Cada um tem `-soft` (fundo) e `-line` (borda); PRD tem também `-solid`. Os comp
 - **Etiqueta de ambiente** (`.amb`): sigla em caixa reta com borda. **Pílula de estado** (`.pilula`): arredondada, preenchida, com ponto. A forma diferente impede que PRD seja lido como erro.
 - **Seletor de servidor** (`.seletor-servidor`): lista fechada agrupada por ambiente, com a etiqueta do ambiente dentro do controle. Não existe campo de servidor livre.
 - **Faixa de contexto** (`.contexto`): primeira coisa da página em toda tela que consulta um servidor, fixa ao rolar. DSV e HML em fundo suave; PRD em fundo sólido, com o aviso de que a consulta fica registrada em log.
+
+## Publicação
+
+O ambiente do **servidor consultado** (acima) e a **publicação do próprio SIAT** são informações diferentes: uma cópia de desenvolvimento do SIAT pode consultar um servidor de produção. Por isso a publicação tem cor, forma e lugar próprios.
+
+| Publicação | Token | Cor |
+|---|---|---|
+| Desenvolvimento (`Development`) | `--color-publicacao-dsv` | vermelho |
+| Homologação (`Staging`) | `--color-publicacao-hml` | verde |
+| Produção | — | sem fita |
+
+- **Fita da publicação** (`.fita-publicacao`): faixa sólida de borda a borda no topo do menu, com a palavra inteira em caixa alta e texto branco, na convenção dos outros sistemas do Tribunal (como o SiCATI). Só aparece fora de produção.
+- Forma e lugar exclusivos: a fita nunca aparece no conteúdo e nunca usa sigla; o ambiente do servidor nunca aparece no menu como fita. Assim o vermelho da fita não é lido como PRD nem como erro, e o verde não é lido como ok.
+- Os tokens `--color-publicacao-*` só são usados pela fita.
 
 ## Tokens
 
