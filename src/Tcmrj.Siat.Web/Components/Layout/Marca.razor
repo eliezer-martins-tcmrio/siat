@@ -1,7 +1,31 @@
-@* Sigla do TCMRio (positiva no claro, negativa no escuro, trocadas pelo siat.css conforme data-theme)
-   seguida de "SIAT" após um divisor fino. Não alterar cores nem proporções do logo (DESIGN.md, Marca). *@
-<a class="marca" href="" aria-label="SIAT, Sistema Integrado de Apoio Técnico do TCMRio. Ir para o início">
-    <img class="logo-claro" src="img/tcmrio-sigla.png" width="109" height="20" alt="" />
-    <img class="logo-escuro" src="img/tcmrio-sigla-negativo.png" width="109" height="20" alt="" />
-    <span>SIAT</span>
-</a>
+@inject IWebHostEnvironment Ambiente
+
+@* Marca no topo do menu, no padrão do SiCATI: sigla do TCMRio (positiva no claro, negativa no escuro, trocadas pelo
+   siat.css conforme data-theme) e "SIAT" após um divisor fino; embaixo, o nome do sistema e, fora de produção, o
+   ambiente da publicação (Development = DSV, Staging = HML), nas cores de ambiente do DESIGN.md.
+   Não alterar cores nem proporções do logo (DESIGN.md, Marca). *@
+<div class="marca">
+    <a class="marca-link" href="" aria-label="SIAT, Sistema Integrado de Apoio Técnico do TCMRio. Ir para o início">
+        <span class="marca-linha">
+            <img class="logo-claro" src="img/tcmrio-sigla.png" width="109" height="20" alt="" />
+            <img class="logo-escuro" src="img/tcmrio-sigla-negativo.png" width="109" height="20" alt="" />
+            <span class="marca-sigla">SIAT</span>
+        </span>
+        <span class="marca-nome">Sistema Integrado de Apoio Técnico</span>
+    </a>
+    @if (AmbienteDaPublicacao() is var (sigla, nome))
+    {
+        <span class="amb marca-ambiente" data-amb="@sigla">@nome</span>
+    }
+</div>
+
+@code {
+    /// <summary>
+    /// Ambiente em que o SIAT está publicado, pelo <c>ASPNETCORE_ENVIRONMENT</c>, como no SiCATI. Em produção não
+    /// mostra nada: a etiqueta só serve para não confundir uma cópia de teste com a de produção.
+    /// </summary>
+    private (string Sigla, string Nome)? AmbienteDaPublicacao() =>
+        Ambiente.IsDevelopment() ? ("dsv", "Desenvolvimento")
+        : Ambiente.IsStaging() ? ("hml", "Homologação")
+        : null;
+}

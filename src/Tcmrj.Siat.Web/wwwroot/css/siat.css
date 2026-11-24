@@ -172,15 +172,20 @@ a { color: var(--color-brand); text-decoration-line: underline; text-underline-o
   overflow-y: auto;
 }
 
-.marca {
-  display: flex; align-items: center; gap: 10px; padding: 0 6px;
-  color: var(--color-sidebar-strong); font-weight: 700; font-size: 15px;
-  text-decoration: none; letter-spacing: 0.01em;
-}
+/* Marca: sigla do TCMRio | SIAT; embaixo o nome do sistema e, fora de produção, o ambiente. */
+/* Recuo de 2px (e não 6px) para o nome do sistema caber numa linha nos 208px do menu. */
+.marca { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 0 2px; }
+.marca-link { display: flex; flex-direction: column; gap: 6px; text-decoration: none; color: var(--color-sidebar-strong); }
+.marca-linha { display: flex; align-items: center; gap: 10px; }
 .marca img { display: block; height: 20px; width: auto; }
 .marca .logo-escuro, :root[data-theme="dark"] .marca .logo-claro { display: none; }
 :root[data-theme="dark"] .marca .logo-escuro { display: block; }
-.marca > span { padding-left: 10px; border-left: 1px solid var(--color-sidebar-line); line-height: 20px; }
+.marca-sigla {
+  padding-left: 10px; border-left: 1px solid var(--color-sidebar-line); line-height: 20px;
+  font-weight: 700; font-size: 15px; letter-spacing: 0.01em;
+}
+.marca-nome { font-size: 11px; line-height: 1.35; white-space: nowrap; color: var(--color-sidebar-ink); }
+.marca-ambiente { text-transform: uppercase; }
 
 .menu-nav { display: flex; flex-direction: column; gap: 14px; }
 .menu-grupo { display: flex; flex-direction: column; gap: 2px; }
@@ -251,8 +256,7 @@ a.menu-item:hover { background: oklch(from var(--color-sidebar-strong) l c h / 0
   }
   .menu-nav { flex-direction: row; gap: 2px; overflow-x: auto; margin: 0 -8px; padding: 0 8px; }
   .menu-grupo { flex-direction: row; }
-  .menu-titulo, .menu-fase, .conta, .menu-rodape .so-desktop { display: none; }
-  .menu-item[aria-current="page"] { box-shadow: inset 0 -3px 0 var(--color-accent); }
+  .menu-titulo, .menu-fase, .conta, .menu-rodape .so-desktop, .marca-nome { display: none; }  .menu-item[aria-current="page"] { box-shadow: inset 0 -3px 0 var(--color-accent); }
   .menu-rodape { flex-direction: row; margin: 0; padding: 0; border: 0; position: absolute; right: 16px; top: 10px; }
   .menu-rodape a, .menu-rodape button { margin: 0; }
   /* Em coluna, o margin auto impedia o esticamento: o conteúdo crescia até a largura mínima das tabelas e a página
