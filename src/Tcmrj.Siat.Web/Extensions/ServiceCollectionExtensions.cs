@@ -12,7 +12,7 @@ public static class ServiceCollectionExtensions
 {
     /// <summary>
     /// Registra as features, os validadores, os services do App, a lista fechada de servidores, as consultas, o
-    /// catálogo de sistemas e a <see cref="IInteracao"/>. Tudo que depende do usuário é Scoped (um por circuito).
+    /// catálogo de sistemas, as versões publicadas e a <see cref="IInteracao"/>. Tudo que depende do usuário é Scoped (um por circuito).
     /// </summary>
     public static WebApplicationBuilder AddTcmrjSiat(this WebApplicationBuilder builder)
     {
@@ -49,6 +49,13 @@ public static class ServiceCollectionExtensions
         services.AddCatalogoSistemas(builder.Configuration);
         services.Configure<CacheDoCatalogoOptions>(builder.Configuration.GetSection(CacheDoCatalogoOptions.Secao));
         services.AddSingleton<ICatalogoSistemasService, CatalogoSistemasService>();
+
+        // Versões publicadas: tabela de endereços (servidor escolhido) e arquivos de versão (UNC e http/https), com o
+        // resultado em memória por servidor (singleton). Sem a seção Versoes, valem os padrões (Princípio IV).
+        services.AddVersoes(builder.Configuration);
+        services.Configure<CacheDeVersoesOptions>(builder.Configuration.GetSection(CacheDeVersoesOptions.Secao));
+        services.AddTransient<LeitorDeVersoes>();
+        services.AddSingleton<IVersoesPublicadasService, VersoesPublicadasService>();
 
         // Exportação em HTML autocontido (história 4; sem estado).
         services.AddSingleton<IExportacaoHtmlService, ExportacaoHtmlService>();

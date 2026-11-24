@@ -15,6 +15,8 @@ public sealed class Servidor
 
     public const string BancoAuditoriaPadrao = "AUDITORIADB";
 
+    public const string BancoUserManagerPadrao = "CSLIB_UserManager";
+
     /// <summary>Obrigatória, única na lista, <c>^[a-z0-9-]{1,40}$</c>; é o único valor que vai na URL.</summary>
     public string Chave { get; set; } = string.Empty;
 
@@ -29,4 +31,7 @@ public sealed class Servidor
     public string BancoMailQueue { get; set; } = BancoMailQueuePadrao;
 
     public string BancoAuditoria { get; set; } = BancoAuditoriaPadrao;
+
+    /// <summary>Banco com <c>dbo.Apps_VersionAddresses</c>, lido pelas Versões Publicadas (research.md R1 da 003).</summary>
+    public string BancoUserManager { get; set; } = BancoUserManagerPadrao;
 }

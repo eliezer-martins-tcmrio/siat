@@ -1,6 +1,6 @@
 @inject IAuthorizationService Autorizacao
 
-@* Grupos do menu, na ordem: Sistemas (Catálogo) e Consultas (MailQueue, AuditLog). Cada item aparece para quem tem
+@* Grupos do menu, na ordem: Sistemas (Catálogo e Versões) e Consultas (MailQueue, AuditLog). Cada item aparece para quem tem
    a política do módulo (Modulo.Politica(), a mesma em todos os ambientes); o grupo some quando nenhum item dele
    aparece (FR-003). A autorização real é feita na página e na feature (FR-004). *@
 <nav class="menu-nav" aria-label="Navegação principal">
@@ -25,6 +25,7 @@
         new("Sistemas",
         [
             new(Modulo.Catalogo_Sistemas, "Catálogo", Navegacao.RotaCatalogo, "server"),
+            new(Modulo.Versoes_Sistemas, "Versões", Navegacao.RotaVersoes, "git-compare"),
         ]),
         new("Consultas",
         [

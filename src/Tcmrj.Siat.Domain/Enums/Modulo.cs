@@ -6,4 +6,5 @@ public enum Modulo
     MailQueue,
     AuditLog,
     Catalogo_Sistemas,
+    Versoes_Sistemas,
 }

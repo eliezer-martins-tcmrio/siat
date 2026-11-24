@@ -1,0 +1,611 @@
+@page "/sistemas/versoes"
+@attribute [Authorize]
+@implements IDisposable
+@using CSharpFunctionalExtensions
+@using Microsoft.Extensions.Options
+@using NetDevPack.SimpleMediator
+@using Tcmrj.Siat.App.Web.ViewModels.Versoes
+@using Tcmrj.Siat.Domain.Models
+@using Tcmrj.Siat.Web.Services
+@using Servicos = Tcmrj.Siat.App.Web.Services
+@using ListarPermitidos = Tcmrj.Siat.App.Web.Features.Servidores.ListarPermitidos
+@using ObterVersoes = Tcmrj.Siat.App.Web.Features.Versoes.ObterVersoes
+@using ObterAndamento = Tcmrj.Siat.App.Web.Features.Versoes.ObterAndamento
+@inject IAutorizacaoConsultaService AutorizacaoConsulta
+@inject IMediator Mediator
+@inject NavigationManager Navigation
+@inject IInteracao Interacao
+@inject TimeProvider Relogio
+@inject IJSRuntime JS
+@inject IOptionsMonitor<Servicos.CacheDeVersoesOptions> Opcoes
+
+@* Sistemas › Versões publicadas (specs/003-versoes-publicadas; contrato visual design/versoes.html).
+   - Acesso: no OnInitializedAsync, Versoes_Sistemas.CanSelect, antes de ler os parâmetros e de chamar qualquer
+     feature; sem ele, AcessoNegado. A feature autoriza de novo antes de devolver dados (FR-003).
+   - Servidor dos endereços: lista fechada de ListarPermitidos(Versoes_Sistemas), com o ServidorPadrao da configuração
+     quando a URL não traz um. Chave fora da lista: aviso e o padrão. Padrão fora da lista: pede para escolher.
+   - Leitura: uma por vez no ControleConsulta; trocar de servidor descarta a leitura e o resultado do anterior.
+     Enquanto lê, ObterAndamento a cada segundo troca "Lendo endereços em {servidor}" por "Lendo {N} arquivos de
+     versão" (research.md R10). Cancelar volta ao resultado anterior ou, sem ele, ao erro com "Tentar de novo". Fechar
+     a página cancela a leitura e o acompanhamento.
+   - Filtros: FiltroLocal sobre o nome (sem acento e minúsculas) e o grupo segmentado por situação. Servidor, busca e
+     filtro vão para a URL com replace; abrir a URL restaura os três.
+   - Versões, caminhos e mensagens vêm de arquivos e da tabela: sempre texto codificado pelo Razor (FR-021). *@
+
+@if (acesso is null)
+{
+    <PageTitle>Versões publicadas · SIAT</PageTitle>
+}
+else if (acesso == false)
+{
+    <AcessoNegado Mensagem="Você não tem acesso às versões publicadas" Recurso="@Modulo.Versoes_Sistemas.Politica()" />
+}
+else
+{
+    @if (ServidorAtual is { } contexto)
+    {
+        <FaixaContexto Servidor="contexto" Modulo="Versões" Aviso="@(contexto.EhPrd ? AvisoPrd : null)" />
+    }
+
+    <CabecalhoPagina Titulo="Versões publicadas" Descricao="Versão de cada sistema em DSV, HML e PRD, nas duas máquinas de cada ambiente.">
+        <Status>
+            @if (VersoesAtuais is { } lidas)
+            {
+                <span class="status" role="status">Gerado às @Hora(lidas.GeradoEm) em @Segundos(lidas.Duracao)</span>
+            }
+        </Status>
+        <Acoes>
+            <button type="button" class="botao secundario pequeno" id="atualizar" disabled="@(Lendo || chave is null)" @onclick="AtualizarAsync">
+                <LucideIcon Name="refresh-cw" Size="14" aria-hidden="true" focusable="false" />
+                Atualizar agora
+            </button>
+        </Acoes>
+    </CabecalhoPagina>
+
+    <div class="painel filtros" role="group" aria-label="Servidor dos endereços">
+        <SeletorServidor Grupos="grupos" Valor="@chave" ValorChanged="AoEscolherServidorAsync" Id="servidor" Rotulo="Servidor dos endereços" />
+    </div>
+
+    @if (avisoServidor is not null)
+    {
+        <Aviso>@avisoServidor</Aviso>
+    }
+
+    @if (VersoesAtuais?.Falha is { } falha)
+    {
+        <Aviso>
+            Não foi possível atualizar as versões: @SemPontoFinal(falha.Mensagem). Dados gerados às @Hora(VersoesAtuais.GeradoEm).
+        </Aviso>
+    }
+    else if (leituras.Estado == Servicos.EstadoConsulta.ComErro && VersoesAtuais is not null && leituras.Erro is { } erroDaReleitura)
+    {
+        <Aviso>
+            Não foi possível atualizar as versões: @SemPontoFinal(erroDaReleitura.Message). Dados gerados às @Hora(VersoesAtuais.GeradoEm).
+        </Aviso>
+    }
+
+    @if (VersoesAtuais is { Total: > 0 } comResumo)
+    {
+        <dl class="resumo" aria-label="Resumo das versões">
+            <div><dt>Sistemas</dt><dd>@comResumo.Total</dd></div>
+            <div><dt><span class="marcador" style="background: var(--color-ok)" aria-hidden="true"></span>Sem pendências</dt><dd>@comResumo.SemPendencias</dd></div>
+            <div><dt><span class="marcador" style="background: var(--color-warn)" aria-hidden="true"></span>Com divergência</dt><dd>@comResumo.ComDivergencia</dd></div>
+            <div><dt><span class="marcador" style="background: var(--color-bad)" aria-hidden="true"></span>Com erro</dt><dd>@comResumo.ComErro</dd></div>
+        </dl>
+    }
+
+    <section class="painel" aria-label="Versões por sistema">
+        @if (chave is null)
+        {
+            <EstadoVazio Titulo="Escolha o servidor dos endereços"
+                         Mensagem="O servidor padrão das versões não está entre os servidores que você pode consultar. Escolha um na lista acima." />
+        }
+        else if (Lendo)
+        {
+            <EstadoCarregando Mensagem="@MensagemDaLeitura" Linhas="@(VersoesAtuais is null ? 6 : 0)"
+                              Inicio="leituras.InicioAtual" AoCancelar="Cancelar"
+                              DicaCancelar="Interrompe a leitura dos endereços e dos arquivos de versão" />
+        }
+        else if (VersoesAtuais is null && leituras.Estado == Servicos.EstadoConsulta.ComErro && leituras.Erro is { } erro)
+        {
+            <EstadoErro Titulo="@($"Não foi possível ler as versões em {NomeDoServidor}")" Motivo="@erro.Message" AoTentarDeNovo="TentarDeNovoAsync"
+                        Orientacao="Os endereços vêm de CSLIB_UserManager.dbo.Apps_VersionAddresses. Os outros módulos continuam funcionando." />
+        }
+        else if (VersoesAtuais is null && leituras.Cancelada)
+        {
+            <EstadoErro Titulo="Leitura das versões cancelada" Motivo="@Erros.Versoes.Cancelada.Message" AoTentarDeNovo="TentarDeNovoAsync"
+                        Orientacao="Nenhum dado foi lido. Tente de novo quando quiser." />
+        }
+
+        @if (chave is not null && VersoesAtuais is { } versoes)
+        {
+            @if (versoes.Total == 0)
+            {
+                <EstadoVazio Titulo="@($"Nenhum sistema cadastrado em {versoes.Servidor.Nome}")"
+                             Mensagem="Os endereços de versão são cadastrados em CSLIB_UserManager.dbo.Apps_VersionAddresses; só os registros ativos aparecem aqui." />
+            }
+            else
+            {
+                <FiltroLocal TItem="SistemaVersoesVM" Itens="versoes.Sistemas" TextoDe="NomeDoSistema" Texto="@busca" TextoChanged="AoBuscar"
+                             Selecao="SelecaoDoFiltro" Unidade="sistemas" Rotulo="Filtrar por sistema" Id="@IdDaBusca">
+                    <Acoes>
+                        <div class="segmentado" role="group" aria-label="Filtrar por situação">
+                            @foreach (var (opcao, rotulo, quantidade) in OpcoesDeFiltro(versoes))
+                            {
+                                <button type="button" data-filtro="@opcao" aria-pressed="@(opcao == filtro ? "true" : "false")"
+                                        @onclick="() => EscolherFiltro(opcao)">@rotulo<span class="num">@quantidade</span></button>
+                            }
+                        </div>
+                    </Acoes>
+                    <ChildContent Context="visiveis">
+                        @if (visiveis.Count == 0)
+                        {
+                            <EstadoVazio Titulo="Nenhum sistema neste filtro" Mensagem="@TextoDoVazio">
+                                <Acoes>
+                                    <button type="button" class="botao secundario pequeno" id="ver-todos" @onclick="VerTodosAsync">Ver todos</button>
+                                </Acoes>
+                            </EstadoVazio>
+                        }
+                        else
+                        {
+                            <div class="tabela-rolagem">
+                                <table class="tabela tabela-versoes">
+                                    <thead>
+                                        <tr>
+                                            <th scope="col" rowspan="2">Sistema</th>
+                                            @foreach (var ambiente in Ambientes)
+                                            {
+                                                <th scope="colgroup" colspan="2" class="divisa" data-amb="@ambiente.DataAmb()"><span class="amb">@ambiente.Descricao()</span></th>
+                                            }
+                                        </tr>
+                                        <tr>
+                                            @foreach (var ambiente in Ambientes)
+                                            {
+                                                <th scope="col" class="divisa">Máquina 1</th>
+                                                <th scope="col">Máquina 2</th>
+                                            }
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var sistema in visiveis)
+                                        {
+                                            var aberto = abertos.Contains(sistema.Id);
+                                            var idDetalhe = $"versoes-detalhe-{sistema.Id}";
+                                            <tr class="linha-expansivel" @key="sistema.Id" @onclick="() => Alternar(sistema.Id)">
+                                                <td class="nome">
+                                                    <button type="button" class="expansor" aria-expanded="@(aberto ? "true" : "false")"
+                                                            aria-controls="@(aberto ? idDetalhe : null)" aria-label="@($"Caminhos consultados de {sistema.Nome}")"
+                                                            @onclick="() => Alternar(sistema.Id)" @onclick:stopPropagation="true">
+                                                        @Seta
+                                                    </button>@sistema.Nome
+                                                </td>
+                                                @foreach (var celula in sistema.Celulas)
+                                                {
+                                                    <CelulaVersao Celula="celula" Divergente="celula.Divergente" />
+                                                }
+                                            </tr>
+                                            @if (aberto)
+                                            {
+                                                <tr class="linha-detalhe" @key="@($"detalhe-{sistema.Id}")" id="@idDetalhe">
+                                                    <td colspan="7">
+                                                        @if (sistema.Consultadas.Any())
+                                                        {
+                                                            <div class="caminhos">
+                                                                @foreach (var celula in sistema.Consultadas)
+                                                                {
+                                                                    var amb = celula.AmbienteDescricao;
+                                                                    var maquina = celula.NumeroDaMaquina;
+                                                                    <span data-amb="@celula.DataAmb"><span class="amb">@amb</span></span>
+                                                                    <span class="suave">Máquina @maquina</span>
+                                                                    <span class="caminho"><span class="mono">@celula.Caminho</span><BotaoCopiar Texto="@(celula.Caminho!)" Rotulo="@($"caminho de {amb}, máquina {maquina}, do {sistema.Nome}")" /></span>
+                                                                    @if (celula.CaminhoDoRaiz is { } raiz)
+                                                                    {
+                                                                        <span class="caminho-raiz"><span class="suave">Sistema raiz:</span> <span class="mono">@raiz</span><BotaoCopiar Texto="@raiz" Rotulo="@($"caminho do sistema raiz de {amb}, máquina {maquina}, do {sistema.Nome}")" /></span>
+                                                                    }
+                                                                    @if (celula.Mensagem is { } mensagem)
+                                                                    {
+                                                                        <span class="erro-msg">@mensagem</span>
+                                                                    }
+                                                                }
+                                                            </div>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="suave">Nenhum endereço configurado para este sistema.</span>
+                                                        }
+                                                    </td>
+                                                </tr>
+                                            }
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </ChildContent>
+                </FiltroLocal>
+
+                <div class="legenda">
+                    <span><span class="versao ok">1.4.2</span> versão publicada</span>
+                    <span><span class="versao divergente">1.4.2</span> difere da outra máquina do ambiente</span>
+                    <span><span class="pilula erro">Erro</span> falha ao ler o arquivo de versão</span>
+                    <span><span class="vazio-cel" aria-hidden="true">–</span> não configurado</span>
+                    <span>Abra a linha para ver o caminho consultado.</span>
+                </div>
+            }
+        }
+    </section>
+
+    <footer class="rodape">
+        <span>
+            Endereços: @if (ServidorAtual is { } doRodape)
+            {
+                <span class="mono">@doRodape.Nome</span><text> · </text>
+            }<span class="mono">CSLIB_UserManager.dbo.Apps_VersionAddresses</span> (registros ativos).
+            O resultado fica em cache por @MinutosDeCache minutos.
+        </span>
+    </footer>
+}
+
+@code {
+    /// <summary>Id do campo de busca (o "Ver todos" devolve o foco a ele).</summary>
+    public const string IdDaBusca = "busca-versoes";
+
+    private static readonly TimeSpan IntervaloDoAndamento = TimeSpan.FromSeconds(1);
+
+    private static readonly CultureInfo PtBr = CultureInfo.GetCultureInfo("pt-BR");
+
+    private static readonly Ambiente[] Ambientes = [Ambiente.Dsv, Ambiente.Hml, Ambiente.Prd];
+
+    private static readonly Func<SistemaVersoesVM, string?> NomeDoSistema = s => s.NomeNormalizado;
+
+    // Uma instância por regra: o FiltroLocal só refaz a seleção quando a instância muda.
+    private static readonly Func<SistemaVersoesVM, bool> SoComDivergencia = s => s.TemDivergencia;
+
+    private static readonly Func<SistemaVersoesVM, bool> SoComErro = s => s.TemErro;
+
+    // Seta do Lucide (chevron-right) em SVG fixo: evita um componente de ícone por linha.
+    private static readonly MarkupString Seta = new(
+        "<svg width=\"15\" height=\"15\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" " +
+        "stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\"><path d=\"m9 18 6-6-6-6\"/></svg>");
+
+    // PRD na faixa: a leitura das versões não vai para o DBLog (research.md R6), então o aviso padrão não vale aqui.
+    private static readonly RenderFragment AvisoPrd = @<text>Produção</text>;
+
+    [SupplyParameterFromQuery(Name = Navegacao.ParametroServidor)]
+    public string? ServidorParametro { get; set; }
+
+    [SupplyParameterFromQuery(Name = Navegacao.ParametroBusca)]
+    public string? BuscaParametro { get; set; }
+
+    [SupplyParameterFromQuery(Name = Navegacao.ParametroFiltro)]
+    public string? FiltroParametro { get; set; }
+
+    /// <summary>Servidor, busca e filtro como ficam na URL.</summary>
+    private sealed record EstadoDaUrl(string? Servidor, string? Busca, FiltroDeSituacao Filtro);
+
+    private bool? acesso;
+    private bool descartada;
+    private Servicos.ControleConsulta<VersoesVM> leituras = default!;
+    private IReadOnlyList<GrupoServidoresVM> grupos = [];
+
+    // Chave do servidor em uso (nula: o padrão não está na lista e ninguém escolheu outro) e o aviso de chave da URL
+    // fora da lista.
+    private string? chave;
+    private string? avisoServidor;
+
+    // Quantidade de arquivos da leitura em andamento (ObterAndamento), ou nula enquanto lê os endereços.
+    private int? quantidade;
+
+    private string? busca;
+    private FiltroDeSituacao filtro;
+    private readonly HashSet<int> abertos = [];
+
+    // Estado que veio da URL e os que a própria página gravou e ainda não voltaram pelo OnParametersSet (a navegação
+    // vai ao navegador e volta): eles não podem sobrescrever o que mudou depois.
+    private EstadoDaUrl? urlVista;
+    private readonly List<EstadoDaUrl> gravadas = [];
+
+    private VersoesVM? VersoesAtuais => leituras.Resultado;
+
+    private bool Lendo => leituras.Estado == Servicos.EstadoConsulta.Consultando;
+
+    private IEnumerable<ServidorVM> Permitidos => grupos.SelectMany(g => g.Servidores);
+
+    private ServidorVM? ServidorAtual => chave is null ? null : Buscar(chave);
+
+    private string NomeDoServidor => ServidorAtual?.Nome ?? chave ?? string.Empty;
+
+    private int MinutosDeCache => Opcoes.CurrentValue.MinutosDeCache;
+
+    private string MensagemDaLeitura => quantidade is { } n
+        ? $"Lendo {n.ToString(PtBr)} {(n == 1 ? "arquivo" : "arquivos")} de versão"
+        : $"Lendo endereços em {NomeDoServidor}";
+
+    private Func<SistemaVersoesVM, bool>? SelecaoDoFiltro => filtro switch
+    {
+        FiltroDeSituacao.ComDivergencia => SoComDivergencia,
+        FiltroDeSituacao.ComErro => SoComErro,
+        _ => null,
+    };
+
+    private string TextoDoVazio
+    {
+        get
+        {
+            var nenhum = filtro switch
+            {
+                FiltroDeSituacao.ComDivergencia => "nenhum sistema com divergência",
+                FiltroDeSituacao.ComErro => "nenhum sistema com erro",
+                _ => "nenhum sistema",
+            };
+            return string.IsNullOrWhiteSpace(busca)
+                ? $"Não há {nenhum} nesta leitura."
+                : $"Não há {nenhum} com \"{busca.Trim()}\" no nome.";
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        leituras = new(Relogio);
+
+        // O acesso vem antes de tudo: sem ele, nem os parâmetros são lidos nem feature alguma é chamada.
+        acesso = await AutorizacaoConsulta.PodeAcessarModuloAsync(Modulo.Versoes_Sistemas);
+        if (acesso != true)
+        {
+            return;
+        }
+
+        var daUrl = LerUrl();
+        urlVista = daUrl;
+        busca = daUrl.Busca;
+        filtro = daUrl.Filtro;
+        grupos = await Mediator.Send(new ListarPermitidos.Query(Modulo.Versoes_Sistemas), CancellationToken.None);
+        (chave, avisoServidor) = Resolver(daUrl.Servidor);
+        await LerAsync(atualizar: false);
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (acesso != true || urlVista is null)
+        {
+            return;
+        }
+
+        // Só a mudança dos parâmetros interessa: outras renderizações do pai não mexem na tela.
+        var daUrl = LerUrl();
+        if (daUrl == urlVista)
+        {
+            return;
+        }
+
+        urlVista = daUrl;
+        var indice = gravadas.IndexOf(daUrl);
+        if (indice >= 0)
+        {
+            // Volta de uma navegação da própria página: descarta até ela, sem mexer na tela.
+            gravadas.RemoveRange(0, indice + 1);
+            return;
+        }
+
+        // Mudança de fora (voltar do navegador, link): a URL manda.
+        gravadas.Clear();
+        busca = daUrl.Busca;
+        filtro = daUrl.Filtro;
+        var (novo, aviso) = Resolver(daUrl.Servidor);
+        avisoServidor = aviso;
+        if (!string.Equals(novo, chave, StringComparison.Ordinal))
+        {
+            await TrocarServidorAsync(novo);
+        }
+    }
+
+    private EstadoDaUrl LerUrl() =>
+        new(Normalizar(ServidorParametro), Normalizar(BuscaParametro), Navegacao.LerFiltro(FiltroParametro));
+
+    private ServidorVM? Buscar(string procurada) =>
+        Permitidos.FirstOrDefault(s => string.Equals(s.Chave, procurada, StringComparison.Ordinal));
+
+    // Chave da URL na lista: ela. Fora da lista: o padrão, com aviso. Padrão fora da lista: nenhum (pede a escolha).
+    private (string? Chave, string? Aviso) Resolver(string? pedida)
+    {
+        if (pedida is not null && Buscar(pedida) is not null)
+        {
+            return (pedida, null);
+        }
+
+        var padrao = Buscar(Opcoes.CurrentValue.ServidorPadrao);
+        string? aviso = pedida is null
+            ? null
+            : padrao is null
+                ? $"O servidor {pedida} não está na lista; escolha um servidor."
+                : $"O servidor {pedida} não está na lista; mostrando {padrao.Nome}.";
+        return (padrao?.Chave, aviso);
+    }
+
+    private void Gravar()
+    {
+        var servidorDaUrl = string.Equals(chave, Opcoes.CurrentValue.ServidorPadrao, StringComparison.Ordinal) ? null : chave;
+        var estado = new EstadoDaUrl(servidorDaUrl, Normalizar(busca), filtro);
+        gravadas.Add(estado);
+        Navigation.NavigateTo(Navegacao.Versoes(estado.Servidor, estado.Busca, estado.Filtro), replace: true);
+    }
+
+    private async Task AoEscolherServidorAsync(string? escolhida)
+    {
+        if (escolhida is null || string.Equals(escolhida, chave, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        Interacao.Interagir();
+        avisoServidor = null;
+        chave = escolhida;
+        Gravar();
+        await TrocarServidorAsync(escolhida);
+    }
+
+    // Outro servidor: a leitura e o resultado do anterior saem da tela (o resultado novo vem do cache, se válido).
+    private async Task TrocarServidorAsync(string? nova)
+    {
+        leituras.Dispose();
+        leituras = new(Relogio);
+        abertos.Clear();
+        chave = nova;
+        await LerAsync(atualizar: false);
+    }
+
+    private void AoBuscar(string? texto)
+    {
+        busca = texto;
+        Gravar();
+    }
+
+    private void EscolherFiltro(FiltroDeSituacao escolhido)
+    {
+        Interacao.Interagir();
+        filtro = escolhido;
+        Gravar();
+    }
+
+    private async Task VerTodosAsync()
+    {
+        busca = string.Empty;
+        filtro = FiltroDeSituacao.Todos;
+        Gravar();
+        try
+        {
+            await JS.InvokeVoidAsync("siat.focar", IdDaBusca);
+        }
+        catch (JSDisconnectedException)
+        {
+            // Página fechada: nada a focar.
+        }
+    }
+
+    private void Alternar(int id)
+    {
+        if (!abertos.Remove(id))
+        {
+            abertos.Add(id);
+        }
+    }
+
+    private Task AtualizarAsync() => LerAsync(atualizar: true);
+
+    private Task TentarDeNovoAsync() => LerAsync(atualizar: true);
+
+    private async Task LerAsync(bool atualizar)
+    {
+        if (descartada || chave is not { } servidor)
+        {
+            return;
+        }
+
+        if (atualizar)
+        {
+            Interacao.Interagir();
+        }
+
+        var controle = leituras;
+        var tentativa = controle.Iniciar();
+        quantidade = null;
+        StateHasChanged();
+
+        Result<VersoesVM, Erro> obtido;
+        CancellationTokenSource? acompanhamento = null;
+        try
+        {
+            var envio = Mediator.Send(new ObterVersoes.Query(servidor, atualizar), tentativa.Token);
+
+            // Só acompanha a leitura que ficou pendente (a do cache volta na hora); o acompanhamento vive enquanto ela
+            // dura e morre com ela se a página fechar ou o usuário cancelar.
+            if (!envio.IsCompleted)
+            {
+                acompanhamento = CancellationTokenSource.CreateLinkedTokenSource(tentativa.Token);
+                _ = AcompanharAsync(servidor, acompanhamento.Token);
+            }
+
+            obtido = await envio;
+        }
+        catch (OperationCanceledException)
+        {
+            obtido = Erros.Versoes.Cancelada;
+        }
+        finally
+        {
+            // Cancel síncrono: o CancelAsync devolveria a continuação depois de renderizar o resultado.
+            acompanhamento?.Cancel();
+            acompanhamento?.Dispose();
+        }
+
+        // Vale só a última leitura do servidor atual; a página fechada não mexe na tela.
+        if (!controle.Concluir(tentativa, obtido))
+        {
+            return;
+        }
+
+        if (obtido.IsFailure && obtido.Error.Code == Erros.Versoes.CodigoAcessoNegado)
+        {
+            // O acesso foi retirado durante o uso: nenhuma versão fica na tela.
+            acesso = false;
+        }
+    }
+
+    // Consulta a quantidade de arquivos a cada segundo (research.md R10); para quando a leitura termina.
+    private async Task AcompanharAsync(string servidor, CancellationToken token)
+    {
+        try
+        {
+            while (!token.IsCancellationRequested)
+            {
+                await Task.Delay(IntervaloDoAndamento, Relogio, token);
+                var andamento = await Mediator.Send(new ObterAndamento.Query(servidor), token);
+                if (token.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                if (andamento.IsSuccess && andamento.Value is { } n && n != quantidade)
+                {
+                    quantidade = n;
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Leitura concluída, cancelada ou página fechada.
+        }
+        catch (ObjectDisposedException)
+        {
+            // Página fechada durante a renderização.
+        }
+    }
+
+    private void Cancelar()
+    {
+        Interacao.Interagir();
+        leituras.Cancelar();
+    }
+
+    private static IEnumerable<(FiltroDeSituacao Opcao, string Rotulo, int Quantidade)> OpcoesDeFiltro(VersoesVM versoes) =>
+    [
+        (FiltroDeSituacao.Todos, "Todos", versoes.Total),
+        (FiltroDeSituacao.ComDivergencia, "Com divergência", versoes.ComDivergencia),
+        (FiltroDeSituacao.ComErro, "Com erro", versoes.ComErro),
+    ];
+
+    private static string? Normalizar(string? texto) => string.IsNullOrWhiteSpace(texto) ? null : texto;
+
+    private static string Hora(DateTimeOffset momento) => momento.ToLocalTime().ToString("HH:mm", PtBr);
+
+    private static string Segundos(TimeSpan duracao) => $"{duracao.TotalSeconds.ToString("0.0", PtBr)} s";
+
+    private static string SemPontoFinal(string mensagem) => mensagem.TrimEnd().TrimEnd('.');
+
+    public void Dispose()
+    {
+        descartada = true;
+        leituras?.Dispose();
+    }
+}

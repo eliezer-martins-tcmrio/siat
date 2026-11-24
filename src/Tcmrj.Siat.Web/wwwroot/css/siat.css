@@ -533,7 +533,7 @@ a.menu-item:hover { background: oklch(from var(--color-sidebar-strong) l c h / 0
 
 /* Célula de versão (tela Versões) */
 .versao { font-family: var(--font-mono); font-size: 13px; font-variant-numeric: tabular-nums; }
-.versao.diverge {
+.versao.diverge, .versao.divergente {
   display: inline-block; padding: 0 8px; border-radius: 999px; line-height: 21px;
   background: var(--color-warn-soft); color: var(--color-warn); font-weight: 600;
 }
@@ -546,6 +546,18 @@ a.menu-item:hover { background: oklch(from var(--color-sidebar-strong) l c h / 0
 .expansor { display: inline-grid; place-items: center; width: 22px; height: 22px; border: 0; border-radius: 5px; background: none; color: var(--color-muted); vertical-align: -5px; margin-right: 4px; }
 .expansor svg { transition: rotate 150ms cubic-bezier(0.25, 1, 0.5, 1); }
 [aria-expanded="true"] > svg, [aria-expanded="true"] .seta { rotate: 90deg; }
+
+/* Tabela de Versões (design/versoes.html): cabeçalho fixo em duas linhas (a segunda abaixo da primeira, que tem 39 px),
+   versões sem quebra e rolagem nas duas direções, como a do catálogo. */
+.tabela-rolagem:has(> .tabela-versoes) { max-height: calc(100dvh - 32px); overflow: auto; }
+.tabela-versoes { min-width: 860px; }
+.tabela-versoes th, .tabela-versoes td { white-space: nowrap; }
+.tabela-versoes td.nome { white-space: normal; min-width: 220px; }
+.tabela-versoes thead tr:nth-child(2) th { top: 39px; font-weight: 400; }
+.tabela-versoes .linha-detalhe td { white-space: normal; }
+.caminhos .caminho, .caminhos .caminho-raiz { display: flex; align-items: flex-start; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
+.caminhos .caminho-raiz { grid-column: 3; }
+.legenda { display: flex; flex-wrap: wrap; gap: 6px 20px; padding: 12px 18px; font-size: 12px; color: var(--color-muted); align-items: center; }
 
 /* ---------- Lista expansível de resultados ---------- */
 

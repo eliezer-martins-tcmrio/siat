@@ -75,4 +75,46 @@ public class NavegacaoTests
     {
         Navegacao.Catalogo(busca).Should().Be("sistemas/catalogo");
     }
+
+    [Fact]
+    public void Versoes_sem_parametros_devolve_somente_a_rota()
+    {
+        Navegacao.Versoes().Should().Be("sistemas/versoes");
+        Navegacao.RotaVersoes.Should().Be("sistemas/versoes");
+    }
+
+    [Fact]
+    public void Versoes_monta_servidor_busca_e_filtro_nessa_ordem()
+    {
+        Navegacao.Versoes("tcmbd4-hml", "etcm", FiltroDeSituacao.ComDivergencia)
+            .Should().Be("sistemas/versoes?servidor=tcmbd4-hml&busca=etcm&filtro=div");
+        Navegacao.Versoes(filtro: FiltroDeSituacao.ComErro).Should().Be("sistemas/versoes?filtro=erro");
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Versoes_com_busca_vazia_servidor_nulo_e_filtro_Todos_fica_sem_parametros(string? busca)
+    {
+        Navegacao.Versoes(null, busca, FiltroDeSituacao.Todos).Should().Be("sistemas/versoes");
+    }
+
+    [Fact]
+    public void Versoes_codifica_a_busca()
+    {
+        Navegacao.Versoes(busca: "etcm impressão").Should().Be("sistemas/versoes?busca=etcm%20impress%C3%A3o");
+    }
+
+    [Theory]
+    [InlineData("div", FiltroDeSituacao.ComDivergencia)]
+    [InlineData("erro", FiltroDeSituacao.ComErro)]
+    [InlineData(null, FiltroDeSituacao.Todos)]
+    [InlineData("", FiltroDeSituacao.Todos)]
+    [InlineData("xyz", FiltroDeSituacao.Todos)]
+    [InlineData("DIV", FiltroDeSituacao.Todos)]
+    public void LerFiltro_aceita_div_e_erro_e_o_resto_e_Todos(string? valor, FiltroDeSituacao esperado)
+    {
+        Navegacao.LerFiltro(valor).Should().Be(esperado);
+    }
 }

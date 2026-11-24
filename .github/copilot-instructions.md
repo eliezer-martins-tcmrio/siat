@@ -1,7 +1,7 @@
 # Instruções para agentes no SIAT
 
 SIAT (Sistema Integrado de Apoio Técnico) é a aplicação web interna do TCMRio que reúne ferramentas de
-consulta para suporte e desenvolvedores: **Sistemas › Catálogo** e **Consultas** (MailQueue e AuditLog).
+consulta para suporte e desenvolvedores: **Sistemas › Catálogo e Versões** e **Consultas** (MailQueue e AuditLog).
 Visão geral, configuração e publicação: [README.md](../README.md). Design: [DESIGN.md](../DESIGN.md).
 
 ## Regras que prevalecem
@@ -45,7 +45,7 @@ Solução .NET 10 (`net10.0`, C# 14) no padrão do projeto-modelo do Tribunal, c
   (autorização, registro de consulta) em `Web/Services`.
 - `Tcmrj.Siat.Domain`: modelos, enums (`Modulo`, ambientes), erros (`Erros.*`) e contratos de repositório.
 - `Tcmrj.Siat.Infra`: repositórios com `Microsoft.Data.SqlClient` e SQL embutido em `Sql/*.sql`
-  (`EmbeddedResource`), fábrica de conexões (`Conexoes/`), leitura do catálogo no GitLab (`Catalogo/`) e
+  (`EmbeddedResource`), fábrica de conexões (`Conexoes/`), leitura do catálogo no GitLab (`Catalogo/`), leitura dos arquivos de versão (`Versoes/`) e
   opções de configuração (`Configurations/`). **Não há EF Core nem `DbContext` de negócio.**
 - `Tcmrj.Siat.Test`: xUnit v3 + Reqnroll (BDD em português) + bUnit + AwesomeAssertions + Moq.
 
