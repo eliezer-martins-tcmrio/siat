@@ -11,7 +11,7 @@
     "https-usuario-de-rede": {
       "commandName": "Project",
       "launchBrowser": true,
-      "applicationUrl": "https://localhost:7271",
+      "applicationUrl": "https://localhost:7000",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "SiatConfiguration__Autenticacao": "UsuarioDeRede"

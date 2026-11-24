@@ -6,7 +6,7 @@ $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 Set-Location $scriptPath\..\src\Tcmrj.Siat.Web
 
-dotnet run --framework net10.0 --configuration Release
+dotnet run --framework net10.0 --configuration Release --launch-profile https-usuario-de-rede
 
 Set-Location $scriptPath
 
