@@ -1,7 +1,7 @@
 # language: pt
 Funcionalidade: Permissões por módulo
-  Cada módulo da seção Consultas exige uma política do UserManager. O mesmo recurso libera
-  os três ambientes (DSV, HML e PRD).
+  Cada módulo do SIAT (Catálogo e Consultas) exige uma política do UserManager. O mesmo recurso
+  libera todos os ambientes do módulo.
 
   Esquema do Cenário: Política exigida para consultar um módulo
     Dado o módulo "<modulo>"
@@ -13,3 +13,4 @@ Funcionalidade: Permissões por módulo
       | modulo    | politica            | recurso   |
       | MailQueue | MailQueue.CanSelect | MailQueue |
       | AuditLog  | AuditLog.CanSelect  | AuditLog  |
+      | Sistemas  | Sistemas.CanSelect  | Sistemas  |

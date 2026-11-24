@@ -1,0 +1,32 @@
+{
+  "version": 2,
+  "skills": {
+    "tlc-spec-driven": {
+      "name": "tlc-spec-driven",
+      "source": "local",
+      "contentHash": "e8c2380a57817ef2406da1977668a39ba7721bdcb5c430fb87f2f82d6b34ae18",
+      "installedAt": "2026-11-24T10:21:45.038Z",
+      "updatedAt": "2026-11-24T10:21:45.206Z",
+      "agents": [
+        "cursor",
+        "claude-code",
+        "windsurf"
+      ],
+      "method": "copy",
+      "global": false
+    },
+    "tlc-spec-lean": {
+      "name": "tlc-spec-lean",
+      "source": "local",
+      "contentHash": "788382a643dcb946c6062764e7a5af73995aaf2724357b1c478fa494b1723262",
+      "installedAt": "2026-11-24T10:23:52.977Z",
+      "updatedAt": "2026-11-24T10:23:53.019Z",
+      "agents": [
+        "cursor",
+        "claude-code"
+      ],
+      "method": "copy",
+      "global": false
+    }
+  }
+}

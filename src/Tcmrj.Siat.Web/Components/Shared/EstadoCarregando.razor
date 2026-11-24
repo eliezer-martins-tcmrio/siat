@@ -24,7 +24,7 @@
             @Acoes
             @if (mostrarCancelar)
             {
-                <button type="button" class="botao secundario pequeno" id="cancelar" title="Interrompe o comando no SQL Server"
+                <button type="button" class="botao secundario pequeno" id="cancelar" title="@DicaCancelar"
                         @onclick="AoCancelar">Cancelar</button>
             }
         </span>
@@ -72,6 +72,10 @@
     /// <summary>Com delegado, mostra Cancelar depois de 1 s.</summary>
     [Parameter]
     public EventCallback AoCancelar { get; set; }
+
+    /// <summary>Dica do botão Cancelar (o que ele interrompe).</summary>
+    [Parameter]
+    public string DicaCancelar { get; set; } = "Interrompe o comando no SQL Server";
 
     /// <summary>Ações à direita do texto.</summary>
     [Parameter]

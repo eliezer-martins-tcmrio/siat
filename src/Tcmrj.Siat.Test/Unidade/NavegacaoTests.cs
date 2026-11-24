@@ -53,4 +53,26 @@ public class NavegacaoTests
     {
         Navegacao.AuditLog(qtd: 1000).Should().Be("consultas/auditlog?qtd=1000");
     }
+
+    [Fact]
+    public void Sistemas_sem_busca_devolve_somente_a_rota()
+    {
+        Navegacao.Sistemas().Should().Be("catalogo/sistemas");
+        Navegacao.RotaSistemas.Should().Be("catalogo/sistemas");
+    }
+
+    [Fact]
+    public void Sistemas_com_busca_codifica_o_texto()
+    {
+        Navegacao.Sistemas("multas hml").Should().Be("catalogo/sistemas?busca=multas%20hml");
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Sistemas_com_busca_vazia_fica_sem_parametro(string? busca)
+    {
+        Navegacao.Sistemas(busca).Should().Be("catalogo/sistemas");
+    }
 }

@@ -15,7 +15,7 @@
     <label class="busca">
         <span class="so-leitor">@Rotulo</span>
         <LucideIcon Name="search" Size="16" aria-hidden="true" focusable="false" />
-        <input class="entrada" id="@Id" type="search" data-busca placeholder="@Rotulo" autocomplete="off"
+        <input class="entrada" id="@Id" type="search" data-busca placeholder="@(Placeholder ?? Rotulo)" autocomplete="off"
                @bind:get="Texto" @bind:set="MudarAsync" @bind:event="oninput" @onkeydown="AoTeclarAsync" />
         <kbd aria-hidden="true">/</kbd>
     </label>
@@ -50,9 +50,13 @@
     [Parameter]
     public string Unidade { get; set; } = "itens";
 
-    /// <summary>Nome acessível e placeholder do campo.</summary>
+    /// <summary>Nome acessível do campo; também o placeholder quando <see cref="Placeholder"/> não é informado.</summary>
     [Parameter]
     public string Rotulo { get; set; } = "Filtrar os resultados carregados";
+
+    /// <summary>Texto de exemplo dentro do campo (opcional); sem ele, o placeholder é o <see cref="Rotulo"/>.</summary>
+    [Parameter]
+    public string? Placeholder { get; set; }
 
     [Parameter]
     public string Id { get; set; } = "filtro-local";

@@ -138,6 +138,13 @@ window.siat = (function () {
     setTimeout(() => URL.revokeObjectURL(url), 10000);
   }
 
+  // ---------- Foco ----------
+  // Devolve o foco a um campo pelo id (por exemplo, a busca depois de "Limpar busca" no catálogo de sistemas).
+  function focar(id) {
+    const elemento = document.getElementById(id);
+    if (elemento) elemento.focus();
+  }
+
   // ---------- Formulário ----------
   // Envia o formulário pelo método nativo, sem passar pelo evento submit (usado por EncerrarSessao.razor, que não pode
   // chamar "HTMLFormElement.prototype.submit.call" direto: o resolvedor do Blazor recusa o segmento "prototype").
@@ -145,5 +152,5 @@ window.siat = (function () {
     HTMLFormElement.prototype.submit.call(formulario);
   }
 
-  return { temaSalvo, definirTema, aplicarTema, copiar, mostrarOpcao, baixarArquivo, enviarFormulario };
+  return { temaSalvo, definirTema, aplicarTema, copiar, mostrarOpcao, baixarArquivo, enviarFormulario, focar };
 })();

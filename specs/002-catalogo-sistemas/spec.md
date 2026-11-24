@@ -187,7 +187,7 @@ Só quem tem o recurso do catálogo vê o item no menu e os dados; quem não tem
 - O SIAT só lê o catálogo; editá-lo continua sendo editar o arquivo de origem pelo GitLab. A edição pelo módulo de Documentação (fase 6) fica fora desta feature.
 - Um único recurso, `Sistemas.CanSelect`, libera todos os ambientes, como define o PRD (RG-02) e permite a constituição desde a v3.0.0. O catálogo descreve onde os sistemas rodam, não dados de negócio; por isso a leitura não é registrada no log de consultas a dados sensíveis.
 - Quem recebe `Sistemas.CanSelect` (grupo do UserManager) é definido pela coordenação; a mensagem de acesso negado indica o recurso.
-- A leitura da origem usa credencial somente de leitura da aplicação, guardada fora do repositório, e não o token do usuário.
+- A leitura da origem usa credencial somente de leitura da aplicação, guardada na configuração da aplicação (`appsettings`), e não o token do usuário.
 - O formato do catálogo mantém os campos atuais (nome, DSV, HML, PRD, CONT, observação; instâncias com URL, máquina e caminho); campos novos (tipo de sistema, job do Jenkins, endereço de versão) ficam para as fases de Versões e Builds.
 - O `sistemas.html` continua disponível até o módulo ser validado pelos usuários (Princípio IV), lendo o mesmo `sistemasDb.js`. Migrar para um `sistemas.json` (PRD SI-04) fica para quando o `sistemas.html` for aposentado, e o PRD deve registrar essa decisão.
 - O branch principal do repositório TCMRJDoc é a versão do catálogo que vale.

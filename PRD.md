@@ -104,7 +104,7 @@ Substitui `TCMRJDoc/sistemas.html`.
 - SI-01: Lista de sistemas com, para cada ambiente (DSV, HML, PRD, Contingência), uma ou mais instâncias com URL, máquina e caminho, além de observação.
 - SI-02: Busca por vários termos, sem diferenciar acentos e maiúsculas, em todos os campos.
 - SI-03: URLs clicáveis; caminhos e máquinas copiáveis com um clique.
-- SI-04: Dados lidos do JSON no GitLab (migração do `sistemasDb.js`). Editar o catálogo é editar esse arquivo pelo módulo de Documentação ou pelo GitLab.
+- SI-04: Dados lidos do `sistemasDb.js` do TCMRJDoc no GitLab, o mesmo arquivo do `sistemas.html`, enquanto o `sistemas.html` estiver em uso. A migração para um `sistemas.json` fica para quando o `sistemas.html` for aposentado. Editar o catálogo é editar esse arquivo pelo GitLab (ou pelo módulo de Documentação, quando existir).
 
 ### 7.2 Versões publicadas
 
@@ -173,7 +173,7 @@ Integração com o Jenkins (`asi_builds`).
 - RNF-02: **.NET 10**, com referência às bibliotecas internas (`Tcmrj.Autenticacao.AspNetCore`, `Tcmrj.Autorizacao.App`, `Tcmrj.CoreLib.*`).
 - RNF-03: SQL sempre com `SqlParameter` e connection string montada com `SqlConnectionStringBuilder`. Planos de execução das consultas MailQueue e AuditLog medidos com e sem filtros antes da publicação.
 - RNF-04: As páginas abrem em até 2 s. As consultas mostram o progresso e podem ser canceladas.
-- RNF-05: Segredos (PAT do GitHub, segredos OAuth) fora do repositório, em configuração protegida do servidor.
+- RNF-05: Segredos (PAT do GitHub, segredos OAuth) fora do repositório, em configuração protegida do servidor. Exceções da constituição (Princípio III): o `ClientSecret` do OIDC e o token de leitura do GitLab do catálogo ficam no `appsettings`. O SIAT não usa `dotnet user-secrets`.
 - RNF-06: Versão do Blazor Blueprint fixada. Componentes de uso recorrente (tabela de resultados, cabeçalho de página, seletor de servidor) encapsulados em componentes próprios.
 - RNF-07: Testes automatizados das regras (parâmetros, permissões, interpretação de versões, regras do Copilot) e de componentes; fluxos principais num roteiro de validação manual.
 
@@ -194,7 +194,7 @@ Cada fase é publicada sozinha e entrega valor sem depender das seguintes. As fe
 ## 10. Métricas de sucesso
 
 - As ferramentas substituídas deixam de ser usadas três meses depois da entrega de cada fase.
-- Nenhum acesso indevido a dados de PRD: toda consulta de PRD no log corresponde a um usuário com o recurso PRD.
+- Nenhum acesso indevido a dados de PRD: toda consulta de PRD no log corresponde a um usuário com o recurso do módulo consultado.
 - O tempo para responder "qual versão está em PRD?" cai de minutos (rodar o script) para segundos.
 - Aumenta o número de commits na documentação feitos por pessoas que não editavam pelo Git.
 
@@ -202,7 +202,7 @@ Cada fase é publicada sozinha e entrega valor sem depender das seguintes. As fe
 
 | Risco | Mitigação |
 |---|---|
-| A conta de serviço amplia o acesso: o SIAT vê o que cada usuário talvez não visse | Lista fechada de servidores, recursos separados para PRD, auditoria de cada consulta, conta só de leitura |
+| A conta de serviço amplia o acesso: o SIAT vê o que cada usuário talvez não visse | Lista fechada de servidores, um recurso por módulo, auditoria de cada consulta, conta só de leitura |
 | Blazor Blueprint é recente e pode ter mudanças incompatíveis | Versão fixada e componentes próprios por cima dos dela |
 | Bibliotecas internas em `net8.0` numa aplicação `net10.0` | Validar a compatibilidade na fase 1 |
 | SSO do UserManager em outra aplicação (cookie, chaves do DataProtection) | Validar na fase 1, seguindo o padrão das outras aplicações do Tribunal |

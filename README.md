@@ -1,8 +1,11 @@
 # SIAT
 
-Sistema Integrado de Apoio Técnico do TCMRio. A primeira entrega é a seção **Consultas**, com as consultas **MailQueue** e **AuditLog**, somente leitura, sobre uma lista fechada de servidores SQL Server.
+Sistema Integrado de Apoio Técnico do TCMRio. Tem duas seções, ambas somente leitura:
 
-Especificação, plano e tarefas: `specs/001-consultas/`. Design: `DESIGN.md`.
+- **Catálogo › Sistemas**: onde cada sistema roda (URL, máquina e caminho por ambiente), lido do `sistemasDb.js` do TCMRJDoc no GitLab.
+- **Consultas**: **MailQueue** e **AuditLog**, sobre uma lista fechada de servidores SQL Server.
+
+Especificação, plano e tarefas: `specs/001-consultas/` e `specs/002-catalogo-sistemas/`. Design: `DESIGN.md`.
 
 ## Como rodar
 
@@ -10,8 +13,9 @@ O passo a passo completo, com os cenários de validação, está em [specs/001-c
 
 1. Instalar o SDK do .NET (veja [Versão do SDK](#versão-do-sdk)) e ter acesso ao feed `TCMRIO INTERNO` no `NuGet.Config`.
 2. Aplicar os scripts de `dbchange/196.1.1` no `CSLIB_UserManager` (veja [Scripts do banco](#scripts-do-banco-dbchange)).
-3. Conferir `TcmrjOidc:ClientId` e `TcmrjOidc:ClientSecret` no `appsettings` (veja [ClientSecret](#clientsecret)).
-4. Rodar:
+3. Gravar o token do GitLab do catálogo em `CatalogoSistemas:GitLab:Token` no `appsettings.json` (veja [Catálogo de sistemas](#catálogo-de-sistemas-catalogosistemas)). Sem ele o SIAT sobe e só a tela Sistemas mostra o erro.
+4. Conferir `TcmrjOidc:ClientId` e `TcmrjOidc:ClientSecret` no `appsettings` (veja [ClientSecret](#clientsecret)).
+5. Rodar:
 
 ```
 dotnet run --project src/Tcmrj.Siat.Web
@@ -33,16 +37,26 @@ O `global.json` fixa o SDK `10.0.100` com `rollForward: latestMajor`: o SDK 10 o
 | `ConnectionStrings` | `UserManagerConnection`, `AuditoriaDbConnection`, `Consultas` | As duas primeiras apontam para o `CSLIB_UserManager` (permissões e nomes de aplicação) e para o `AUDITORIADB` (log do próprio SIAT). `Consultas` é o modelo da conexão com os servidores da lista (o servidor e o banco vêm do `servidores.json`; autenticação integrada, conta de serviço somente leitura). |
 | `ConsultasOptions` | `CommandTimeout` (60 s), `ConnectTimeout` (15 s) | Tempos limite das consultas. |
 | `Servidores` | veja [Lista de servidores](#lista-de-servidores-servidoresjson) | Vem do `servidores.json`. |
+| `CatalogoSistemas` | `GitLab:BaseUrl`, `GitLab:Projeto`, `GitLab:Arquivo`, `GitLab:Ref`, `GitLab:Token`, `TempoLimiteSegundos` (10), `MinutosDeCache` (10) | Origem do catálogo de sistemas (veja [Catálogo de sistemas](#catálogo-de-sistemas-catalogosistemas)). O token fica no `appsettings`, como o `ClientSecret`. |
 
 ### ClientSecret
 
 O `ClientSecret` vem do `appsettings`, como o `ClientId`: `TcmrjOidc:ClientSecret` no `appsettings.json` (e, se o cliente de desenvolvimento usar outro segredo, no `appsettings.Development.json`, que já sobrescreve o `ClientId` com `SIAT-dev`). O segredo precisa corresponder ao hash cadastrado para o cliente no script `002`. Um segredo errado só aparece no primeiro login, como `invalid_client` do SIA.
+
+### Catálogo de sistemas (`CatalogoSistemas`)
+
+A tela **Catálogo › Sistemas** lê o `sistemasDb.js` do projeto `asi/TCMRJDoc` (o mesmo arquivo usado pelo `sistemas.html`) pela API de arquivos do GitLab, com um token de acesso do projeto TCMRJDoc (papel Reporter, escopo `read_repository`), criado pelo mantenedor do TCMRJDoc ([contracts/configuracao.md](specs/002-catalogo-sistemas/contracts/configuracao.md)). A leitura fica em cache por `MinutosDeCache` minutos; "Atualizar agora" relê na hora. Para corrigir um dado, edite o `sistemasDb.js` no GitLab (o rodapé da tela tem o link).
+
+O token vai em `CatalogoSistemas:GitLab:Token`, no `appsettings.json`, junto do resto da seção, como o `ClientSecret` (constituição, Princípio III). Isso vale em desenvolvimento e no `appsettings.json` publicado no IIS. O SIAT não usa `dotnet user-secrets`. O token nunca aparece em mensagem de erro nem em log.
+
+Sem token, ou com a configuração inválida, o SIAT sobe normalmente e só a tela Sistemas mostra "A origem do catálogo não está configurada". O token do GitLab expira em até 365 dias: **renove-o uma vez por ano**, antes do vencimento, e troque o valor no `appsettings.json` de cada ambiente. Token vencido aparece na tela como "O GitLab recusou o acesso ao catálogo (token inválido ou expirado)".
 
 ## Publicação no IIS
 
 - Instalar o Hosting Bundle do .NET 10 no servidor.
 - Ligar o recurso **WebSockets** do IIS: o Blazor Server depende de uma conexão contínua (SignalR). Sem ele a tela cai para um transporte mais lento ou não conecta.
 - Conferir `TcmrjOidc:Authority`, `ClientId = SIAT`, `ClientSecret`, `UserManagerService:ApplicationId` e as connection strings do ambiente.
+- Conferir o token do catálogo (`CatalogoSistemas:GitLab:Token`) no `appsettings.json` publicado e que o servidor alcança `https://git.tcmnet.tcm`.
 - **Chaves de proteção de dados** (cookie de sessão e antiforgery): o pool de aplicativos precisa de **perfil de usuário carregado** (`Load User Profile = True`), para o ASP.NET Core guardar as chaves no perfil da conta do pool. Sem isso as chaves ficam só na memória e o login e os formulários quebram a cada reinício. A alternativa é chamar `AddDataProtection().PersistKeysToFileSystem(...)` apontando para uma pasta que só a conta do pool lê e grava (o código do SIAT ainda não faz essa chamada).
 - **URLs de retorno do login**: o cliente OIDC precisa ter `https://<nome-do-siat>/signin-oidc` e `https://<nome-do-siat>/signout-callback-oidc` cadastrados (script `002` do `dbchange`). Se o SIAT for publicado num subdiretório do IIS, o subdiretório entra antes: `https://<nome>/<subdiretório>/signin-oidc`.
 - Conferir que a conta do pool tem leitura em `CSLIB_UserManager` e `AUDITORIADB` e nos servidores do `servidores.json`.
@@ -55,6 +69,7 @@ Em `dbchange/196.1.1`, para o `CSLIB_UserManager` (veja [contracts/usermanager.m
 |---|---|
 | `001 ... Criação de app, recursos e grupos do SIAT.sql` | Cadastra a aplicação SIAT, os recursos `MailQueue` e `AuditLog` e o grupo `Consultas`. Idempotente. |
 | `002 ... OpenIddictApplications do SIAT.sql` | Cadastra os clientes OIDC `SIAT-dev` e `SIAT`. Idempotente. |
+| `003 ... Recurso Sistemas e grupo Catalogo do SIAT.sql` | Cadastra o recurso `Sistemas` (`Id` 30) e o grupo `Catalogo`, com `CanSelect`. Idempotente; exige o `001` já aplicado. |
 
 Antes de executar:
 
@@ -90,9 +105,9 @@ Quem tem o recurso do módulo vê e consulta os três, inclusive quando roda o S
 
 ### Permissões
 
-Um recurso por módulo (permissão `CanSelect`) libera os três ambientes (DSV, HML e PRD): `MailQueue` e `AuditLog`.
+Um recurso por módulo (permissão `CanSelect`): `Sistemas` (grupo `Catalogo`), `MailQueue` e `AuditLog` (grupo `Consultas`). Nas consultas, o recurso libera os três ambientes (DSV, HML e PRD).
 
-Quem não tem o recurso do módulo não vê o item no menu nem servidores no seletor, e a URL da consulta mostra "Acesso negado" sem consultar o banco. Em PRD a faixa de contexto fica destacada e avisa que a consulta é registrada em log. Toda tentativa de consulta, inclusive a negada, é registrada em `AUDITORIADB.audit.Log` (`TypeID` 10).
+Quem não tem o recurso do módulo não vê o item no menu (nem servidores no seletor, nas consultas), e a URL da consulta mostra "Acesso negado" sem consultar o banco. Em PRD a faixa de contexto fica destacada e avisa que a consulta é registrada em log. Toda tentativa de consulta, inclusive a negada, é registrada em `AUDITORIADB.audit.Log` (`TypeID` 10).
 
 ## Compilar e testar
 
@@ -110,4 +125,5 @@ Os fluxos das telas, o login real no SIA, o contraste e o foco visível nos dois
 - **Nível do registro das consultas no log (T111).** O DBLog (`Tcmrj.CoreLib.DBLog`) só grava no `AUDITORIADB.audit.Log` eventos de nível Error com `LogUID`. Por isso o `RegistroConsultaService` registra cada consulta com `LogErrorWithLogUID(10, ...)`, mesmo sendo um evento comum (o `TypeID` 10 identifica o registro de consulta). Há um pedido pendente à equipe da CoreLib para o DBLog aceitar o nível Information com `LogUID`. Quando sair, a linha a trocar é a chamada `LogErrorWithLogUID` em `src/Tcmrj.Siat.App/Web/Services/RegistroConsultaService.cs` (veja [research.md R7](specs/001-consultas/research.md)).
 - **Nome DNS de PRD**: o `@UrlBasePrd` do script `002` é um placeholder (questão em aberto 5 do PRD).
 - **Hashes do `ClientSecret`** de `SIAT-dev` e `SIAT` no script `002`.
+- **Catálogo de sistemas (T052, T053)**: roteiro do [quickstart da 002](specs/002-catalogo-sistemas/quickstart.md) com o token real e o script `003` aplicado, e a comparação visual com `design/sistemas.html`.
 - **Validação manual (T110)**: cenários 1 a 22 do quickstart, desempenho (SC-003 e SC-004, com os planos de execução com e sem filtros) e o roteiro de acessibilidade WCAG 2.2 AA.

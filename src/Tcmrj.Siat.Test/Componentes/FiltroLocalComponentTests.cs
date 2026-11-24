@@ -138,4 +138,28 @@ public sealed class FiltroLocalComponentTests : BunitContext
         filtro.Find("input").Input("noti");
         _interacao.Verify(i => i.Interagir(), Times.Exactly(2));
     }
+
+    [Fact]
+    public void Placeholder_informado_vai_para_o_campo_e_o_rotulo_continua_para_o_leitor_de_tela()
+    {
+        var filtro = Render<FiltroLocal<string>>(p => p
+            .Add(c => c.Itens, Itens)
+            .Add(c => c.TextoDe, i => i)
+            .Add(c => c.Rotulo, "Buscar sistemas")
+            .Add(c => c.Placeholder, "Sistema, máquina, URL ou caminho"));
+
+        filtro.Find("input").GetAttribute("placeholder").Should().Be("Sistema, máquina, URL ou caminho");
+        filtro.Find("label .so-leitor").TextContent.Should().Be("Buscar sistemas");
+    }
+
+    [Fact]
+    public void Sem_Placeholder_o_placeholder_e_o_rotulo()
+    {
+        var filtro = Render<FiltroLocal<string>>(p => p
+            .Add(c => c.Itens, Itens)
+            .Add(c => c.TextoDe, i => i)
+            .Add(c => c.Rotulo, "Filtrar e-mails"));
+
+        filtro.Find("input").GetAttribute("placeholder").Should().Be("Filtrar e-mails");
+    }
 }

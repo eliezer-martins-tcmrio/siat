@@ -11,8 +11,8 @@ namespace Tcmrj.Siat.Web.Extensions;
 public static class ServiceCollectionExtensions
 {
     /// <summary>
-    /// Registra as features, os validadores, os services do App, a lista fechada de servidores, as consultas
-    /// e a <see cref="IInteracao"/>. Tudo que depende do usuário é Scoped (um por circuito).
+    /// Registra as features, os validadores, os services do App, a lista fechada de servidores, as consultas, o
+    /// catálogo de sistemas e a <see cref="IInteracao"/>. Tudo que depende do usuário é Scoped (um por circuito).
     /// </summary>
     public static WebApplicationBuilder AddTcmrjSiat(this WebApplicationBuilder builder)
     {
@@ -43,6 +43,12 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Tcmrj.Siat.Domain.Repositories.IAuditLogRepository, Tcmrj.Siat.Infra.Repositories.AuditLogRepository>();
         services.AddSingleton<IFormatadorStackTrace, FormatadorStackTrace>();
         services.AddSingleton<IFormatadorLogEvent, FormatadorLogEvent>();
+
+        // Catálogo de Sistemas: leitura do sistemasDb.js no GitLab (HttpClient tipado) e catálogo em memória (singleton).
+        // Sem configuração válida, só a tela de Sistemas mostra o erro; o SIAT sobe normalmente (Princípio IV).
+        services.AddCatalogoSistemas(builder.Configuration);
+        services.Configure<CacheDoCatalogoOptions>(builder.Configuration.GetSection(CacheDoCatalogoOptions.Secao));
+        services.AddSingleton<ICatalogoSistemasService, CatalogoSistemasService>();
 
         // Exportação em HTML autocontido (história 4; sem estado).
         services.AddSingleton<IExportacaoHtmlService, ExportacaoHtmlService>();

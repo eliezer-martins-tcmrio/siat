@@ -43,6 +43,65 @@ public static class Erros
             "A consulta foi cancelada.");
     }
 
+    /// <summary>
+    /// Erros do Catálogo de Sistemas (research.md R6). Nenhuma mensagem recebe ou mostra o token do GitLab.
+    /// </summary>
+    public static class Catalogo
+    {
+        public const string CodigoNaoConfigurado = "catalogo.nao-configurado";
+
+        public const string CodigoAcessoRecusado = "catalogo.acesso-recusado";
+
+        public const string CodigoArquivoNaoEncontrado = "catalogo.arquivo-nao-encontrado";
+
+        public const string CodigoTempoEsgotado = "catalogo.tempo-esgotado";
+
+        public const string CodigoIndisponivel = "catalogo.indisponivel";
+
+        public const string CodigoFormatoInvalido = "catalogo.formato-invalido";
+
+        public const string CodigoCancelada = "catalogo.cancelada";
+
+        public const string CodigoAcessoNegado = "catalogo.acesso-negado";
+
+        /// <summary>Token, endereço ou demais opções de <c>CatalogoSistemas</c> ausentes ou inválidos.</summary>
+        public static Erro NaoConfigurado => new(
+            CodigoNaoConfigurado,
+            "A origem do catálogo não está configurada.");
+
+        /// <summary>401 do GitLab.</summary>
+        public static Erro AcessoRecusado => new(
+            CodigoAcessoRecusado,
+            "O GitLab recusou o acesso ao catálogo (token inválido ou expirado).");
+
+        /// <summary>403 ou 404 do GitLab.</summary>
+        public static Erro ArquivoNaoEncontrado => new(
+            CodigoArquivoNaoEncontrado,
+            "O arquivo do catálogo não foi encontrado no GitLab.");
+
+        public static Erro TempoEsgotado(int segundos) => new(
+            CodigoTempoEsgotado,
+            $"O GitLab não respondeu em {segundos} s.");
+
+        /// <summary>Falha de rede ou resposta inesperada do GitLab.</summary>
+        public static Erro Indisponivel(string motivo) => new(
+            CodigoIndisponivel,
+            $"O GitLab não está disponível: {motivo}");
+
+        public static Erro FormatoInvalido(string motivo, int linha, int coluna) => new(
+            CodigoFormatoInvalido,
+            $"O sistemasDb.js não pôde ser lido: {motivo} (linha {linha}, coluna {coluna}).");
+
+        /// <summary>Quem pediu a leitura cancelou; não é falha da origem.</summary>
+        public static Erro Cancelada => new(
+            CodigoCancelada,
+            "A leitura do catálogo foi cancelada.");
+
+        public static Erro AcessoNegado => new(
+            CodigoAcessoNegado,
+            "Você não tem acesso ao catálogo de sistemas.");
+    }
+
     public static class UsuariosDeRede
     {
         public const string CodigoCadastroIndisponivel = "usuario-de-rede.cadastro-indisponivel";

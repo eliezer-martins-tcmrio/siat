@@ -22,6 +22,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Recorte do sistemasDb.js real com as particularidades do formato (specs/002-catalogo-sistemas/research.md R2). -->
+    <None Update="Unidade\Catalogo\Amostras\sistemasDb.amostra.js" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Tcmrj.Siat.App\Tcmrj.Siat.App.csproj" />
     <ProjectReference Include="..\Tcmrj.Siat.Domain\Tcmrj.Siat.Domain.csproj" />
     <ProjectReference Include="..\Tcmrj.Siat.Infra\Tcmrj.Siat.Infra.csproj" />

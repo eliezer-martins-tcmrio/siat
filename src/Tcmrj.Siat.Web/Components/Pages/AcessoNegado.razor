@@ -3,7 +3,8 @@
 @using Tcmrj.Siat.Web.Services
 
 @* Acesso negado: página própria e componente usado pelas telas quando o usuário não tem o recurso
-   (por exemplo, MailQueue sem MailQueue.CanSelect). Usuário de rede sem matrícula vê o motivo do vínculo. *@
+   (por exemplo, Sistemas sem Sistemas.CanSelect). Com Recurso, pede o recurso que falta; sem ele, pede acesso ao
+   SIAT, sem citar um grupo. Usuário de rede sem matrícula vê o motivo do vínculo. *@
 <CabecalhoPagina Titulo="Acesso negado" />
 
 @if (situacaoVinculo is not null)
@@ -19,7 +20,7 @@ else
         }
         else
         {
-            <text>Peça acesso ao grupo <strong>Consultas</strong> do SIAT no SIA. </text>
+            <text>Peça acesso ao SIAT no SIA. </text>
         }
         Depois de liberado, recarregue a página.
     </Aviso>

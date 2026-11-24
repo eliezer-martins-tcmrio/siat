@@ -64,9 +64,13 @@ de quem fez a alteração.
   `appsettings`.
 - Conteúdo externo potencialmente perigoso (corpo de e-mail, HTML, Markdown) DEVE ser exibido
   isolado ou sanitizado.
-- Segredos (tokens, senhas, chaves de API) NÃO DEVEM ir para o repositório. Exceção única: o
-  `ClientSecret` do cliente OIDC do SIAT no SIA (`TcmrjOidc:ClientSecret`) DEVE ficar no
-  `appsettings`, junto do `ClientId`, como no SiCATI. No banco do SIA vai só o hash.
+- Segredos (tokens, senhas, chaves de API) NÃO DEVEM ir para o repositório. Exceções, que DEVEM
+  ficar no `appsettings`, junto do resto da configuração da sua seção:
+  - o `ClientSecret` do cliente OIDC do SIAT no SIA (`TcmrjOidc:ClientSecret`), junto do
+    `ClientId`, como no SiCATI. No banco do SIA vai só o hash;
+  - o token de leitura do GitLab do catálogo de sistemas (`CatalogoSistemas:GitLab:Token`).
+- O SIAT NÃO DEVE usar `dotnet user-secrets` (nem `UserSecretsId` nos projetos): a configuração
+  de desenvolvimento, segredos incluídos, fica nos arquivos `appsettings`.
 - Toda consulta a dados sensíveis e toda escrita DEVEM ser registradas no log
   (`Tcmrj.CoreLib.DBLog`) com usuário, servidor e filtros.
 
@@ -221,5 +225,6 @@ maiúsculas de minúsculas em nomes de pasta, e prefixos com grafias diferentes 
 | 1.5.0  | 2026-11-19 | Princípio III: modo experimental temporário `UsuarioDeRede` (usuário do Windows ligado ao usuário interno e habilitado do UserManager com o mesmo login), escolhido por `SiatConfiguration:Autenticacao`, só nas publicações de DSV e HML, enquanto a coordenação avalia a entrada pelo usuário de rede; o OIDC no SIA continua o padrão e o único modo em produção, e a autorização é a mesma nos dois. Explicita também que arquivos estáticos e `/saude` são anônimos. MINOR: muda uma regra sem remover nem redefinir o princípio, como na 1.2.0; a adoção em produção exigirá emenda MAJOR |
 | 2.0.0  | 2026-11-19 | Princípio III: o modo experimental `UsuarioDeRede` passa a ser permitido também na publicação de produção, além de DSV e HML; o OIDC no SIA continua o padrão, a autorização continua a mesma nos dois modos, e ao fim da avaliação da coordenação nova emenda torna o modo definitivo ou o retira. MAJOR: redefine a regra de autenticação do princípio, como a 1.5.0 previu para a adoção em produção |
 | 3.0.0  | 2026-11-24 | Princípio III: retirada a regra "Dados de produção DEVEM ter recursos próprios, separados dos recursos de DSV/HML". A exigência de recurso do UserManager verificado no servidor continua valendo para toda página que exibe dados e toda operação; cada módulo decide no plano se produção tem recurso próprio. Motivo: o catálogo de sistemas (feature 002) mostra a localização de produção ao lado das de DSV e HML, e a regra obrigava a separar o que o PRD define como um só recurso (`Sistemas.CanSelect`); as Consultas (feature 001) já usam um recurso por módulo para os três ambientes. MAJOR: afrouxa a proteção de dados de produção num princípio inegociável, mesmo critério da 2.0.0 |
+| 3.1.0  | 2026-11-24 | Princípio III: o token de leitura do GitLab do catálogo de sistemas (`CatalogoSistemas:GitLab:Token`, feature 002) passa a ficar no `appsettings`, como o `ClientSecret` desde a 1.2.0; e o SIAT não usa `dotnet user-secrets`: a configuração de desenvolvimento, segredos incluídos, fica nos arquivos `appsettings`. Os demais segredos continuam fora do repositório. MINOR: muda uma regra sem remover nem redefinir o princípio, mesmo critério da 1.2.0 |
 
-**Versão**: 3.0.0 | **Ratificada em**: 2026-11-09 | **Última emenda**: 2026-11-24
+**Versão**: 3.1.0 | **Ratificada em**: 2026-11-09 | **Última emenda**: 2026-11-24

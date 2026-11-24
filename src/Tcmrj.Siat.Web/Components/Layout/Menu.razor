@@ -1,13 +1,14 @@
 @inject IAuthorizationService Autorizacao
 
-@* Cada item aparece para quem tem a política do módulo (Modulo.Politica(), a mesma em DSV, HML e PRD);
-   a seção some quando nenhum item aparece (FR-003). A autorização real é feita na página e na consulta (FR-004). *@
+@* Grupos do menu, na ordem: Catálogo (Sistemas) e Consultas (MailQueue, AuditLog). Cada item aparece para quem tem
+   a política do módulo (Modulo.Politica(), a mesma em todos os ambientes); o grupo some quando nenhum item dele
+   aparece (FR-003). A autorização real é feita na página e na feature (FR-004). *@
 <nav class="menu-nav" aria-label="Navegação principal">
-    @if (itensConsultas.Count > 0)
+    @foreach (var grupo in gruposVisiveis)
     {
-        <div class="menu-grupo" role="group" aria-label="Consultas">
-            <span class="menu-titulo" aria-hidden="true">Consultas</span>
-            @foreach (var item in itensConsultas)
+        <div class="menu-grupo" role="group" aria-label="@grupo.Nome">
+            <span class="menu-titulo" aria-hidden="true">@grupo.Nome</span>
+            @foreach (var item in grupo.Itens)
             {
                 <NavLink class="menu-item" href="@item.Rota" Match="NavLinkMatch.Prefix" data-modulo="@item.Modulo.ToString()">
                     <LucideIcon Name="@item.Icone" Size="17" aria-hidden="true" focusable="false" />
@@ -19,17 +20,24 @@
 </nav>
 
 @code {
-    private static readonly ItemMenu[] ItensConsultas =
+    private static readonly GrupoMenu[] Grupos =
     [
-        new(Modulo.MailQueue, "MailQueue", Navegacao.RotaMailQueue, "mail"),
-        new(Modulo.AuditLog, "AuditLog", Navegacao.RotaAuditLog, "list"),
+        new("Catálogo",
+        [
+            new(Modulo.Sistemas, "Sistemas", Navegacao.RotaSistemas, "server"),
+        ]),
+        new("Consultas",
+        [
+            new(Modulo.MailQueue, "MailQueue", Navegacao.RotaMailQueue, "mail"),
+            new(Modulo.AuditLog, "AuditLog", Navegacao.RotaAuditLog, "list"),
+        ]),
     ];
 
     [CascadingParameter]
     private Task<AuthenticationState>? EstadoAutenticacao { get; set; }
 
     private Task<AuthenticationState>? estadoAvaliado;
-    private IReadOnlyList<ItemMenu> itensConsultas = [];
+    private IReadOnlyList<GrupoMenu> gruposVisiveis = [];
 
     // Avalia uma vez por estado de autenticação (o estado muda no login, no logout e no fim da sessão).
     protected override async Task OnParametersSetAsync()
@@ -42,17 +50,28 @@
         estadoAvaliado = EstadoAutenticacao;
         var usuario = (await EstadoAutenticacao).User;
 
-        var visiveis = new List<ItemMenu>(ItensConsultas.Length);
-        foreach (var item in ItensConsultas)
+        var visiveis = new List<GrupoMenu>(Grupos.Length);
+        foreach (var grupo in Grupos)
         {
-            if ((await Autorizacao.AuthorizeAsync(usuario, item.Modulo.Politica())).Succeeded)
+            var itens = new List<ItemMenu>(grupo.Itens.Count);
+            foreach (var item in grupo.Itens)
             {
-                visiveis.Add(item);
+                if ((await Autorizacao.AuthorizeAsync(usuario, item.Modulo.Politica())).Succeeded)
+                {
+                    itens.Add(item);
+                }
+            }
+
+            if (itens.Count > 0)
+            {
+                visiveis.Add(grupo with { Itens = itens });
             }
         }
 
-        itensConsultas = visiveis;
+        gruposVisiveis = visiveis;
     }
+
+    private sealed record GrupoMenu(string Nome, IReadOnlyList<ItemMenu> Itens);
 
     private sealed record ItemMenu(Modulo Modulo, string Rotulo, string Rota, string Icone);
 }

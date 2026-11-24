@@ -1,0 +1,311 @@
+@page "/catalogo/sistemas"
+@attribute [Authorize]
+@implements IDisposable
+@using CSharpFunctionalExtensions
+@using NetDevPack.SimpleMediator
+@using Tcmrj.Siat.App.Web.ViewModels.Sistemas
+@using Tcmrj.Siat.Domain.Models
+@using Tcmrj.Siat.Web.Services
+@using Servicos = Tcmrj.Siat.App.Web.Services
+@using ObterCatalogo = Tcmrj.Siat.App.Web.Features.Sistemas.ObterCatalogo
+@inject IAutorizacaoConsultaService AutorizacaoConsulta
+@inject IMediator Mediator
+@inject NavigationManager Navigation
+@inject IInteracao Interacao
+@inject TimeProvider Relogio
+@inject IJSRuntime JS
+
+@* Catálogo › Sistemas (specs/002-catalogo-sistemas; contrato visual design/sistemas.html).
+   - Acesso: no OnInitializedAsync, Sistemas.CanSelect; sem ele, AcessoNegado e nenhuma chamada à feature, que
+     autoriza de novo antes de devolver dados (FR-003).
+   - Leitura: uma por vez no ControleConsulta, com o seu CancellationTokenSource; depois de 1 s, tempo decorrido e
+     Cancelar (EstadoCarregando), que interrompe a leitura no GitLab quando ninguém mais espera por ela. Cancelar volta
+     ao catálogo anterior ou, sem ele, ao erro com "Tentar de novo". Fechar a página cancela a leitura.
+   - "Atualizar agora" força a releitura. Falha numa releitura mostra a leitura anterior com um aviso (FR-023).
+   - Busca: FiltroLocal sobre SistemaVM.TextoDeBusca, gravada no parâmetro "busca" da URL com replace a cada mudança;
+     abrir a URL aplica a busca. Esc no campo limpa o texto e a URL. *@
+
+@if (acesso is null)
+{
+    <PageTitle>Sistemas · SIAT</PageTitle>
+}
+else if (acesso == false)
+{
+    <AcessoNegado Mensagem="Você não tem acesso ao catálogo de sistemas" Recurso="@Modulo.Sistemas.Politica()" />
+}
+else
+{
+    <CabecalhoPagina Titulo="Sistemas" Descricao="Onde cada sistema roda: URL, máquina e caminho por ambiente.">
+        <Status>
+            @if (Catalogo is { } lido)
+            {
+                <span class="status" role="status">Catálogo lido às @Hora(lido.LidoEm)</span>
+            }
+        </Status>
+        <Acoes>
+            <button type="button" class="botao secundario pequeno" id="atualizar" disabled="@Lendo" @onclick="AtualizarAsync">
+                <LucideIcon Name="refresh-cw" Size="14" aria-hidden="true" focusable="false" />
+                Atualizar agora
+            </button>
+        </Acoes>
+    </CabecalhoPagina>
+
+    @if (Catalogo?.Falha is { } falha)
+    {
+        <Aviso>
+            Não foi possível atualizar o catálogo: @SemPontoFinal(falha.Mensagem). Mostrando os dados lidos às @Hora(Catalogo.LidoEm).
+        </Aviso>
+    }
+    else if (leituras.Estado == Servicos.EstadoConsulta.ComErro && Catalogo is not null && leituras.Erro is { } erroDaReleitura)
+    {
+        <Aviso>
+            Não foi possível atualizar o catálogo: @SemPontoFinal(erroDaReleitura.Message). Mostrando os dados lidos às @Hora(Catalogo.LidoEm).
+        </Aviso>
+    }
+
+    @if (Catalogo is { Ignorados: > 0 } comIgnorados)
+    {
+        <Aviso>@TextoDosIgnorados(comIgnorados.Ignorados)</Aviso>
+    }
+
+    <section class="painel" aria-label="Catálogo de sistemas">
+        @if (Lendo)
+        {
+            <EstadoCarregando Mensagem="Lendo o catálogo no GitLab…" Linhas="@(Catalogo is null ? 6 : 0)"
+                              Inicio="leituras.InicioAtual" AoCancelar="Cancelar"
+                              DicaCancelar="Interrompe a leitura no GitLab" />
+        }
+        else if (Catalogo is null && leituras.Estado == Servicos.EstadoConsulta.ComErro && leituras.Erro is { } erro)
+        {
+            <EstadoErro Titulo="Não foi possível ler o catálogo" Motivo="@erro.Message" AoTentarDeNovo="TentarDeNovoAsync"
+                        Orientacao="O catálogo vem do sistemasDb.js no GitLab. Os outros módulos continuam funcionando." />
+        }
+        else if (Catalogo is null && leituras.Cancelada)
+        {
+            <EstadoErro Titulo="Leitura do catálogo cancelada" Motivo="@Erros.Catalogo.Cancelada.Message" AoTentarDeNovo="TentarDeNovoAsync"
+                        Orientacao="Nenhum dado foi lido. Tente de novo quando quiser." />
+        }
+
+        @if (Catalogo is { } catalogo)
+        {
+            <FiltroLocal TItem="SistemaVM" Itens="catalogo.Sistemas" TextoDe="TextoDoSistema" Texto="@busca" TextoChanged="AoBuscar"
+                         Unidade="sistemas" Rotulo="Buscar sistemas" Placeholder="Sistema, máquina, URL ou caminho" Id="@IdDaBusca">
+                <ChildContent Context="visiveis">
+                    @if (visiveis.Count == 0)
+                    {
+                        <EstadoVazio Titulo="Nenhum sistema encontrado"
+                                     Mensagem="A busca procura todos os termos em nome, URL, máquina, caminho e observação.">
+                            <Acoes>
+                                <button type="button" class="botao secundario pequeno" id="limpar-busca" @onclick="LimparBuscaAsync">Limpar busca</button>
+                            </Acoes>
+                        </EstadoVazio>
+                    }
+                    else
+                    {
+                        <div class="tabela-rolagem">
+                            <table class="tabela tabela-sistemas">
+                                <thead>
+                                    <tr>
+                                        <th scope="col" class="col-sistema">Sistema</th>
+                                        @foreach (var ambiente in Cabecalhos)
+                                        {
+                                            <th scope="col" data-amb="@ambiente.DataAmb()"><span class="amb">@ambiente.Sigla()</span> @ambiente.Nome()</th>
+                                        }
+                                        <th scope="col" class="col-obs">Observação</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var sistema in visiveis)
+                                    {
+                                        <tr @key="sistema">
+                                            <td class="nome">@sistema.Nome</td>
+                                            @foreach (var ambiente in sistema.Ambientes)
+                                            {
+                                                <CelulaAmbiente Sistema="@sistema.Nome" Ambiente="ambiente" />
+                                            }
+                                            <td class="obs">
+                                                @if (sistema.Observacao is { } observacao)
+                                                {
+                                                    @observacao
+                                                }
+                                                else
+                                                {
+                                                    <span class="vazio-cel"><span aria-hidden="true">–</span><span class="so-leitor">sem observação</span></span>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </ChildContent>
+            </FiltroLocal>
+        }
+    </section>
+
+    <footer class="rodape">
+        <span>
+            Fonte: <span class="mono">sistemasDb.js</span> no TCMRJDoc (GitLab). Para corrigir um dado,
+            @if (Catalogo is { } comOrigem && EhHttp(comOrigem.Origem))
+            {
+                <a href="@comOrigem.Origem" target="_blank" rel="noopener noreferrer">edite esse arquivo<span class="so-leitor"> (abre em nova aba)</span></a><text>.</text>
+            }
+            else
+            {
+                <text>edite esse arquivo.</text>
+            }
+        </span>
+    </footer>
+}
+
+@code {
+    /// <summary>Id do campo de busca (o "Limpar busca" devolve o foco a ele).</summary>
+    public const string IdDaBusca = "busca-sistemas";
+
+    private static readonly CultureInfo PtBr = CultureInfo.GetCultureInfo("pt-BR");
+
+    private static readonly AmbienteDoCatalogo[] Cabecalhos = Enum.GetValues<AmbienteDoCatalogo>();
+
+    private static readonly Func<SistemaVM, string?> TextoDoSistema = s => s.TextoDeBusca;
+
+    [SupplyParameterFromQuery(Name = Navegacao.ParametroBusca)]
+    public string? BuscaParametro { get; set; }
+
+    private bool? acesso;
+    private bool descartada;
+    private Servicos.ControleConsulta<CatalogoVM> leituras = default!;
+
+    // Texto da busca e as buscas que a própria página gravou na URL e ainda não voltaram pelo OnParametersSet (a
+    // navegação vai ao navegador e volta): elas não podem sobrescrever o que foi digitado depois.
+    private string? busca;
+    private string? buscaDaUrl;
+    private readonly List<string?> buscasGravadas = [];
+
+    private CatalogoVM? Catalogo => leituras.Resultado;
+
+    private bool Lendo => leituras.Estado == Servicos.EstadoConsulta.Consultando;
+
+    protected override async Task OnInitializedAsync()
+    {
+        leituras = new(Relogio);
+        busca = buscaDaUrl = Normalizar(BuscaParametro);
+        acesso = await AutorizacaoConsulta.PodeAcessarModuloAsync(Modulo.Sistemas);
+        if (acesso == true)
+        {
+            await LerAsync(atualizar: false);
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        // Só a mudança do parâmetro interessa: outras renderizações do pai não mexem no texto.
+        var daUrl = Normalizar(BuscaParametro);
+        if (daUrl == buscaDaUrl)
+        {
+            return;
+        }
+
+        buscaDaUrl = daUrl;
+        var indice = buscasGravadas.IndexOf(daUrl);
+        if (indice >= 0)
+        {
+            // Volta de uma navegação da própria página: descarta até ela, sem mexer no texto.
+            buscasGravadas.RemoveRange(0, indice + 1);
+            return;
+        }
+
+        // Mudança de fora (voltar do navegador, link): a URL manda.
+        buscasGravadas.Clear();
+        busca = daUrl;
+    }
+
+    private void AoBuscar(string? texto)
+    {
+        busca = texto;
+        var gravada = Normalizar(texto);
+        buscasGravadas.Add(gravada);
+        Navigation.NavigateTo(Navegacao.Sistemas(gravada), replace: true);
+    }
+
+    private async Task LimparBuscaAsync()
+    {
+        AoBuscar(string.Empty);
+        try
+        {
+            await JS.InvokeVoidAsync("siat.focar", IdDaBusca);
+        }
+        catch (JSDisconnectedException)
+        {
+            // Página fechada: nada a focar.
+        }
+    }
+
+    private Task AtualizarAsync() => LerAsync(atualizar: true);
+
+    private Task TentarDeNovoAsync() => LerAsync(atualizar: true);
+
+    private async Task LerAsync(bool atualizar)
+    {
+        if (descartada)
+        {
+            return;
+        }
+
+        if (atualizar)
+        {
+            Interacao.Interagir();
+        }
+
+        var tentativa = leituras.Iniciar();
+        StateHasChanged();
+
+        Result<CatalogoVM, Erro> obtido;
+        try
+        {
+            obtido = await Mediator.Send(new ObterCatalogo.Query(atualizar), tentativa.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            obtido = Erros.Catalogo.Cancelada;
+        }
+
+        // Vale só a última leitura; a página fechada não mexe na tela.
+        if (!leituras.Concluir(tentativa, obtido))
+        {
+            return;
+        }
+
+        if (obtido.IsFailure && obtido.Error.Code == Erros.Catalogo.CodigoAcessoNegado)
+        {
+            // O acesso foi retirado durante o uso: nenhum dado do catálogo fica na tela.
+            acesso = false;
+        }
+    }
+
+    private void Cancelar()
+    {
+        Interacao.Interagir();
+        leituras.Cancelar();
+    }
+
+    private static string? Normalizar(string? texto) => string.IsNullOrWhiteSpace(texto) ? null : texto;
+
+    private static string Hora(DateTimeOffset momento) => momento.ToLocalTime().ToString("HH:mm", PtBr);
+
+    private static string SemPontoFinal(string mensagem) => mensagem.TrimEnd().TrimEnd('.');
+
+    private static string TextoDosIgnorados(int ignorados) => ignorados == 1
+        ? "1 item do sistemasDb.js foi ignorado por estar incompleto."
+        : $"{ignorados.ToString(PtBr)} itens do sistemasDb.js foram ignorados por estarem incompletos.";
+
+    private static bool EhHttp(string endereco) =>
+        endereco.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+        || endereco.StartsWith("http://", StringComparison.OrdinalIgnoreCase);
+
+    public void Dispose()
+    {
+        descartada = true;
+        leituras?.Dispose();
+    }
+}

@@ -1,0 +1,343 @@
+﻿Diagnóstico do servidor para o SIAT com autenticação do Windows (protótipo features/prototipo_login_rede)
+Gerado em 19/11/2026 18:49 em TCM2016WEB4 por TCMNET\Emartins_a1. Só leitura: nada foi alterado.
+Parâmetros: Caminhos=/siat_dsv,/siat_hml,/sicati_dsv,/sicati_hml,/scaf_dsv,/scaf_hml; Nomes=tcmrj2.tcmnet.tcm,tcmrj.tcmnet.tcm; Dominio=TCMNET; ServidorSql=TCMBD3\DEV; Banco=CSLIB_UserManager; SemSql=False
+
+====================================================================================================
+1. Servidor
+====================================================================================================
+[INFO] Servidor TCM2016WEB4 (TCM2016WEB4.TCMNET.TCM), domínio TCMNET.TCM; conta do computador na rede: TCMNET\TCM2016WEB4$
+[INFO] Microsoft Windows Server 2016 Datacenter (versão 10.0.14393); último boot 09/11/2026 18:18
+[INFO] PowerShell 5.1.14393.9418, processo de 64 bits
+[OK] Rodando como administrador (TCMNET\Emartins_a1).
+[INFO] IPs: 10.96.33.11
+
+====================================================================================================
+2. IIS e recursos do Windows
+====================================================================================================
+[INFO] IIS 10.0
+[OK] Serviço W3SVC rodando.
+[OK] Serviço WAS rodando.
+[OK] Autenticação do Windows (Web-Windows-Auth) instalado.
+[OK] Protocolo WebSocket (o Blazor Server usa; sem ele cai para long polling, mais lento) (Web-WebSockets) instalado.
+
+====================================================================================================
+3. ASP.NET Core (o SIAT é .NET 10, hospedado in-process)
+====================================================================================================
+[OK] ASP.NET Core Module V2 20.0.26302.15
+[INFO] Runtimes Microsoft.AspNetCore.App: 5.0.14, 6.0.19, 8.0.34, 10.0.15
+[OK] Runtime do ASP.NET Core 10 instalado (10.0.15).
+        Instalado: Microsoft .NET 10.0.15 - Windows Server Hosting 10.0.15.26529
+        Instalado: Microsoft .NET 5.0.14 - Windows Server Hosting 5.0.14.22063
+        Instalado: Microsoft .NET 6.0.19 - Windows Server Hosting 6.0.19.23318
+        Instalado: Microsoft .NET 8.0.34 - Windows Server Hosting 8.0.34.26523
+        Instalado: Microsoft ASP.NET Core 10.0.15 Hosting Bundle Options 10.0.15.26529
+        Instalado: Microsoft ASP.NET Core 5.0.14 Hosting Bundle Options 5.0.14.22063
+        Instalado: Microsoft ASP.NET Core 6.0.19 Hosting Bundle Options 6.0.19.23318
+        Instalado: Microsoft ASP.NET Core 8.0.34 Hosting Bundle Options 8.0.34.26523
+
+====================================================================================================
+4. applicationHost.config (bloqueio das seções de autenticação)
+====================================================================================================
+[INFO] Seção windowsAuthentication: overrideModeDefault=Deny (Deny é o padrão do IIS: o web.config só pode configurá-la onde houver liberação)
+[INFO] Seção anonymousAuthentication: overrideModeDefault=Deny (Deny é o padrão do IIS: o web.config só pode configurá-la onde houver liberação)
+[OK] Módulo WindowsAuthenticationModule registrado.
+[OK] Módulo AnonymousAuthenticationModule registrado.
+[OK] Módulo AspNetCoreModuleV2 registrado.
+[OK] Módulo WebSocketModule registrado.
+[INFO] ARR não instalado neste servidor.
+
+windowsAuthentication no applicationHost.config (por location):
+        "(servidor)": overrideMode=(herda); enabled=false authPersistNonNTLM=true; provedores: Negotiate, NTLM; extendedProtection=(herda)
+        "Default Web Site/SuporteASI_dsv": overrideMode=(herda); enabled=true; provedores: (herda); extendedProtection=(herda)
+        "Default Web Site/SuporteDSG_dsv": overrideMode=(herda); enabled=true; provedores: (herda); extendedProtection=(herda)
+
+====================================================================================================
+5. Sites, aplicativos e app pools
+====================================================================================================
+App pools (identidade e conta que sai para a rede; a senha nunca é lida):
+        DefaultAppPool: IIS AppPool\DefaultAppPool (rede: TCMNET\TCM2016WEB4$); v4.0; pipeline Integrated; 32 bits=False; Started
+        .NET v4.5 Classic: IIS AppPool\.NET v4.5 Classic (rede: TCMNET\TCM2016WEB4$); v4.0; pipeline Classic; 32 bits=False; Started
+        .NET v4.5: IIS AppPool\.NET v4.5 (rede: TCMNET\TCM2016WEB4$); v4.0; pipeline Integrated; 32 bits=False; Started
+        etcm_dsv: TCMNET\svc-etcm (rede: TCMNET\svc-etcm); v4.0; pipeline Integrated; 32 bits=False; Started
+        portal_dsv: TCMNET\svc-portal (rede: TCMNET\svc-portal); v4.0; pipeline Integrated; 32 bits=False; Started
+        portalservidor_dsv: TCMNET\svc-portal (rede: TCMNET\svc-portal); v4.0; pipeline Integrated; 32 bits=False; Started
+        portalservidorintranet_dsv: TCMNET\svc-intranet (rede: TCMNET\svc-intranet); v4.0; pipeline Integrated; 32 bits=False; Started
+        tcmrjinternet_dsv: IIS AppPool\tcmrjinternet_dsv (rede: TCMNET\TCM2016WEB4$); v4.0; pipeline Classic; 32 bits=False; Started
+        tcmrjinternetedit_dsv: IIS AppPool\tcmrjinternetedit_dsv (rede: TCMNET\TCM2016WEB4$); v4.0; pipeline Classic; 32 bits=False; Started
+        webapp_dsv: TCMNET\svc-webapp (rede: TCMNET\svc-webapp); v4.0; pipeline Integrated; 32 bits=False; Started
+        SICAP: tcmnet\svc-sicap (rede: tcmnet\svc-sicap); v4.0; pipeline Integrated; 32 bits=False; Started
+        Acesso FTP: TCMNET\svc-intranet (rede: TCMNET\svc-intranet); v4.0; pipeline Integrated; 32 bits=False; Started
+        MonitorHB_dsv: TCMNET\svc-intranet (rede: TCMNET\svc-intranet); v4.0; pipeline Integrated; 32 bits=False; Started
+        SicopWeb: TCMNET\svc-etcm (rede: TCMNET\svc-etcm); v4.0; pipeline Integrated; 32 bits=True; Started
+        SuporteASI_dsv: IIS AppPool\SuporteASI_dsv (rede: TCMNET\TCM2016WEB4$); v4.0; pipeline Integrated; 32 bits=True; Started
+        VCE: IIS AppPool\VCE (rede: TCMNET\TCM2016WEB4$); v4.0; pipeline Integrated; 32 bits=True; Started
+        Imagens: TCMNET\svc-etcm (rede: TCMNET\svc-etcm); v4.0; pipeline Integrated; 32 bits=True; Started
+        etcm_hml: TCMNET\svc-etcm (rede: TCMNET\svc-etcm); v4.0; pipeline Integrated; 32 bits=False; Started
+        portal_hml: TCMNET\svc-portal (rede: TCMNET\svc-portal); v4.0; pipeline Integrated; 32 bits=False; Started
+        portalservidor_hml: TCMNET\svc-portal (rede: TCMNET\svc-portal); v4.0; pipeline Integrated; 32 bits=False; Started
+        portalservidorintranet_hml: TCMNET\svc-intranet (rede: TCMNET\svc-intranet); v4.0; pipeline Integrated; 32 bits=False; Started
+        webapp_hml: TCMNET\svc-webapp (rede: TCMNET\svc-webapp); v4.0; pipeline Integrated; 32 bits=False; Started
+        tcmrjnovaintranet_dsv: TCMNET\svc-intranet (rede: TCMNET\svc-intranet); v4.0; pipeline Integrated; 32 bits=False; Started
+        SICAP_hml: tcmnet\svc-sicap (rede: tcmnet\svc-sicap); v4.0; pipeline Integrated; 32 bits=False; Started
+        scaf_dsv: TCMNET\svc-etcm (rede: TCMNET\svc-etcm); v4.0; pipeline Integrated; 32 bits=False; Started
+        scaf_hml: TCMNET\svc-etcm (rede: TCMNET\svc-etcm); v4.0; pipeline Integrated; 32 bits=False; Started
+        atos_dsv: TCMNET\svc-etcm (rede: TCMNET\svc-etcm); v4.0; pipeline Integrated; 32 bits=False; Started
+        atos_hml: TCMNET\svc-etcm (rede: TCMNET\svc-etcm); v4.0; pipeline Integrated; 32 bits=False; Started
+        scp_api_dsv: TCMNET\svc-etcm (rede: TCMNET\svc-etcm); v4.0; pipeline Integrated; 32 bits=False; Started
+        scp_api_hml: TCMNET\svc-etcm (rede: TCMNET\svc-etcm); v4.0; pipeline Integrated; 32 bits=False; Started
+        sessoes_dsv: TCMNET\svc-etcm (rede: TCMNET\svc-etcm); v4.0; pipeline Integrated; 32 bits=False; Started
+        sessoes_hml: TCMNET\svc-etcm (rede: TCMNET\svc-etcm); v4.0; pipeline Integrated; 32 bits=False; Started
+        atosapi_dsv: TCMNET\svc-etcm (rede: TCMNET\svc-etcm); v4.0; pipeline Integrated; 32 bits=False; Started
+        atosapi_hml: TCMNET\svc-etcm (rede: TCMNET\svc-etcm); v4.0; pipeline Integrated; 32 bits=False; Started
+        sessoesapi_dsv: TCMNET\svc-etcm (rede: TCMNET\svc-etcm); v4.0; pipeline Integrated; 32 bits=False; Started
+        sessoesapi_hml: TCMNET\svc-etcm (rede: TCMNET\svc-etcm); v4.0; pipeline Integrated; 32 bits=False; Started
+        portalseguranca_dsv: TCMNET\svc-portal (rede: TCMNET\svc-portal); v4.0; pipeline Integrated; 32 bits=False; Started
+        portalseguranca_hml: TCMNET\svc-portal (rede: TCMNET\svc-portal); v4.0; pipeline Integrated; 32 bits=False; Started
+        portaria_dsv: TCMNET\svc-intranet (rede: TCMNET\svc-intranet); v4.0; pipeline Integrated; 32 bits=False; Started
+        portaria_hml: TCMNET\svc-intranet (rede: TCMNET\svc-intranet); v4.0; pipeline Integrated; 32 bits=False; Started
+        chamadosservicos_dsv: TCMNET\svc-intranet (rede: TCMNET\svc-intranet); v4.0; pipeline Integrated; 32 bits=False; Started
+        chamadosservicos_hml: TCMNET\svc-intranet (rede: TCMNET\svc-intranet); v4.0; pipeline Integrated; 32 bits=False; Started
+        multas_dsv: TCMNET\svc-etcm (rede: TCMNET\svc-etcm); v4.0; pipeline Integrated; 32 bits=False; Started
+        multas_hml: TCMNET\svc-etcm (rede: TCMNET\svc-etcm); v4.0; pipeline Integrated; 32 bits=False; Started
+        chamadossti_dsv: TCMNET\svc-intranet (rede: TCMNET\svc-intranet); v4.0; pipeline Integrated; 32 bits=False; Started
+        chamadossti_hml: TCMNET\svc-intranet (rede: TCMNET\svc-intranet); v4.0; pipeline Integrated; 32 bits=False; Started
+        siaadmin_dsv: tcmnet\svc-etcm (rede: tcmnet\svc-etcm); v4.0; pipeline Integrated; 32 bits=False; Started
+        sgq_dsv: TCMNET\svc-etcm (rede: TCMNET\svc-etcm); v4.0; pipeline Integrated; 32 bits=False; Started
+        sgq_hml: TCMNET\svc-etcm (rede: TCMNET\svc-etcm); v4.0; pipeline Integrated; 32 bits=False; Started
+        portalapi_dsv: TCMNET\svc-etcm (rede: TCMNET\svc-etcm); v4.0; pipeline Integrated; 32 bits=False; Started
+        portalapi_hml: TCMNET\svc-etcm (rede: TCMNET\svc-etcm); v4.0; pipeline Integrated; 32 bits=False; Started
+        multasapi_dsv: TCMNET\svc-etcm (rede: TCMNET\svc-etcm); v4.0; pipeline Integrated; 32 bits=False; Stopped
+        multasapi_hml: TCMNET\svc-etcm (rede: TCMNET\svc-etcm); v4.0; pipeline Integrated; 32 bits=False; Started
+        sicap3_dsv: TCMNET\svc-sicap (rede: TCMNET\svc-sicap); v4.0; pipeline Integrated; 32 bits=False; Started
+        sicap3_hml: TCMNET\svc-sicap (rede: TCMNET\svc-sicap); v4.0; pipeline Integrated; 32 bits=False; Started
+        static_dsv: TCMNET\svc-intranet (rede: TCMNET\svc-intranet); v4.0; pipeline Integrated; 32 bits=False; Started
+        static_hml: TCMNET\svc-intranet (rede: TCMNET\svc-intranet); v4.0; pipeline Integrated; 32 bits=False; Started
+        portalstatic_dsv: TCMNET\svc-intranet (rede: TCMNET\svc-intranet); v4.0; pipeline Integrated; 32 bits=False; Started
+        portalstatic_hml: TCMNET\svc-intranet (rede: TCMNET\svc-intranet); v4.0; pipeline Integrated; 32 bits=False; Started
+        sigarhvr2pagamentoapi_dsv: TCMNET\svc-intranet (rede: TCMNET\svc-intranet); v4.0; pipeline Integrated; 32 bits=False; Started
+        sigarhvr2pagamentoapi_hml: TCMNET\svc-intranet (rede: TCMNET\svc-intranet); v4.0; pipeline Integrated; 32 bits=False; Started
+        sicati_dsv: TCMNET\svc-intranet (rede: TCMNET\svc-intranet); v4.0; pipeline Integrated; 32 bits=False; Started
+        sicati_hml: TCMNET\svc-intranet (rede: TCMNET\svc-intranet); v4.0; pipeline Integrated; 32 bits=False; Started
+        usermanagerapi_dsv: TCMNET\svc-etcm (rede: TCMNET\svc-etcm); v4.0; pipeline Integrated; 32 bits=False; Started
+        usermanagerapi_hml: TCMNET\svc-etcm (rede: TCMNET\svc-etcm); v4.0; pipeline Integrated; 32 bits=False; Started
+        sigarhvr2portal_dsv: TCMNET\svc-intranet (rede: TCMNET\svc-intranet); v4.0; pipeline Integrated; 32 bits=False; Started
+        sigarhvr2portal_hml: TCMNET\svc-intranet (rede: TCMNET\svc-intranet); v4.0; pipeline Integrated; 32 bits=False; Started
+        tcmrjia: IIS AppPool\tcmrjia (rede: TCMNET\TCM2016WEB4$); v4.0; pipeline Integrated; 32 bits=False; Started
+        TcmrjAI: IIS AppPool\TcmrjAI (rede: TCMNET\TCM2016WEB4$); v4.0; pipeline Integrated; 32 bits=False; Started
+        chattcmrioapi_dsv: TCMNET\svc-intranet (rede: TCMNET\svc-intranet); No Managed Code; pipeline Integrated; 32 bits=False; Started
+        usermanager_dsv: TCMNET\svc-etcm (rede: TCMNET\svc-etcm); v4.0; pipeline Integrated; 32 bits=True; Started
+        usermanager_hml: TCMNET\svc-etcm (rede: TCMNET\svc-etcm); v4.0; pipeline Integrated; 32 bits=True; Started
+        webnewsinternet_dsv: TCMNET\svc-webnews (rede: TCMNET\svc-webnews); v4.0; pipeline Integrated; 32 bits=False; Started
+        webnewsintranet_dsv: TCMNET\svc-webnews (rede: TCMNET\svc-webnews); v4.0; pipeline Integrated; 32 bits=False; Started
+        stp_dsv: TCMNET\svc-intranet (rede: TCMNET\svc-intranet); v4.0; pipeline Integrated; 32 bits=False; Started
+        stp_hml: TCMNET\svc-intranet (rede: TCMNET\svc-intranet); v4.0; pipeline Integrated; 32 bits=False; Started
+        tcmrjnovaintranetedit_dsv: TCMNET\svc-intranet (rede: TCMNET\svc-intranet); v4.0; pipeline Integrated; 32 bits=False; Started
+        mcp_operacoes_dsv: TCMNET\svc-buildagent (rede: TCMNET\svc-buildagent); v4.0; pipeline Integrated; 32 bits=False; Started
+        sicap3api_dsv: TCMNET\svc-sicap (rede: TCMNET\svc-sicap); v4.0; pipeline Integrated; 32 bits=False; Started
+        sicap3api_hml: TCMNET\svc-sicap (rede: TCMNET\svc-sicap); v4.0; pipeline Integrated; 32 bits=False; Started
+
+Site "Default Web Site" (id 1, Started):
+        http *:80:
+        https *:443:*.tcmnet.tcm (certificado EE463B40A70FAA2699B3FF03F7924AD9920521B5 em WebHosting)
+        aplicativo / -> pool DefaultAppPool -> W:\TcmRoot\wwwroot
+        aplicativo /etcm_dsv -> pool etcm_dsv -> W:\TcmRoot\DSV\Sites\etcm_dsv
+        aplicativo /NovaRM -> pool DefaultAppPool -> W:\TcmRoot\DSV\Sites\NovaRM
+        aplicativo /portal_dsv -> pool portal_dsv -> W:\TcmRoot\DSV\Sites\portal_dsv
+        aplicativo /portalservidor_dsv -> pool portalservidor_dsv -> W:\TcmRoot\DSV\Sites\portalservidor_dsv
+        aplicativo /portalservidorintranet_dsv -> pool portalservidorintranet_dsv -> W:\TcmRoot\DSV\Sites\portalservidorintranet_dsv
+        aplicativo /tcmrjinternet_dsv -> pool tcmrjinternet_dsv -> W:\TcmRoot\DSV\Sites\tcmrjinternet_dsv
+        aplicativo /tcmrjinternetedit_dsv -> pool tcmrjinternetedit_dsv -> W:\TcmRoot\DSV\Sites\tcmrjinternetedit_dsv
+        aplicativo /webapp_dsv -> pool webapp_dsv -> W:\TcmRoot\DSV\Sites\webapp_dsv
+        aplicativo /SICAP -> pool SICAP -> W:\TcmRoot\DSV\Sites\SiCAP
+        aplicativo /Sagr_dsv -> pool Acesso FTP -> W:\TcmRoot\DSV\Sites\Sagr_dsv
+        aplicativo /MonitorHB_dsv -> pool MonitorHB_dsv -> W:\TcmRoot\DSV\Sites\MonitorHB_dsv
+        aplicativo /AvEstagio -> pool Acesso FTP -> W:\TcmRoot\DSV\Sites\AvEstagio
+        aplicativo /PortalServidorOld -> pool .NET v4.5 -> W:\TcmRoot\DSV\Sites\PortalServidorOld
+        aplicativo /SicopWeb -> pool SicopWeb -> W:\TcmRoot\DSV\Sites\SicopWeb
+        aplicativo /Sisgecom_dsv -> pool .NET v4.5 -> W:\TcmRoot\DSV\Sites\Sisgecom_dsv
+        aplicativo /SismedIntranet_dsv -> pool .NET v4.5 -> W:\TcmRoot\DSV\Sites\SismedIntranet_dsv
+        aplicativo /SuporteASI_dsv -> pool SuporteASI_dsv -> W:\TcmRoot\DSV\Sites\SuporteASI_dsv
+        aplicativo /SuporteDSG_dsv -> pool .NET v4.5 -> W:\TcmRoot\DSV\Sites\SuporteDSG_dsv
+        aplicativo /VCE -> pool VCE -> W:\TcmRoot\DSV\Sites\VCE
+        aplicativo /SCP_dsv -> pool Imagens -> W:\TcmRoot\DSV\Sites\SCP_dsv
+        aplicativo /etcm_hml -> pool etcm_hml -> W:\TcmRoot\HML\Sites\etcm_hml
+        aplicativo /portal_hml -> pool portal_hml -> W:\TcmRoot\HML\Sites\portal_hml
+        aplicativo /portalservidor_hml -> pool portalservidor_hml -> W:\TcmRoot\HML\Sites\portalservidor_hml
+        aplicativo /portalservidorintranet_hml -> pool portalservidorintranet_hml -> W:\TcmRoot\HML\Sites\portalservidorintranet_hml
+        aplicativo /webapp_hml -> pool webapp_hml -> W:\TcmRoot\HML\Sites\webapp_hml
+        aplicativo /tcmrjnovaintranet_dsv -> pool tcmrjnovaintranet_dsv -> W:\TcmRoot\DSV\Sites\tcmrjnovaintranet_dsv
+        aplicativo /SICAP_hml -> pool SICAP_hml -> W:\TcmRoot\HML\Sites\SiCAP_hml
+        aplicativo /scaf_dsv -> pool scaf_dsv -> W:\TcmRoot\DSV\Sites\scaf_dsv
+        aplicativo /scaf_hml -> pool scaf_hml -> W:\TcmRoot\HML\Sites\scaf_hml
+        aplicativo /atos_dsv -> pool atos_dsv -> W:\TcmRoot\DSV\Sites\atos_dsv
+        aplicativo /atos_hml -> pool atos_hml -> W:\TcmRoot\HML\Sites\atos_hml
+        aplicativo /scp_api_dsv -> pool scp_api_dsv -> W:\TcmRoot\DSV\Sites\scp_api_dsv
+        aplicativo /scp_api_hml -> pool scp_api_hml -> W:\TcmRoot\HML\Sites\scp_api_hml
+        aplicativo /sessoes_dsv -> pool sessoes_dsv -> W:\TcmRoot\DSV\Sites\sessoes_dsv
+        aplicativo /sessoes_hml -> pool sessoes_hml -> W:\TcmRoot\HML\Sites\sessoes_hml
+        aplicativo /atosapi_dsv -> pool atosapi_dsv -> W:\TcmRoot\DSV\Sites\atosapi_dsv
+        aplicativo /atosapi_hml -> pool atosapi_hml -> W:\TcmRoot\HML\Sites\atosapi_hml
+        aplicativo /sessoesapi_dsv -> pool sessoesapi_dsv -> W:\TcmRoot\DSV\Sites\sessoesapi_dsv
+        aplicativo /sessoesapi_hml -> pool sessoesapi_hml -> W:\TcmRoot\HML\Sites\sessoesapi_hml
+        aplicativo /portalseguranca_dsv -> pool portalseguranca_dsv -> W:\TcmRoot\DSV\Sites\portalseguranca_dsv
+        aplicativo /portalseguranca_hml -> pool portalseguranca_hml -> W:\TcmRoot\HML\Sites\portalseguranca_hml
+        aplicativo /portaria_dsv -> pool portaria_dsv -> W:\TcmRoot\DSV\Sites\portaria_dsv
+        aplicativo /portaria_hml -> pool portaria_hml -> W:\TcmRoot\HML\Sites\portaria_hml
+        aplicativo /chamadosservicos_dsv -> pool chamadosservicos_dsv -> W:\TcmRoot\DSV\Sites\chamadosservicos_dsv
+        aplicativo /chamadosservicos_hml -> pool chamadosservicos_hml -> W:\TcmRoot\HML\Sites\chamadosservicos_hml
+        aplicativo /multas_dsv -> pool multas_dsv -> W:\TcmRoot\DSV\Sites\multas_dsv
+        aplicativo /multas_hml -> pool multas_hml -> W:\TcmRoot\HML\Sites\multas_hml
+        aplicativo /chamadossti_dsv -> pool chamadossti_dsv -> W:\TcmRoot\DSV\Sites\chamadossti_dsv
+        aplicativo /chamadossti_hml -> pool chamadossti_hml -> W:\TcmRoot\HML\Sites\chamadossti_hml
+        aplicativo /siaadmin_dsv -> pool siaadmin_dsv -> W:\TcmRoot\DSV\Sites\siaadmin_dsv
+        aplicativo /sgq_dsv -> pool sgq_dsv -> W:\TcmRoot\DSV\Sites\sgq_dsv
+        aplicativo /sgq_hml -> pool sgq_hml -> W:\TcmRoot\HML\Sites\sgq_hml
+        aplicativo /Sagr_hml -> pool DefaultAppPool -> W:\TcmRoot\HML\Sites\sagr_hml
+        aplicativo /sicap3_dsv -> pool sicap3_dsv -> W:\TcmRoot\DSV\Sites\sicap3_dsv
+        aplicativo /sicap3_hml -> pool sicap3_hml -> W:\TcmRoot\HML\Sites\sicap3_hml
+        aplicativo /static_dsv -> pool static_dsv -> W:\TcmRoot\DSV\Sites\static_dsv
+        aplicativo /static_hml -> pool static_hml -> W:\TcmRoot\HML\Sites\static_hml
+        aplicativo /portalstatic_dsv -> pool portalstatic_dsv -> W:\TcmRoot\DSV\Sites\portalstatic_dsv
+        aplicativo /portalstatic_hml -> pool portalstatic_hml -> W:\TcmRoot\HML\Sites\portalstatic_hml
+        aplicativo /sigarhvr2pagamentoapi_dsv -> pool sigarhvr2pagamentoapi_dsv -> W:\TcmRoot\DSV\Sites\sigarhvr2pagamentoapi_dsv
+        aplicativo /sigarhvr2pagamentoapi_hml -> pool sigarhvr2pagamentoapi_hml -> W:\TcmRoot\HML\Sites\sigarhvr2pagamentoapi_hml
+        aplicativo /sicati_dsv -> pool sicati_dsv -> W:\TcmRoot\DSV\Sites\sicati_dsv
+        aplicativo /sicati_hml -> pool sicati_hml -> W:\TcmRoot\HML\Sites\sicati_hml
+        aplicativo /sigarhvr2portal_dsv -> pool sigarhvr2portal_dsv -> W:\TcmRoot\DSV\Sites\sigarhvr2portal_dsv
+        aplicativo /sigarhvr2portal_hml -> pool sigarhvr2portal_hml -> W:\TcmRoot\HML\Sites\sigarhvr2portal_hml
+        aplicativo /usermanager_dsv -> pool usermanager_dsv -> W:\TcmRoot\DSV\Sites\usermanager_dsv
+        aplicativo /usermanager_hml -> pool usermanager_hml -> W:\TcmRoot\HML\Sites\usermanager_hml
+        aplicativo /webnewsinternet_dsv -> pool webnewsinternet_dsv -> W:\TcmRoot\DSV\Sites\webnewsinternet_dsv
+        aplicativo /webnewsintranet_dsv -> pool webnewsintranet_dsv -> W:\TcmRoot\DSV\Sites\webnewsintranet_dsv
+        aplicativo /stp_dsv -> pool stp_dsv -> W:\TcmRoot\DSV\Sites\stp_dsv
+        aplicativo /stp_hml -> pool stp_hml -> W:\TcmRoot\HML\Sites\stp_hml
+        aplicativo /tcmrjnovaintranetedit_dsv -> pool tcmrjnovaintranetedit_dsv -> W:\TcmRoot\DSV\Sites\tcmrjnovaintranetedit_dsv
+        aplicativo /mcp_operacoes_dsv -> pool mcp_operacoes_dsv -> W:\TcmRoot\DSV\Sites\mcp_operacoes_dsv
+        aplicativo /webapp-legado_dsv -> pool webapp_dsv -> W:\TcmRoot\DSV\Sites\webapp-legado_dsv
+        aplicativo /webapp-legado_hml -> pool webapp_hml -> W:\TcmRoot\HML\Sites\webapp-legado_hml
+
+Site "API" (id 2, Started):
+        http *:8080:
+        https *:8443:*.tcmnet.tcm (certificado EE463B40A70FAA2699B3FF03F7924AD9920521B5 em WebHosting)
+        aplicativo / -> pool DefaultAppPool -> W:\TcmRoot\API
+        aplicativo /portalapi_dsv -> pool portalapi_dsv -> W:\TcmRoot\DSV_API\portalapi_dsv
+        aplicativo /portalapi_hml -> pool portalapi_hml -> W:\TcmRoot\HML_API\portalapi_hml
+        aplicativo /multasapi_dsv -> pool multasapi_dsv -> W:\TcmRoot\DSV_API\multasapi_dsv
+        aplicativo /multasapi_hml -> pool multasapi_hml -> W:\TcmRoot\HML_API\multasapi_hml
+        aplicativo /usermanagerapi_dsv -> pool usermanagerapi_dsv -> W:\TcmRoot\DSV_API\usermanagerapi_dsv
+        aplicativo /usermanagerapi_hml -> pool usermanagerapi_hml -> W:\TcmRoot\HML_API\usermanagerapi_hml
+        aplicativo /portalapi_ia_dsv -> pool portalapi_dsv -> W:\TcmRoot\DSV_API\portalapi_ia_dsv
+        aplicativo /portalapi_ia_hml -> pool portalapi_hml -> W:\TcmRoot\HML_API\portalapi_ia_hml
+        aplicativo /sicap3api_dsv -> pool sicap3api_dsv -> W:\TcmRoot\DSV_API\sicap3api_dsv
+        aplicativo /sicap3api_hml -> pool sicap3api_hml -> W:\TcmRoot\HML_API\sicap3api_hml
+
+Aplicativos que já usam autenticação do Windows neste servidor:
+        Default Web Site/SuporteASI_dsv: Windows=True (provedores: Negotiate, NTLM; kernel mode=True; useAppPoolCredentials=False; extendedProtection=None); anônimo=False (como IUSR); WebSocket=True
+        Default Web Site/SuporteDSG_dsv: Windows=True (provedores: Negotiate, NTLM; kernel mode=True; useAppPoolCredentials=False; extendedProtection=None); anônimo=False (como IUSR); WebSocket=True
+
+--- /siat_dsv ---
+[INFO] Aplicativo /siat_dsv ainda não existe neste servidor (a infra cria antes do primeiro deploy).
+        Seção windowsAuthentication para "Default Web Site/siat_dsv": Deny
+        Seção windowsAuthentication para "API/siat_dsv": Deny
+[FALTA] /siat_dsv: antes do primeiro deploy, a infra cria o aplicativo e libera a seção só para ele: appcmd unlock config "Default Web Site/siat_dsv" -section:system.webServer/security/authentication/windowsAuthentication -commit:apphost
+
+--- /siat_hml ---
+[INFO] Aplicativo /siat_hml ainda não existe neste servidor (a infra cria antes do primeiro deploy).
+        Seção windowsAuthentication para "Default Web Site/siat_hml": Deny
+        Seção windowsAuthentication para "API/siat_hml": Deny
+[FALTA] /siat_hml: antes do primeiro deploy, a infra cria o aplicativo e libera a seção só para ele: appcmd unlock config "Default Web Site/siat_hml" -section:system.webServer/security/authentication/windowsAuthentication -commit:apphost
+
+--- /sicati_dsv ---
+[INFO] Default Web Site/sicati_dsv: pool sicati_dsv, identidade TCMNET\svc-intranet, rede TCMNET\svc-intranet; pasta W:\TcmRoot\DSV\Sites\sicati_dsv
+[INFO] Seção windowsAuthentication para Default Web Site/sicati_dsv: Deny.
+[INFO] Autenticação efetiva: Windows=False (provedores: Negotiate, NTLM; kernel mode=True; useAppPoolCredentials=False; extendedProtection=None); anônimo=True (como IUSR); WebSocket=True
+        aspNetCore: processPath=dotnet; hostingModel=inprocess; ASPNETCORE_ENVIRONMENT=Development; stdoutLogEnabled=False
+        pasta: web.config de 13/11/2026 15:12; appsettings.Development.json
+
+--- /sicati_hml ---
+[INFO] Default Web Site/sicati_hml: pool sicati_hml, identidade TCMNET\svc-intranet, rede TCMNET\svc-intranet; pasta W:\TcmRoot\HML\Sites\sicati_hml
+[INFO] Seção windowsAuthentication para Default Web Site/sicati_hml: Deny.
+[INFO] Autenticação efetiva: Windows=False (provedores: Negotiate, NTLM; kernel mode=True; useAppPoolCredentials=False; extendedProtection=None); anônimo=True (como IUSR); WebSocket=True
+        aspNetCore: processPath=dotnet; hostingModel=inprocess; ASPNETCORE_ENVIRONMENT=Staging; stdoutLogEnabled=False
+        pasta: web.config de 13/11/2026 15:14; appsettings.Staging.json
+
+--- /scaf_dsv ---
+[INFO] Default Web Site/scaf_dsv: pool scaf_dsv, identidade TCMNET\svc-etcm, rede TCMNET\svc-etcm; pasta W:\TcmRoot\DSV\Sites\scaf_dsv
+[INFO] Seção windowsAuthentication para Default Web Site/scaf_dsv: Deny.
+[INFO] Autenticação efetiva: Windows=False (provedores: Negotiate, NTLM; kernel mode=True; useAppPoolCredentials=False; extendedProtection=None); anônimo=True (como IUSR); WebSocket=True
+        aspNetCore: processPath=dotnet; hostingModel=inprocess; ASPNETCORE_ENVIRONMENT=Development; stdoutLogEnabled=False
+        pasta: web.config de 03/11/2026 09:27; appsettings.Development.json
+
+--- /scaf_hml ---
+[INFO] Default Web Site/scaf_hml: pool scaf_hml, identidade TCMNET\svc-etcm, rede TCMNET\svc-etcm; pasta W:\TcmRoot\HML\Sites\scaf_hml
+[INFO] Seção windowsAuthentication para Default Web Site/scaf_hml: Deny.
+[INFO] Autenticação efetiva: Windows=False (provedores: Negotiate, NTLM; kernel mode=True; useAppPoolCredentials=False; extendedProtection=None); anônimo=True (como IUSR); WebSocket=True
+        aspNetCore: processPath=dotnet; hostingModel=inprocess; ASPNETCORE_ENVIRONMENT=Staging; stdoutLogEnabled=False
+        pasta: web.config de 03/11/2026 09:28; appsettings.Staging.json
+
+====================================================================================================
+6. Certificados das associações https
+====================================================================================================
+[INFO] "Default Web Site" *:443:*.tcmnet.tcm: CN=*.tcmnet.tcm, OU=TCMRJ Autoridade Certificadora Raiz V1, OU=ASI, O=TCMRJ, C=BR; nomes: *.tcmnet.tcm; vence em 10/06/2029 (934 dias)
+[INFO] "API" *:8443:*.tcmnet.tcm: CN=*.tcmnet.tcm, OU=TCMRJ Autoridade Certificadora Raiz V1, OU=ASI, O=TCMRJ, C=BR; nomes: *.tcmnet.tcm; vence em 10/06/2029 (934 dias)
+
+====================================================================================================
+7. DNS e Kerberos (SPN)
+====================================================================================================
+[ATENCAO] DNS não resolve *.tcmnet.tcm.
+[INFO] TCM2016WEB4.TCMNET.TCM -> 10.96.33.11 (TCM2016WEB4.TCMNET.TCM) [este servidor]
+[INFO] tcmrj.tcmnet.tcm -> 10.5.191.202 (TCM2016ARR1.TCMNET.TCM) [outro servidor: ARR ou balanceador]
+[INFO] tcmrj2.tcmnet.tcm -> CNAME TCM2016ARR2.tcmnet.tcm -> 10.96.33.10 (TCM2016ARR2.TCMNET.TCM) [outro servidor: ARR ou balanceador]
+
+[INFO] Sem SPN HTTP/TCM2016WEB4.TCMNET.TCM explícito (o HOST/ da conta do computador já cobre o nome do próprio servidor).
+[ATENCAO] Sem SPN HTTP/tcmrj.tcmnet.tcm: por esse nome o navegador não consegue Kerberos e usa NTLM, que costuma falhar através do ARR. Se o teste falhar: SPN na conta do app pool e useAppPoolCredentials=true.
+[ATENCAO] Sem SPN HTTP/tcmrj2.tcmnet.tcm: por esse nome o navegador não consegue Kerberos e usa NTLM, que costuma falhar através do ARR. Se o teste falhar: SPN na conta do app pool e useAppPoolCredentials=true.
+        SPNs de TCMNET\svc-buildagent: 0 no total; HTTP: nenhum
+        SPNs de TCMNET\svc-etcm: 0 no total; HTTP: nenhum
+        SPNs de TCMNET\svc-intranet: 0 no total; HTTP: nenhum
+        SPNs de TCMNET\svc-portal: 0 no total; HTTP: nenhum
+        SPNs de TCMNET\svc-sicap: 0 no total; HTTP: nenhum
+        SPNs de TCMNET\svc-webapp: 0 no total; HTTP: nenhum
+        SPNs de TCMNET\svc-webnews: 0 no total; HTTP: nenhum
+        SPNs de TCM2016WEB4: 8 no total; HTTP: nenhum
+[INFO] Loopback check: DisableLoopbackCheck=; BackConnectionHostNames= (testar o login de uma estação, não do navegador do servidor)
+
+====================================================================================================
+8. Log do IIS (requisições reais aos caminhos)
+====================================================================================================
+
+Site "Default Web Site": C:\inetpub\logs\LogFiles\W3SVC1\u_ex261119.log (18/11/2026 21:00), últimas 6174 linhas; campos: date time s-ip cs-method cs-uri-stem cs-uri-query s-port cs-username c-ip cs(User-Agent) cs(Referer) sc-status sc-substatus sc-win32-status time-taken
+        /scaf_dsv: 224 requisições de 2026-11-19 00:34:57 a 2026-11-19 20:04:37 (UTC)
+          origem (c-ip): 10.96.33.10 TCM2016ARR2.TCMNET.TCM (224)
+          usuário (cs-username): 0 requisições autenticadas, 0 usuários distintos, domínios: -
+          status: 200.0 (106); 302.0 (104); 304.0 (11); 400.0 (3)
+        /scaf_hml: 22 requisições de 2026-11-19 12:25:10 a 2026-11-19 19:27:18 (UTC)
+          origem (c-ip): 10.96.33.10 TCM2016ARR2.TCMNET.TCM (22)
+          usuário (cs-username): 0 requisições autenticadas, 0 usuários distintos, domínios: -
+          status: 302.0 (10); 200.0 (9); 304.0 (3)
+        /sicati_dsv: nenhuma requisição nessas linhas.
+        /sicati_hml: nenhuma requisição nessas linhas.
+        /SuporteASI_dsv: nenhuma requisição nessas linhas.
+        /SuporteDSG_dsv: nenhuma requisição nessas linhas.
+
+====================================================================================================
+9. SQL (TCMBD3\DEV, CSLIB_UserManager)
+====================================================================================================
+[ERRO] SQL: Exception calling "Open" with "0" argument(s): "Login failed for user 'TCMNET\Emartins_a1'."
+
+====================================================================================================
+10. Pastas de publicação
+====================================================================================================
+[INFO] W:\TcmRoot\dsv\Sites: scaf_dsv (03/11/2026), sicati_dsv (13/11/2026)
+[INFO] W:\TcmRoot\hml\Sites: scaf_hml (03/11/2026), sicati_hml (13/11/2026)
+[INFO] Unidade W: 203,2 GB livres.
+
+====================================================================================================
+Resumo: o que falta ou precisa de atenção
+====================================================================================================
+[FALTA] /siat_dsv: antes do primeiro deploy, a infra cria o aplicativo e libera a seção só para ele: appcmd unlock config "Default Web Site/siat_dsv" -section:system.webServer/security/authentication/windowsAuthentication -commit:apphost
+[FALTA] /siat_hml: antes do primeiro deploy, a infra cria o aplicativo e libera a seção só para ele: appcmd unlock config "Default Web Site/siat_hml" -section:system.webServer/security/authentication/windowsAuthentication -commit:apphost
+[ATENCAO] DNS não resolve *.tcmnet.tcm.
+[ATENCAO] Sem SPN HTTP/tcmrj.tcmnet.tcm: por esse nome o navegador não consegue Kerberos e usa NTLM, que costuma falhar através do ARR. Se o teste falhar: SPN na conta do app pool e useAppPoolCredentials=true.
+[ATENCAO] Sem SPN HTTP/tcmrj2.tcmnet.tcm: por esse nome o navegador não consegue Kerberos e usa NTLM, que costuma falhar através do ARR. Se o teste falhar: SPN na conta do app pool e useAppPoolCredentials=true.
+[ERRO] SQL: Exception calling "Open" with "0" argument(s): "Login failed for user 'TCMNET\Emartins_a1'."

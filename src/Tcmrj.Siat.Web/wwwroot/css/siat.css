@@ -135,7 +135,9 @@ h1, h2, h3, p, dl, dd, ul { margin: 0; }
 ul { padding: 0; list-style: none; }
 button, input, select { font: inherit; color: inherit; }
 button:not(:disabled), summary, select { cursor: pointer; }
-a { color: var(--color-brand); text-underline-offset: 2px; }
+/* O reset do BlazorBlueprint (a { text-decoration: inherit }) tira o sublinhado padrão do navegador; o design
+   (design/siat.css) conta com ele nos links de conteúdo. Marca, menu e botões tiram o sublinhado nas próprias regras. */
+a { color: var(--color-brand); text-decoration-line: underline; text-underline-offset: 2px; }
 [hidden] { display: none !important; }
 
 :focus-visible { outline: 3px solid var(--color-action); outline-offset: 2px; }
@@ -253,7 +255,9 @@ a.menu-item:hover { background: oklch(from var(--color-sidebar-strong) l c h / 0
   .menu-item[aria-current="page"] { box-shadow: inset 0 -3px 0 var(--color-accent); }
   .menu-rodape { flex-direction: row; margin: 0; padding: 0; border: 0; position: absolute; right: 16px; top: 10px; }
   .menu-rodape a, .menu-rodape button { margin: 0; }
-  .conteudo { padding: 16px; }
+  /* Em coluna, o margin auto impedia o esticamento: o conteúdo crescia até a largura mínima das tabelas e a página
+     inteira rolava na horizontal, em vez da .tabela-rolagem. */
+  .conteudo { padding: 16px; margin: 0; }
 }
 
 /* ---------- Cabeçalho de página ---------- */
@@ -467,7 +471,8 @@ a.menu-item:hover { background: oklch(from var(--color-sidebar-strong) l c h / 0
 
 /* ---------- Tabelas ---------- */
 
-.tabela-rolagem { overflow-x: auto; }
+/* position: relative prende os .so-leitor (absolutos) das células: sem ela, eles escapam da rolagem e alargam a página. */
+.tabela-rolagem { overflow-x: auto; position: relative; }
 .tabela { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
 .tabela th, .tabela td { padding: 10px 14px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--color-line); }
 .tabela tbody tr:last-child td { border-bottom: 0; }
@@ -484,6 +489,16 @@ a.menu-item:hover { background: oklch(from var(--color-sidebar-strong) l c h / 0
 .tabela .centro { text-align: center; }
 .tabela .divisa { border-left: 1px solid var(--color-line); }
 .vazio-cel { color: var(--color-field); }
+
+/* Tabela do catálogo (tela Sistemas, design/sistemas.html): colunas fixas e rolagem horizontal em telas estreitas.
+   O overflow-x da .tabela-rolagem a torna o contêiner de rolagem do th sticky; por isso ela também rola na vertical,
+   com altura máxima da tela, para o cabeçalho ficar fixo ao rolar a lista. A observação respeita as quebras de linha. */
+.tabela-rolagem:has(> .tabela-sistemas) { max-height: calc(100dvh - 32px); overflow: auto; }
+.tabela-sistemas { table-layout: fixed; min-width: 1080px; }
+.tabela-sistemas .col-sistema { width: 15%; }
+.tabela-sistemas .col-obs { width: 14%; }
+.tabela-sistemas th .amb { margin-right: 3px; }
+.tabela-sistemas .obs { white-space: pre-line; overflow-wrap: anywhere; }
 
 /* Instâncias de um ambiente dentro da célula (tela Sistemas) */
 .instancia + .instancia { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--color-line); }

@@ -8,7 +8,7 @@ As decisões abaixo resolvem os pontos em aberto do contexto técnico. A anális
 
 - **Decisão**: API de arquivos do GitLab, `GET {BaseUrl}/api/v4/projects/{asi%2FTCMRJDoc}/repository/files/{sistemasDb.js}/raw?ref=master`, com o token no cabeçalho `PRIVATE-TOKEN`. `BaseUrl` confirmado em 2026-11-24: `https://git.tcmnet.tcm` (a API responde 401 sem token, com certificado aceito numa estação da rede; `http://git` e `http://git.tcmnet.tcm` redirecionam para ele). Falta conferir o mesmo a partir dos servidores do IIS, na publicação. `HttpClient` tipado (`AddHttpClient`, do próprio ASP.NET Core) com `Timeout` configurável (padrão 10 s).
 - **Credencial**: token de acesso do projeto TCMRJDoc (project access token), papel Reporter, escopo `read_repository`. A documentação do GitLab descreve esse escopo como leitura do repositório "por Git-over-HTTP ou pela API de arquivos do repositório"; `read_api` não é necessário. O token expira em até 365 dias (limite padrão do GitLab): a renovação é tarefa de operação, registrada no quickstart, e o erro de token expirado tem mensagem própria (R6).
-- **Onde fica o token**: fora do repositório (Princípio III). Em desenvolvimento, `dotnet user-secrets` (`CatalogoSistemas:GitLab:Token`); no IIS, variável de ambiente `CatalogoSistemas__GitLab__Token` no `applicationHost.config` do site, como a infraestrutura já faz para a autenticação do Windows. Não é a exceção do `ClientSecret` do OIDC: essa exceção é única.
+- **Onde fica o token**: no `appsettings` (`CatalogoSistemas:GitLab:Token`), em desenvolvimento e nas publicações, como o `ClientSecret` do OIDC. A constituição 3.1.0 (Princípio III) inclui esse token nas exceções que ficam no `appsettings` e proíbe `dotnet user-secrets` no SIAT. (A primeira versão desta decisão usava user-secrets em desenvolvimento e variável de ambiente no IIS; foi trocada a pedido do dono do projeto em 2026-11-24.)
 - **Por que não o token do usuário**: o Princípio II exige token do usuário só para escrita; ler o catálogo é igual para todos e não deixa autoria. O "Conectar ao GitLab" (RG-07) é da fase de Documentação e obrigaria todo usuário do suporte a conectar uma conta só para ver o catálogo.
 - **Alternativas consideradas**: clone local do repositório atualizado por tarefa agendada (estado em disco, mais uma peça para operar); leitura do arquivo num compartilhamento de rede (não há cópia publicada; seria outra fonte a manter); URL "raw" da interface web (`/-/raw/master/...`) com o mesmo token (não é API documentada para tokens; muda entre versões).
 
@@ -18,7 +18,7 @@ O arquivo é JavaScript, não JSON. A análise encontrou, além do esperado (`va
 
 | Particularidade | Ocorrências | Exemplo |
 |---|---|---|
-| Nome de campo sem aspas | 1 | `OBS: "Novo site feito para o DGP"` (Portal do Servidor - INTERNET) |
+| Nome de campo sem aspas | 1 | `OBS: "Novo site feito para o DGP"` (Portal do Servidor - INTRANET) |
 | Barra invertida antes de caractere que não forma escape JSON | 17, em 15 sistemas | `"G:\DESENVOLVIMENTO\VBSCP\\SCP..."`, `"W:\\TcmRoot\\\DSV\\Sites..."`, `"C:\\TcmRoot\SIGARH_Ag..."` |
 
 O `System.Text.Json` recusa as duas. No JavaScript, uma barra antes de caractere sem significado especial é descartada: `\D` vira `D`. Por isso o `sistemas.html` mostra hoje `G:DESENVOLVIMENTOVBSCP\SCP DESENVOLVIMENTO.EXE` (perde barras) e `W:\TcmRoot\DSV\Sites\...` (fica certo por acaso).

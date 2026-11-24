@@ -6,7 +6,7 @@
 
 ## Resumo
 
-Novo módulo **Catálogo › Sistemas**, que substitui o `TCMRJDoc/sistemas.html`. O SIAT lê o próprio `sistemasDb.js` do repositório TCMRJDoc pela API de arquivos do GitLab, com um token de projeto só de leitura guardado fora do repositório, e o interpreta com um leitor próprio que aceita o subconjunto de JavaScript do arquivo e segue a regra de escapes do JavaScript, para mostrar exatamente o que a página antiga mostra. O catálogo fica em cache em memória por 10 minutos, com "Atualizar agora", preservação da última leitura válida quando o GitLab falha e cancelamento da leitura (interrompida no GitLab quando ninguém mais espera por ela). A tela reaproveita a base da feature 001 (autorização por recurso no circuito, componentes do `DESIGN.md`, o componente `FiltroLocal` com busca, contador, `/` e `Esc`, `BotaoCopiar`) e acrescenta o recurso `Sistemas.CanSelect`, o grupo de menu **Catálogo** e um componente de célula por ambiente.
+Novo módulo **Catálogo › Sistemas**, que substitui o `TCMRJDoc/sistemas.html`. O SIAT lê o próprio `sistemasDb.js` do repositório TCMRJDoc pela API de arquivos do GitLab, com um token de projeto só de leitura guardado no `appsettings`, e o interpreta com um leitor próprio que aceita o subconjunto de JavaScript do arquivo e segue a regra de escapes do JavaScript, para mostrar exatamente o que a página antiga mostra. O catálogo fica em cache em memória por 10 minutos, com "Atualizar agora", preservação da última leitura válida quando o GitLab falha e cancelamento da leitura (interrompida no GitLab quando ninguém mais espera por ela). A tela reaproveita a base da feature 001 (autorização por recurso no circuito, componentes do `DESIGN.md`, o componente `FiltroLocal` com busca, contador, `/` e `Esc`, `BotaoCopiar`) e acrescenta o recurso `Sistemas.CanSelect`, o grupo de menu **Catálogo** e um componente de célula por ambiente.
 
 ## Contexto técnico
 
@@ -24,7 +24,7 @@ Novo módulo **Catálogo › Sistemas**, que substitui o `TCMRJDoc/sistemas.html
 
 **Metas de desempenho**: tela em até 2 s (SC-003): com cache quente, a lista; com cache frio, o estado de carregamento com tempo decorrido e Cancelar; leitura do GitLab limitada por tempo limite de 10 s; filtro a cada tecla sem atraso perceptível com 63 sistemas.
 
-**Restrições**: só leitura no GitLab; token fora do repositório e nunca em mensagens; nenhuma marcação da origem interpretada; link só para `http`/`https`; WCAG 2.2 AA; português do Brasil; falha do GitLab não afeta os outros módulos.
+**Restrições**: só leitura no GitLab; token no `appsettings` e nunca em mensagens; nenhuma marcação da origem interpretada; link só para `http`/`https`; WCAG 2.2 AA; português do Brasil; falha do GitLab não afeta os outros módulos.
 
 **Escala/escopo**: 63 sistemas e 155 instâncias hoje (dezenas de KB); dezenas de usuários simultâneos; 1 tela.
 
@@ -36,7 +36,7 @@ Novo módulo **Catálogo › Sistemas**, que substitui o `TCMRJDoc/sistemas.html
 |---|---|---|
 | I. Sem estado próprio | Fonte de verdade é o `sistemasDb.js` no GitLab (configuração versionada no GitLab, como o princípio prevê para o catálogo); cache só em memória, com validade de 10 min e "Atualizar agora" (R4), ambos no MVP; nada em disco | Atende |
 | II. Consulta por padrão | Só leitura no GitLab, com `GET` na API de arquivos; nenhuma escrita. Corrigir o catálogo continua no GitLab, fora do SIAT | Atende |
-| III. Segurança e menor privilégio | Recurso `Sistemas.CanSelect` verificado no servidor no menu, na página e na feature antes de devolver dados (R5); token de projeto só de leitura (`read_repository`, papel Reporter), fora do repositório, em user-secrets e variável de ambiente do IIS, nunca em mensagem nem log (R1, R6); texto da origem exibido sem interpretar marcação e link só para `http`/`https` (FR-009, FR-012); nenhum código da origem é executado (leitor próprio em vez de motor JavaScript, R2). Recurso único para todos os ambientes, permitido desde a emenda 3.0.0, que retirou a exigência de recurso próprio para dados de produção; leitura não registrada no DBLog porque o catálogo não é dado sensível (R5) | Atende |
+| III. Segurança e menor privilégio | Recurso `Sistemas.CanSelect` verificado no servidor no menu, na página e na feature antes de devolver dados (R5); token de projeto só de leitura (`read_repository`, papel Reporter), no `appsettings`, como o `ClientSecret` (exceção da constituição 3.1.0), nunca em mensagem nem log (R1, R6); texto da origem exibido sem interpretar marcação e link só para `http`/`https` (FR-009, FR-012); nenhum código da origem é executado (leitor próprio em vez de motor JavaScript, R2). Recurso único para todos os ambientes, permitido desde a emenda 3.0.0, que retirou a exigência de recurso próprio para dados de produção; leitura não registrada no DBLog porque o catálogo não é dado sensível (R5) | Atende |
 | IV. Módulos independentes | Módulo próprio (página, feature, serviço, repositório); falha do GitLab vira estado de erro só nesta tela; configuração ausente não impede a aplicação de subir (R6); o `sistemas.html` continua funcionando com o mesmo arquivo | Atende |
 | V. Testes | Unidade: `LeitorSistemasDb` (cada particularidade de R2, escapes do JavaScript, erros com linha e coluna, amostra representativa do arquivo real), validação e montagem dos itens (R3), `CatalogoSistemasService` (validade, releitura forçada, leitura única concorrente, leitura anterior preservada), repositório com handler HTTP falso (códigos 401/404, tempo esgotado), `Navegacao.Sistemas`. Reqnroll: cenários de `Sistemas.CanSelect` em `Permissoes.feature`. bUnit: `CelulaAmbiente`, `Menu` com o grupo Catálogo. Fluxos das histórias 1 a 4 no quickstart | Atende |
 | VI. Experiência consistente | Contrato visual `design/sistemas.html`; componentes do SIAT reaproveitados (`FiltroLocal` ganha só o parâmetro opcional `Placeholder`) e `CelulaAmbiente` novo em `Components/Shared`; temas; atalho `/` e `Esc` pelo `FiltroLocal`; busca na URL (`busca`) já no MVP; etiqueta de ambiente com sigla e cor; pt-BR | Atende |
@@ -46,7 +46,7 @@ Novo módulo **Catálogo › Sistemas**, que substitui o `TCMRJDoc/sistemas.html
 | Dependências | Nenhum pacote novo; versões da 001 mantidas | Atende |
 | Fluxo de trabalho no Git | O branch de trabalho segue o padrão `features/<tarefa>_catalogo_sistemas` (ou `features/catalogo_sistemas` sem número); `002-catalogo-sistemas` é só o nome da pasta da spec | Atende |
 
-Reavaliação depois da Fase 1: o modelo de dados, os contratos e o quickstart não introduzem estado persistente, escrita nem dependência nova. O único item novo de infraestrutura é o token do GitLab, tratado como segredo fora do repositório. **Gate aprovado.**
+Reavaliação depois da Fase 1: o modelo de dados, os contratos e o quickstart não introduzem estado persistente, escrita nem dependência nova. O único item novo de infraestrutura é o token do GitLab, no `appsettings` como o `ClientSecret` (constituição 3.1.0). **Gate aprovado.**
 
 Reavaliação depois do `/speckit-analyze` (2026-11-24): o recurso único deixou de depender de interpretação (emenda 3.0.0 retirou a regra de recurso próprio para produção); a leitura passou a ser cancelável com interrupção na origem (Princípio VII); o MVP inclui "Atualizar agora" e a busca na URL (Princípios I e VI). **Gate aprovado.**
 
@@ -117,7 +117,6 @@ src/
 ├── Tcmrj.Siat.Web/
 │   ├── ~ Extensions/ServiceCollectionExtensions.cs  # AddCatalogoSistemas, serviço singleton
 │   ├── ~ appsettings.json               # CatalogoSistemas (sem token)
-│   ├── ~ Tcmrj.Siat.Web.csproj          # UserSecretsId
 │   ├── Components/
 │   │   ├── Layout/~ Menu.razor          # grupo Catálogo antes de Consultas
 │   │   ├── Pages/
