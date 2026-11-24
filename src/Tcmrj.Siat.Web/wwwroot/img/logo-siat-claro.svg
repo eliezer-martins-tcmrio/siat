@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192"><title>SIAT</title>
+<g transform="translate(0 0)">
+  <g fill="none" stroke="#092F57" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><rect x="56.5" y="30" width="34" height="34" rx="8"/><rect x="56.5" y="75" width="34" height="34" rx="8"/><rect x="101.5" y="75" width="34" height="34" rx="8"/></g>
+  <rect x="101.5" y="30" width="34" height="34" rx="8" fill="#3896B4" stroke="#3896B4" stroke-width="7" stroke-linejoin="round"/>
+  <g transform="translate(118.5 47.0) rotate(-45) scale(0.92)">
+    <path d="M-15 0 H3" stroke="#092F57" stroke-width="7" stroke-linecap="round"/>
+    <circle cx="9" cy="0" r="8.5" fill="#092F57"/>
+    <rect x="10" y="-3.6" width="10" height="7.2" rx="1" fill="#3896B4"/>
+  </g>
+</g>
+<text x="96" y="160" text-anchor="middle" font-family="Segoe UI, Arial, Helvetica, sans-serif" font-weight="700" font-size="46" letter-spacing="1" fill="#092F57"><tspan fill="#3896B4">S</tspan>IAT</text>
+</svg>
