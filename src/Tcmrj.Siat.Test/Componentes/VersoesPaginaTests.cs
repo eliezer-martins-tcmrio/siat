@@ -653,6 +653,23 @@ public sealed class VersoesPaginaTests : BunitContext
     }
 
     [Fact]
+    public void Excecao_ao_ler_as_fichas_avisa_em_vez_de_sumir()
+    {
+        Devolver(Versoes());
+        _autorizacao.Setup(a => a.PodeAcessarModuloAsync(Modulo.Catalogo_Sistemas)).ReturnsAsync(true);
+        _mediador.Setup(m => m.Send(It.IsAny<ListarFichas.Query>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("falha do UserManager"));
+
+        var pagina = Abrir();
+
+        pagina.WaitForAssertion(() => pagina.FindAll(".aviso").Select(a => a.TextContent.Trim())
+            .Should().Contain("As fichas dos sistemas estão indisponíveis: erro inesperado ao ler o catálogo."));
+        pagina.Markup.Should().NotContain("falha do UserManager");
+        pagina.FindAll("td.nome a").Should().BeEmpty();
+        Nomes(pagina).Should().HaveCount(4);
+    }
+
+    [Fact]
     public void So_com_as_versoes_nao_pede_as_fichas_e_fica_em_Todos_sem_aviso()
     {
         Devolver(Versoes());

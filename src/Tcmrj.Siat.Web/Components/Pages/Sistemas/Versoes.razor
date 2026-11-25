@@ -20,6 +20,7 @@
 @inject TimeProvider Relogio
 @inject IJSRuntime JS
 @inject IOptionsMonitor<Servicos.CacheDeVersoesOptions> Opcoes
+@inject ILogger<Versoes> Logger
 
 @* Sistemas › Versões publicadas (specs/003-versoes-publicadas; contrato visual design/versoes.html).
    - Acesso: no OnInitializedAsync, Versoes_Sistemas.CanSelect, antes de ler os parâmetros e de chamar qualquer
@@ -622,6 +623,9 @@ else
         }
     }
 
+    private static readonly Action<ILogger, Exception?> FalhaAoCarregarFichas = LoggerMessage.Define(
+        LogLevel.Error, new EventId(1, nameof(FalhaAoCarregarFichas)), "Falha inesperada ao carregar as fichas da tela de Versões.");
+
     private async Task CarregarFichasAsync()
     {
         Result<FichasVM, Erro> obtido;
@@ -632,6 +636,12 @@ else
         catch (OperationCanceledException)
         {
             return;
+        }
+        catch (Exception ex)
+        {
+            // A tarefa não é aguardada: sem este catch, a falha sumiria sem log e sem aviso.
+            FalhaAoCarregarFichas(Logger, ex);
+            obtido = new Erro(Erros.Catalogo.CodigoIndisponivel, "erro inesperado ao ler o catálogo");
         }
 
         if (descartada)

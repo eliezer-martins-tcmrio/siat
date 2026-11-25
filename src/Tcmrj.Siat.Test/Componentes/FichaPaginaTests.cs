@@ -542,7 +542,42 @@ public sealed class FichaPaginaTests : BunitContext
         var pagina = Abrir(url);
 
         pagina.Find(".estado h2").TextContent.Should().Be("Sistema não encontrado no catálogo");
+        pagina.Find("#atualizar").HasAttribute("disabled").Should().BeTrue();
         _mediador.Verify(m => m.Send(It.IsAny<ObterFicha.Query>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public void Item_removido_numa_releitura_tira_a_ficha_anterior_da_tela()
+    {
+        DevolverFicha(Ficha());
+        DevolverVersoes(Versoes());
+        var pagina = Abrir();
+        pagina.FindAll(".contexto").Should().NotBeEmpty();
+
+        DevolverFicha(Erros.Catalogo.SistemaNaoEncontrado("SIGARH"));
+        pagina.Find("#atualizar").Click();
+
+        pagina.Find(".estado h2").TextContent.Should().Be("Sistema não encontrado no catálogo");
+        pagina.FindAll(".contexto").Should().BeEmpty();
+        pagina.FindAll(".pilula").Should().BeEmpty();
+        pagina.FindAll("section.ficha-ambiente").Should().BeEmpty();
+        pagina.Find("footer.rodape").TextContent.Should().NotContain("Apps_VersionAddresses");
+        pagina.Find("footer.rodape").QuerySelectorAll("a").Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Sistema_nao_encontrado_permite_atualizar_e_mostra_a_ficha_quando_ela_aparece()
+    {
+        DevolverFicha(Erros.Catalogo.SistemaNaoEncontrado("SIGARH"));
+        var pagina = Abrir();
+        pagina.Find("#atualizar").HasAttribute("disabled").Should().BeFalse();
+
+        DevolverFicha(Ficha(mostraVersoes: false));
+        pagina.Find("#atualizar").Click();
+
+        pagina.FindAll(".estado").Should().BeEmpty();
+        pagina.FindAll("section.ficha-ambiente").Should().HaveCount(4);
+        _mediador.Verify(m => m.Send(It.Is<ObterFicha.Query>(q => q.Atualizar), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     // ---------- História 4: leitura, andamento e falhas ----------

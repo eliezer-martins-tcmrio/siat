@@ -87,7 +87,7 @@ else
             }
         </Status>
         <Acoes>
-            <button type="button" class="botao secundario pequeno" id="atualizar" disabled="@(LendoFicha || naoEncontrado)" @onclick="AtualizarAsync">
+            <button type="button" class="botao secundario pequeno" id="atualizar" disabled="@(LendoFicha || sistema is null)" @onclick="AtualizarAsync">
                 <LucideIcon Name="refresh-cw" Size="14" aria-hidden="true" focusable="false" />
                 Atualizar agora
             </button>
@@ -490,6 +490,8 @@ else
             Interacao.Interagir();
         }
 
+        // Releitura depois de "não encontrado" (item recém-incluído no catálogo): a tela volta a mostrar a leitura.
+        naoEncontrado = false;
         var controle = fichas;
         var tentativa = controle.Iniciar();
         StateHasChanged();
@@ -519,7 +521,10 @@ else
             }
             else if (obtido.Error.Code == Erros.Catalogo.CodigoSistemaNaoEncontrado)
             {
+                // Item renomeado ou removido numa releitura: a ficha anterior (faixa, título, rodapé) sai da tela.
                 naoEncontrado = true;
+                fichas.Dispose();
+                fichas = new(Relogio);
                 versoes.Dispose();
                 versoes = new(Relogio);
             }
