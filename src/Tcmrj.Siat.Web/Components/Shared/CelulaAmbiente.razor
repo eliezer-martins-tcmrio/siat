@@ -1,54 +1,10 @@
 @using Tcmrj.Siat.App.Web.ViewModels.Catalogo
 
-@* Célula de um ambiente na tabela de Sistemas (contracts/rotas-ui.md, Componente CelulaAmbiente).
-   - Sem instâncias: "–" com "não configurado" para o leitor de tela (FR-008).
-   - Uma div.instancia por instância, com dt URL, Máquina e Caminho. Só endereço http/https vira link, em nova aba
-     (FR-009); o resto é texto. Cada máquina e o caminho têm o seu botão de cópia, com o sistema e o ambiente no nome
-     acessível.
-   - Texto da origem sempre codificado pelo Razor (FR-012): nenhum MarkupString com dado do arquivo. Valores longos
-     quebram depois de / \ _ . e - (<wbr /> entre segmentos). *@
-<td>
-    @if (Ambiente.Instancias.Count == 0)
-    {
-        <span class="vazio-cel"><span aria-hidden="true">–</span><span class="so-leitor">não configurado</span></span>
-    }
-    else
-    {
-        @foreach (var instancia in Ambiente.Instancias)
-        {
-            <div class="instancia">
-                <dl>
-                    @foreach (var endereco in instancia.Enderecos)
-                    {
-                        <dt>URL</dt>
-                        @if (endereco.EhLink)
-                        {
-                            <dd><a href="@endereco.Texto" target="_blank" rel="noopener noreferrer">@Quebravel(endereco.Exibicao)<span class="so-leitor"> (abre em nova aba)</span></a></dd>
-                        }
-                        else
-                        {
-                            <dd>@endereco.Texto</dd>
-                        }
-                    }
-                    @foreach (var maquina in instancia.Maquinas)
-                    {
-                        <dt>Máquina</dt>
-                        <dd><span class="mono">@maquina</span><BotaoCopiar Texto="@maquina" Rotulo="@($"máquina {maquina} de {Ambiente.Sigla} do {Sistema}")" /></dd>
-                    }
-                    @if (instancia.Caminho is { } caminho)
-                    {
-                        <dt>Caminho</dt>
-                        <dd><span class="mono">@Quebravel(caminho)</span><BotaoCopiar Texto="@caminho" Rotulo="@($"caminho de {Ambiente.Sigla} do {Sistema}")" /></dd>
-                    }
-                </dl>
-            </div>
-        }
-    }
-</td>
+@* Célula de um ambiente na tabela de Sistemas (contracts/rotas-ui.md, Componente CelulaAmbiente): só envolve a
+   ListaDeInstancias num td (specs/004-ficha-sistema), e o HTML gerado é o de antes. *@
+<td><ListaDeInstancias Sistema="@Sistema" Ambiente="@Ambiente" /></td>
 
 @code {
-    private static readonly char[] Separadores = ['/', '\\', '_', '.', '-'];
-
     /// <summary>Nome do sistema, para os nomes acessíveis dos botões de cópia.</summary>
     [Parameter, EditorRequired]
     public string Sistema { get; set; } = string.Empty;
@@ -56,23 +12,4 @@
     /// <summary>Ambiente (sigla, nome e instâncias).</summary>
     [Parameter, EditorRequired]
     public AmbienteVM Ambiente { get; set; } = default!;
-
-    // Segmentos do texto, cada um terminando num separador (o último pode não terminar), com <wbr /> depois dos
-    // que terminam. O texto entra como conteúdo (codificado); o <wbr /> é marcação fixa.
-    private static RenderFragment Quebravel(string texto) => builder =>
-    {
-        var inicio = 0;
-        while (inicio < texto.Length)
-        {
-            var separador = texto.IndexOfAny(Separadores, inicio);
-            var fim = separador < 0 ? texto.Length : separador + 1;
-            builder.AddContent(0, texto[inicio..fim]);
-            if (separador >= 0 && fim < texto.Length)
-            {
-                builder.AddMarkupContent(1, "<wbr />");
-            }
-
-            inicio = fim;
-        }
-    };
 }

@@ -1,5 +1,4 @@
-using System.Globalization;
-using System.Text;
+using Tcmrj.Siat.Domain.Models;
 using Tcmrj.Siat.Domain.Models.Versoes;
 
 namespace Tcmrj.Siat.App.Web.ViewModels.Versoes;
@@ -32,21 +31,10 @@ public sealed record SistemaVersoesVM(
             sistema.Celulas.Select(c => CelulaVersaoVM.De(c, sistema.DivergeEm(c.Ambiente))).ToArray());
     }
 
-    /// <summary>Sem acento e em minúsculas (a busca do <c>FiltroLocal</c> também ignora acentos e maiúsculas).</summary>
-    public static string Normalizar(string texto)
-    {
-        ArgumentNullException.ThrowIfNull(texto);
-
-        var decomposto = texto.Normalize(NormalizationForm.FormD);
-        var semAcento = new StringBuilder(decomposto.Length);
-        foreach (var caractere in decomposto)
-        {
-            if (CharUnicodeInfo.GetUnicodeCategory(caractere) != UnicodeCategory.NonSpacingMark)
-            {
-                semAcento.Append(caractere);
-            }
-        }
-
-        return semAcento.ToString().Normalize(NormalizationForm.FormC).ToLower(CultureInfo.GetCultureInfo("pt-BR"));
-    }
+    /// <summary>
+    /// Sem acento e em minúsculas (a busca do <c>FiltroLocal</c> também ignora acentos e maiúsculas). É a mesma
+    /// comparação do vínculo da ficha (specs/004-ficha-sistema/research.md R2): o nome da tabela já chega sem espaços
+    /// nas pontas, então a busca não muda.
+    /// </summary>
+    public static string Normalizar(string texto) => NomeDeSistema.Normalizar(texto);
 }

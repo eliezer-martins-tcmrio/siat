@@ -17,7 +17,7 @@ public class MontadorCatalogoTests
 
     private const string Origem = "https://git.tcmnet.tcm/asi/TCMRJDoc/-/blob/master/sistemasDb.js";
 
-    private static CatalogoLido Montar(string js, ILogger? logger = null)
+    internal static CatalogoLido Montar(string js, ILogger? logger = null)
     {
         var resultado = Resultado(js, logger);
         resultado.IsSuccess.Should().BeTrue(resultado.IsFailure ? resultado.Error.Message : string.Empty);
@@ -154,6 +154,69 @@ public class MontadorCatalogoTests
     }
 
     [Fact]
+    public void Versoes_lista_de_textos_vira_o_vinculo()
+    {
+        var sistema = Unico("""[ { "Title": "SIGARH", "Versoes": [ " SIGARH ", "sigarh", "", "SIGARH Agendador" ] } ]""");
+
+        sistema.Versoes.Nomes.Should().Equal("SIGARH", "SIGARH Agendador");
+        sistema.Versoes.Invalido.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("""{ "Title": "A" }""")]
+    [InlineData("""{ "Title": "A", "Versoes": null }""")]
+    public void Versoes_ausente_ou_nulo_e_Nenhum(string item)
+    {
+        Unico($"[ {item} ]").Versoes.Should().BeSameAs(VinculoDeVersoes.Nenhum);
+    }
+
+    [Theory]
+    [InlineData("[]")]
+    [InlineData("""[ "", "  " ]""")]
+    public void Versoes_vazio_ou_so_com_textos_vazios_e_vinculo_vazio_e_valido(string valor)
+    {
+        var vinculo = Unico($$"""[ { "Title": "A", "Versoes": {{valor}} } ]""").Versoes;
+
+        vinculo.Vazio.Should().BeTrue();
+        vinculo.Invalido.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("\"SIGARH\"")]
+    [InlineData("10")]
+    [InlineData("""{ "Nome": "SIGARH" }""")]
+    [InlineData("true")]
+    [InlineData("false")]
+    [InlineData("""[ "SIGARH", 1 ]""")]
+    [InlineData("""[ "SIGARH", null ]""")]
+    [InlineData("""[ [ "SIGARH" ] ]""")]
+    public void Versoes_em_outro_formato_e_invalido_o_item_continua_e_o_log_cita_a_posicao_e_o_nome(string valor)
+    {
+        var logger = new Mock<ILogger>();
+        logger.Setup(l => l.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
+
+        var catalogo = Montar($$"""[ { "Title": "A" }, { "Title": "SIGARH", "PRD": [ { "Machine": "M1" } ], "Versoes": {{valor}} } ]""", logger.Object);
+
+        catalogo.Ignorados.Should().Be(0);
+        var sistema = catalogo.Sistemas.Single(s => s.Nome == "SIGARH");
+        sistema.Versoes.Should().BeSameAs(VinculoDeVersoes.ForaDoFormato);
+        sistema.Ambientes[AmbienteDoCatalogo.Prd].Should().ContainSingle();
+        logger.Verify(
+            l => l.Log(LogLevel.Warning, It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, _) => $"{v}" == "O campo Versoes do item 2 (SIGARH) não é uma lista de nomes; o vínculo foi ignorado."),
+                It.IsAny<Exception?>(), It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public void Posicao_a_partir_de_1_na_ordem_do_arquivo_contando_os_ignorados()
+    {
+        var catalogo = Montar("""[ { "Title": "B" }, { "OBS": "sem título" }, { "Title": "A" } ]""");
+
+        catalogo.Sistemas.Select(s => (s.Nome, s.Posicao)).Should().Equal(("A", 3), ("B", 1));
+    }
+
+    [Fact]
     public void A_amostra_produz_os_sistemas_esperados()
     {
         var catalogo = Montar(File.ReadAllText(LeitorSistemasDbTests.CaminhoDaAmostra));
@@ -187,5 +250,13 @@ public class MontadorCatalogoTests
         Por("SCP (Visualização de Processos)").Observacao.Should().Contain("<br />");
         Por("SCP - Sistema de Controle de Processos").Ambientes[AmbienteDoCatalogo.Hml].Single().Caminho
             .Should().Be(@"F:\HOMOLOGACAO\VBSCP\SCP HOMOLOGAÇÃO.EXE");
+
+        // Campo Versoes (specs/004-ficha-sistema/contracts/campo-versoes.md): lista válida, texto solto e ausente.
+        Por("SGQ").Versoes.Nomes.Should().Equal("SGQ", "SGQ Relatórios");
+        Por("SGQ").Posicao.Should().Be(2);
+        Por("SCP Api").Versoes.Nomes.Should().Equal("SCP Api");
+        Por("SCP - Sistema de Controle de Processos").Versoes.Invalido.Should().BeTrue();
+        Por("WebNews - Intranet").Versoes.Should().BeSameAs(VinculoDeVersoes.Nenhum);
+        Por("WebNews - Intranet").Posicao.Should().Be(1);
     }
 }

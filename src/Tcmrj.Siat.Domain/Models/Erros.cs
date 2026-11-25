@@ -64,6 +64,8 @@ public static class Erros
 
         public const string CodigoAcessoNegado = "catalogo.acesso-negado";
 
+        public const string CodigoSistemaNaoEncontrado = "catalogo.sistema-nao-encontrado";
+
         /// <summary>Token, endereço ou demais opções de <c>CatalogoSistemas</c> ausentes ou inválidos.</summary>
         public static Erro NaoConfigurado => new(
             CodigoNaoConfigurado,
@@ -100,6 +102,11 @@ public static class Erros
         public static Erro AcessoNegado => new(
             CodigoAcessoNegado,
             "Você não tem acesso ao catálogo de sistemas.");
+
+        /// <summary>O nome pedido na ficha não está no catálogo (specs/004-ficha-sistema, FR-019).</summary>
+        public static Erro SistemaNaoEncontrado(string nome) => new(
+            CodigoSistemaNaoEncontrado,
+            $"Não há item com o nome {nome} no catálogo. Ele pode ter sido renomeado ou removido.");
     }
 
     /// <summary>

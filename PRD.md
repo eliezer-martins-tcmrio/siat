@@ -124,6 +124,8 @@ Substitui `VersaoDeSistemasPublicados.ps1`.
 
 VE-01 a VE-05 atendidos pela feature 003 (`specs/003-versoes-publicadas/`). O servidor dos endereços é escolhido na lista fechada de servidores (`servidores.json`), com PRD como padrão.
 
+VE-06 atendido pela feature 004 (`specs/004-ficha-sistema/`).
+
 ### 7.3 Consultas — MailQueue
 
 - MQ-01: Escolha do servidor (lista fechada, filtrada pelas permissões) e do SMTP.

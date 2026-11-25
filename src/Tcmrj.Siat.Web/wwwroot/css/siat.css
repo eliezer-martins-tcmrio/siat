@@ -559,6 +559,38 @@ a.menu-item:hover { background: oklch(from var(--color-sidebar-strong) l c h / 0
 .caminhos .caminho-raiz { grid-column: 3; }
 .legenda { display: flex; flex-wrap: wrap; gap: 6px 20px; padding: 12px 18px; font-size: 12px; color: var(--color-muted); align-items: center; }
 
+/* ---------- Ficha do sistema (design/ficha.html; specs/004-ficha-sistema) ---------- */
+
+/* Trilha de navegação, acima do título. */
+.trilha ol { display: flex; flex-wrap: wrap; gap: 4px; list-style: none; padding: 0; margin: 0 0 6px; font-size: 12px; color: var(--color-muted); }
+.trilha li + li::before { content: "›"; margin-right: 4px; }
+.trilha a { color: var(--color-brand); }
+.trilha [aria-current="page"] { color: var(--color-ink); font-weight: 600; }
+.situacao { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* Observação do catálogo como texto, com as quebras de linha da origem (FR-021). */
+.observacao { font-size: 13px; color: var(--color-muted); max-width: 80ch; white-space: pre-line; }
+.avisos { display: flex; flex-direction: column; gap: 8px; }
+.avisos:empty { display: none; }
+
+/* Uma seção por ambiente: faixa na cor do ambiente (data-amb), instâncias e, embaixo, as versões. */
+.ambientes { display: flex; flex-direction: column; gap: 14px; }
+.ficha-ambiente > header { display: flex; align-items: center; gap: 8px; padding: 10px 18px; background: var(--amb-soft); border-bottom: 1px solid var(--amb-line); border-radius: var(--radius-panel, 8px) var(--radius-panel, 8px) 0 0; }
+.ficha-ambiente > header h2 { font-size: 14px; font-weight: 600; color: var(--color-ink); margin: 0; }
+.ficha-ambiente .bloco { padding: 12px 18px; }
+.ficha-ambiente .bloco-titulo { display: block; margin-bottom: 8px; font-size: 12px; font-weight: 600; color: var(--color-muted); }
+.nota { font-size: 12px; color: var(--color-muted); }
+
+/* Tabela de versões de um ambiente: os caminhos consultados ficam sempre à mostra, na linha de baixo. */
+.tabela-ficha { min-width: 520px; }
+.tabela-ficha th, .tabela-ficha td { white-space: nowrap; }
+.tabela-ficha td.nome { white-space: normal; min-width: 200px; }
+.tabela-ficha tr.registro td { border-bottom: 0; }
+.tabela-ficha tr.caminhos-linha td { background: var(--color-soft); padding-top: 8px; padding-bottom: 10px; white-space: normal; }
+.tabela-ficha tbody tr.caminhos-linha:hover td { background: var(--color-soft); }
+.tabela-ficha .caminhos { grid-template-columns: auto minmax(0, 1fr); }
+.tabela-ficha .caminhos .erro-msg, .tabela-ficha .caminhos .caminho-raiz { grid-column: 2; }
+
 /* ---------- Lista expansível de resultados ---------- */
 
 .lista { font-size: 13px; }

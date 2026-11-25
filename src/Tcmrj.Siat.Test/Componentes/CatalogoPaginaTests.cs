@@ -50,6 +50,18 @@ public sealed class CatalogoPaginaTests : BunitContext
             falha is null ? null : new FalhaDeLeitura(new Erro("x", falha.Mensagem), falha.Em)));
     }
 
+    /// <summary>Texto que se vê na célula do nome, sem o prefixo "Ficha do " só para leitores de tela.</summary>
+    private static string NomeVisivel(AngleSharp.Dom.IElement celula)
+    {
+        var copia = (AngleSharp.Dom.IElement)celula.Clone();
+        foreach (var oculto in copia.QuerySelectorAll(".so-leitor").ToArray())
+        {
+            oculto.Remove();
+        }
+
+        return copia.TextContent.Trim();
+    }
+
     private void Devolver(Result<CatalogoVM, Erro> resultado) =>
         _mediador.Setup(m => m.Send(It.IsAny<ObterCatalogo.Query>(), It.IsAny<CancellationToken>())).ReturnsAsync(resultado);
 
@@ -83,7 +95,7 @@ public sealed class CatalogoPaginaTests : BunitContext
             "Sistema", "DSV Desenvolvimento", "HML Homologação", "PRD Produção", "CONT Contingência", "Observação");
         pagina.FindAll("thead th[data-amb]").Select(th => th.GetAttribute("data-amb")).Should().Equal("dsv", "hml", "prd", "cont");
         pagina.FindAll("tbody tr").Should().HaveCount(3);
-        pagina.FindAll("tbody td.nome").Select(td => td.TextContent).Should().Equal("eTCM", "SGQ", "STP");
+        pagina.FindAll("tbody td.nome").Select(NomeVisivel).Should().Equal("eTCM", "SGQ", "STP");
         pagina.Find(".contador").TextContent.Should().Be("3 sistemas");
         pagina.Find("input#busca-sistemas").GetAttribute("placeholder").Should().Be("Sistema, máquina, URL ou caminho");
         pagina.Find(".cabecalho .status").TextContent.Should().StartWith("Catálogo lido às ");
@@ -101,7 +113,7 @@ public sealed class CatalogoPaginaTests : BunitContext
         var pagina = Abrir("sistemas/catalogo?busca=sgq");
 
         pagina.Find("input#busca-sistemas").GetAttribute("value").Should().Be("sgq");
-        pagina.FindAll("tbody td.nome").Select(td => td.TextContent).Should().Equal("SGQ");
+        pagina.FindAll("tbody td.nome").Select(NomeVisivel).Should().Equal("SGQ");
         pagina.Find(".contador").TextContent.Should().Be("1 de 3 sistemas");
     }
 
@@ -194,5 +206,52 @@ public sealed class CatalogoPaginaTests : BunitContext
 
         pagina.FindAll("td.obs br").Should().BeEmpty();
         pagina.Find("td.obs").TextContent.Trim().Should().Be("a<br />b");
+    }
+
+    /// <summary>O nome é o link para a ficha (specs/004-ficha-sistema, FR-004; T023).</summary>
+    [Fact]
+    public void Nome_de_cada_sistema_leva_a_ficha()
+    {
+        Devolver(Catalogo());
+
+        var pagina = Abrir();
+
+        var links = pagina.FindAll("tbody td.nome a");
+        links.Select(a => a.GetAttribute("href")).Should().Equal(
+            "sistemas/catalogo/ficha?sistema=eTCM", "sistemas/catalogo/ficha?sistema=SGQ", "sistemas/catalogo/ficha?sistema=STP");
+        links[0].FirstElementChild!.ClassName.Should().Be("so-leitor");
+        links[0].FirstElementChild!.TextContent.Should().Be("Ficha do ");
+        links[0].TextContent.Should().Be("Ficha do eTCM");
+    }
+
+    [Fact]
+    public void Nome_com_espaco_e_acento_vai_escapado_no_link()
+    {
+        var catalogo = CatalogoVM.De(new CatalogoObtido(
+            new CatalogoLido([new Sistema("Gestão de Multas", null, new Dictionary<AmbienteDoCatalogo, IReadOnlyList<Instancia>>())], 0, LidoEm, "https://git/x"),
+            null));
+        Devolver(catalogo);
+
+        var pagina = Abrir();
+
+        pagina.Find("td.nome a").GetAttribute("href").Should().Be("sistemas/catalogo/ficha?sistema=Gest%C3%A3o%20de%20Multas");
+        NomeVisivel(pagina.Find("td.nome")).Should().Be("Gestão de Multas");
+    }
+
+    /// <summary>A busca não olha o vínculo de versões (FR-011).</summary>
+    [Fact]
+    public void Busca_por_nome_que_so_esta_no_vinculo_nao_encontra_o_item()
+    {
+        var catalogo = CatalogoVM.De(new CatalogoObtido(
+            new CatalogoLido(
+                [new Sistema("SIGARH", null, new Dictionary<AmbienteDoCatalogo, IReadOnlyList<Instancia>>(), VinculoDeVersoes.De(["SIGARH", "SIGARH Agendador"]))],
+                0, LidoEm, "https://git/x"),
+            null));
+        Devolver(catalogo);
+
+        var pagina = Abrir("sistemas/catalogo?busca=agendador");
+
+        pagina.FindAll("table").Should().BeEmpty();
+        pagina.Find(".estado h2").TextContent.Should().Be("Nenhum sistema encontrado");
     }
 }

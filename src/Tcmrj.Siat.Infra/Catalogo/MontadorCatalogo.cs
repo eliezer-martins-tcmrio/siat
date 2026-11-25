@@ -13,7 +13,9 @@ namespace Tcmrj.Siat.Infra.Catalogo;
 /// Valida e monta os itens do catálogo a partir do JSON do <see cref="LeitorSistemasDb"/> (research.md R3):
 /// <c>Title</c> obrigatório; <c>DSV</c>, <c>HML</c>, <c>PRD</c> e <c>CONT</c> listas de objetos; <c>Machine</c>,
 /// <c>URL</c>, <c>Path</c> e <c>OBS</c> textos opcionais; campos desconhecidos ignorados. Item inválido fica de fora,
-/// é contado em <see cref="CatalogoLido.Ignorados"/> e registrado no log (Warning) com a posição e o motivo.
+/// é contado em <see cref="CatalogoLido.Ignorados"/> e registrado no log (Warning) com a posição e o motivo. O campo
+/// <c>Versoes</c> (specs/004-ficha-sistema, R1) fora do formato não descarta o item: o vínculo fica inválido e o log
+/// (Warning) cita a posição e o nome.
 /// </summary>
 public static partial class MontadorCatalogo
 {
@@ -60,7 +62,7 @@ public static partial class MontadorCatalogo
             foreach (var item in raiz.EnumerateArray())
             {
                 posicao++;
-                var sistema = Sistema(item, out var motivo);
+                var sistema = Sistema(item, posicao, logger, out var motivo);
                 if (sistema is null)
                 {
                     ignorados++;
@@ -76,7 +78,7 @@ public static partial class MontadorCatalogo
         }
     }
 
-    private static Sistema? Sistema(JsonElement item, out string? motivo)
+    private static Sistema? Sistema(JsonElement item, int posicao, ILogger logger, out string? motivo)
     {
         motivo = null;
         if (item.ValueKind != JsonValueKind.Object)
@@ -137,7 +139,41 @@ public static partial class MontadorCatalogo
             ambientes[ambiente] = instancias;
         }
 
-        return new Sistema(nome, observacao, ambientes);
+        var versoes = Versoes(item);
+        if (versoes.Invalido)
+        {
+            VersoesForaDoFormato(logger, posicao, nome.Trim());
+        }
+
+        return new Sistema(nome, observacao, ambientes, versoes, posicao);
+    }
+
+    // Campo Versoes (specs/004-ficha-sistema/research.md R1): ausente ou nulo, sem vínculo; lista só de textos, o
+    // vínculo; qualquer outro formato, inválido, sem descartar o item.
+    private static VinculoDeVersoes Versoes(JsonElement item)
+    {
+        if (!item.TryGetProperty("Versoes", out var campo) || campo.ValueKind == JsonValueKind.Null)
+        {
+            return VinculoDeVersoes.Nenhum;
+        }
+
+        if (campo.ValueKind != JsonValueKind.Array)
+        {
+            return VinculoDeVersoes.ForaDoFormato;
+        }
+
+        var nomes = new List<string?>();
+        foreach (var elemento in campo.EnumerateArray())
+        {
+            if (elemento.ValueKind != JsonValueKind.String)
+            {
+                return VinculoDeVersoes.ForaDoFormato;
+            }
+
+            nomes.Add(elemento.GetString());
+        }
+
+        return VinculoDeVersoes.De(nomes);
     }
 
     // Campo ausente ou nulo: verdadeiro e nulo. Texto: verdadeiro e o texto. Outro tipo: falso (item inválido).
@@ -165,4 +201,7 @@ public static partial class MontadorCatalogo
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Item {Posicao} do sistemasDb.js ignorado: {Motivo}.")]
     private static partial void ItemIgnorado(ILogger logger, int posicao, string motivo);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "O campo Versoes do item {Posicao} ({Nome}) não é uma lista de nomes; o vínculo foi ignorado.")]
+    private static partial void VersoesForaDoFormato(ILogger logger, int posicao, string nome);
 }

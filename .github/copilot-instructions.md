@@ -1,7 +1,8 @@
 # Instruções para agentes no SIAT
 
 SIAT (Sistema Integrado de Apoio Técnico) é a aplicação web interna do TCMRio que reúne ferramentas de
-consulta para suporte e desenvolvedores: **Sistemas › Catálogo e Versões** e **Consultas** (MailQueue e AuditLog).
+consulta para suporte e desenvolvedores: **Sistemas › Catálogo e Versões**, com a **ficha do sistema** (catálogo e
+versões vinculadas pelo campo `Versoes` do `sistemasDb.js`), e **Consultas** (MailQueue e AuditLog).
 Visão geral, configuração e publicação: [README.md](../README.md). Design: [DESIGN.md](../DESIGN.md).
 
 ## Regras que prevalecem

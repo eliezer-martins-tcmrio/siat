@@ -46,6 +46,7 @@
 			"Path" : "W:\\TcmRoot\\Sites\\sgq"
 		}
 	],
+	"Versoes" : [ "SGQ", " sgq ", "SGQ Relatórios" ],
 },
 {	
 	"Title": "Contratos",
@@ -115,6 +116,7 @@
 			"Path" : "F:\\PRODUCAO\\VBSCP\\SCP.EXE"
 		}
 	],
+	"Versoes" : "SCP",
 	"OBS" : "Aplicação Desktop VB6 para gerenciamento e tramitação de processos, sessão plenária, etc."
 },
 {
@@ -158,6 +160,7 @@
 			"Path" : "W:\\TcmRoot\\Sites\\scp_api"
 		}
 	],
+	"Versoes" : [ "SCP Api" ],
 },
 {
     "Title": "SIGA-RH - AgenteSIGA",

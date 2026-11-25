@@ -138,4 +138,15 @@ public sealed class MenuTests : BunitContext
         menu.FindAll(".menu-grupo").Select(g => g.GetAttribute("aria-label")).Should().Equal("Consultas");
         menu.Markup.Should().NotContain("sistemas/versoes");
     }
+
+    /// <summary>A ficha fica sob o Catálogo: o item Catálogo segue marcado (specs/004-ficha-sistema, FR-002; T024).</summary>
+    [Fact]
+    public void Na_ficha_o_item_Catalogo_fica_marcado()
+    {
+        var menu = RenderizarEm("sistemas/catalogo/ficha?sistema=SIGARH", "Catalogo_Sistemas.CanSelect", "Versoes_Sistemas.CanSelect");
+
+        var itens = menu.FindAll("a.menu-item");
+        itens.Single(a => a.TextContent.Trim() == "Catálogo").GetAttribute("aria-current").Should().Be("page");
+        itens.Single(a => a.TextContent.Trim() == "Versões").HasAttribute("aria-current").Should().BeFalse();
+    }
 }

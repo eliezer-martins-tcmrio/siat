@@ -1,7 +1,9 @@
 @* Cabeçalho de página (DESIGN.md): título, uma linha de descrição, ações e status da leitura à direita.
-   Também define o título da aba do navegador. *@
+   Também define o título da aba do navegador. Ponto de extensão: Trilha (specs/004-ficha-sistema), desenhada antes do
+   título; sem ela, o HTML é o de antes. *@
 <PageTitle>@($"{Titulo} · SIAT")</PageTitle>
 
+@Trilha
 <header class="cabecalho">
     <div>
         <h1 tabindex="-1">@Titulo</h1>
@@ -27,6 +29,12 @@
     /// <summary>Uma linha sobre o que a página mostra.</summary>
     [Parameter]
     public string? Descricao { get; set; }
+
+    /// <summary>
+    /// Trilha de navegação (<c>nav</c> com <c>ol</c>), antes do título; por exemplo, Sistemas › Catálogo › SIGARH.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? Trilha { get; set; }
 
     /// <summary>Status da leitura (por exemplo, "Consultado às 14:32 · 0,8 s"), à direita.</summary>
     [Parameter]

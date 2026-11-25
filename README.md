@@ -4,9 +4,10 @@ Sistema Integrado de Apoio Técnico do TCMRio. Tem duas seções, ambas somente 
 
 - **Sistemas › Catálogo**: onde cada sistema roda (URL, máquina e caminho por ambiente), lido do `sistemasDb.js` do TCMRJDoc no GitLab.
 - **Sistemas › Versões**: a versão publicada de cada sistema em DSV, HML e PRD, nas duas máquinas de cada ambiente, lida dos endereços de `CSLIB_UserManager.dbo.Apps_VersionAddresses` (substitui o `VersaoDeSistemasPublicados.ps1`).
+- **Ficha do sistema** (Sistemas › Catálogo › {sistema}): reúne, por ambiente, as instâncias do catálogo e a versão publicada em cada máquina dos componentes vinculados ao item. Abre pelo nome do sistema no Catálogo e em Versões.
 - **Consultas**: **MailQueue** e **AuditLog**, sobre uma lista fechada de servidores SQL Server.
 
-Especificação, plano e tarefas: `specs/001-consultas/`, `specs/002-catalogo-sistemas/` e `specs/003-versoes-publicadas/`. Design: `DESIGN.md`.
+Especificação, plano e tarefas: `specs/001-consultas/`, `specs/002-catalogo-sistemas/`, `specs/003-versoes-publicadas/` e `specs/004-ficha-sistema/`. Design: `DESIGN.md`.
 
 ## Como rodar
 
@@ -58,6 +59,12 @@ Sem token, ou com a configuração inválida, o SIAT sobe normalmente e só a te
 A tela **Sistemas › Versões** lê os endereços ativos de `CSLIB_UserManager.dbo.Apps_VersionAddresses` no servidor escolhido (lista fechada do `servidores.json`; sem escolha, o `ServidorPadrao`) e, para cada endereço, o arquivo de versão (`VERSAO.TXT`, `.INI` em compartilhamento de rede) ou a URL `https`, com até `LeiturasSimultaneas` leituras em paralelo e `TempoLimiteSegundos` por arquivo. O resultado fica em cache por `MinutosDeCache` minutos por servidor; "Atualizar agora" relê na hora ([contracts/configuracao.md](specs/003-versoes-publicadas/contracts/configuracao.md)).
 
 A tela abre com o banco de produção (`ServidorPadrao = tcmbd-prd`, também no `appsettings.json` do repositório); DSV e HML ficam no seletor. Uma chave que não está na lista não impede a subida: a tela pede para escolher o servidor. Não há segredo novo: SQL e compartilhamentos usam a conta do pool do IIS.
+
+### Ficha do sistema e o campo `Versoes` do `sistemasDb.js`
+
+A ficha (`/sistemas/catalogo/ficha?sistema={nome}`, com `&servidor={chave}` opcional) exige `Catalogo_Sistemas.CanSelect`; a parte de versões aparece só para quem tem também `Versoes_Sistemas.CanSelect`. Não há configuração nova: a ficha usa as seções `CatalogoSistemas` e `Versoes` e os mesmos caches das duas telas.
+
+O vínculo entre um item do catálogo e as linhas de `Apps_VersionAddresses` é explícito: o campo opcional `Versoes` do item, no `sistemasDb.js`, lista os nomes de `Apps_VersionAddresses.Sistema` daquele sistema e dos seus componentes, por exemplo `"Versoes": ["SIGARH", "SIGARH Agendador"]`. A comparação ignora acentos, maiúsculas e espaços nas pontas. Sem o campo, a ficha mostra só o catálogo e explica como vincular; um campo que não é lista de nomes vira aviso na ficha; um nome que não está entre os registros ativos do servidor escolhido também. Em Versões, cada nome vinculado vira link para a ficha e o filtro **Sem ficha** mostra os que nenhum item cita ([contracts/campo-versoes.md](specs/004-ficha-sistema/contracts/campo-versoes.md)).
 
 ## Publicação no IIS
 

@@ -72,6 +72,8 @@ Os recorrentes viram componentes próprios do SIAT por cima do Blazor Blueprint 
 - **Tabela** (`.tabela`): cabeçalho fixo, rolagem horizontal própria. Só a exceção ganha cor; o valor normal é texto simples.
 - **Lista expansível** (`.lista`): linha em grade que abre o detalhe no lugar; a linha aberta vai para a URL (`sel`).
 - **Linha expansível de tabela** (`.linha-expansivel` + `.linha-detalhe`): botão expansor com `aria-expanded` e nome acessível na primeira célula; o detalhe ocupa a linha de baixo inteira (Versões: caminhos consultados).
+- **Trilha de navegação** (`.trilha`): acima do título das páginas de detalhe (ficha do sistema), `nav` com nome "Trilha de navegação" e lista ordenada; o item atual com `aria-current="page"`. O menu continua marcando a tela de origem (Catálogo).
+- **Seções por ambiente** (`.ficha-ambiente`): um painel por ambiente na ordem DSV, HML, PRD e Contingência, com a sigla na cor do ambiente e o `h2` como nome da seção; dentro, blocos com título pequeno ("No catálogo", "Versões em DSV"). Os caminhos ficam sempre visíveis embaixo de cada linha, sem expansor.
 - **Botões**: uma ação primária por tela; 40px de altura mínima (32px no pequeno); foco de 3px.
 - **Copiar**: botão sempre visível ao lado do valor, com confirmação por 1,5 s.
 - **Busca**: atalho `/` foca, `Esc` limpa; vários termos, sem diferenciar acentos e maiúsculas.

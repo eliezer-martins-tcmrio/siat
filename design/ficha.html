@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIGARH · SIAT</title>
+<script>(function(){var t='system';try{t=localStorage.getItem('siat-tema')||t}catch(e){}document.documentElement.dataset.theme=t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light'})()</script>
+<link rel="stylesheet" href="siat.css">
+<style>
+  /* Trilha de navegação, acima do título. */
+  .trilha ol { display: flex; flex-wrap: wrap; gap: 4px; list-style: none; padding: 0; margin: 0 0 6px; font-size: 12px; color: var(--color-muted); }
+  .trilha li + li::before { content: "›"; margin-right: 4px; }
+  .trilha a { color: var(--color-brand); }
+  .trilha [aria-current="page"] { color: var(--color-ink); font-weight: 600; }
+  .situacao { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  .observacao { font-size: 13px; color: var(--color-muted); max-width: 80ch; white-space: pre-line; }
+  .avisos { display: flex; flex-direction: column; gap: 8px; }
+
+  /* Uma seção por ambiente: faixa na cor do ambiente, instâncias e, embaixo, as versões. */
+  .ambientes { display: flex; flex-direction: column; gap: 14px; }
+  .ficha-ambiente > header { display: flex; align-items: center; gap: 8px; padding: 10px 18px; background: var(--amb-soft); border-bottom: 1px solid var(--amb-line); border-radius: var(--radius-panel, 8px) var(--radius-panel, 8px) 0 0; }
+  .ficha-ambiente > header h2 { font-size: 14px; font-weight: 600; color: var(--color-ink); margin: 0; }
+  .ficha-ambiente .bloco { padding: 12px 18px; }
+  .ficha-ambiente .bloco-titulo { display: block; margin-bottom: 8px; font-size: 12px; font-weight: 600; color: var(--color-muted); }
+  .tabela-ficha { min-width: 520px; }
+  .tabela-ficha th, .tabela-ficha td { white-space: nowrap; }
+  .tabela-ficha td.nome { white-space: normal; min-width: 200px; }
+  .tabela-ficha tr.caminhos-linha td { background: var(--color-soft); padding-top: 8px; padding-bottom: 10px; white-space: normal; }
+  .tabela-ficha .caminhos { grid-template-columns: auto minmax(0, 1fr); }
+  .tabela-ficha .caminhos .caminho { overflow-wrap: anywhere; }
+  .tabela-ficha .caminhos .erro-msg { grid-column: 2; }
+  .tabela-ficha tbody tr.caminhos-linha:hover td { background: var(--color-soft); }
+  .tabela-ficha tr.registro td { border-bottom: 0; }
+  .nota { font-size: 12px; color: var(--color-muted); }
+  .legenda { display: flex; flex-wrap: wrap; gap: 6px 20px; padding: 12px 0; font-size: 12px; color: var(--color-muted); align-items: center; }
+</style>
+</head>
+<body data-pagina="sistemas">
+<a class="pular" href="#conteudo">Ir para o conteúdo</a>
+<div class="app">
+  <main class="conteudo" id="conteudo" tabindex="-1">
+    <div class="contexto" id="contexto"></div>
+
+    <nav class="trilha" aria-label="Trilha de navegação">
+      <ol>
+        <li>Sistemas</li>
+        <li><a href="sistemas.html">Catálogo</a></li>
+        <li><span aria-current="page">SIGARH</span></li>
+      </ol>
+    </nav>
+
+    <header class="cabecalho">
+      <div>
+        <h1>SIGARH</h1>
+        <p class="sub">Onde o sistema roda e o que está publicado em cada ambiente.</p>
+      </div>
+      <div class="cabecalho-acoes">
+        <span class="situacao" id="situacao"></span>
+        <span class="status" id="status" role="status"></span>
+        <button type="button" class="botao secundario pequeno" id="cancelar" hidden>Cancelar</button>
+        <button type="button" class="botao secundario pequeno" id="atualizar"></button>
+      </div>
+    </header>
+
+    <p class="observacao">Sistema de Gestão de Recursos Humanos. O agendador roda só na máquina 1 de cada ambiente.</p>
+
+    <div class="avisos" id="avisos"></div>
+
+    <div class="painel filtros" role="group" aria-label="Servidor dos endereços">
+      <label class="campo">Servidor dos endereços
+        <span id="servidor"></span>
+      </label>
+    </div>
+
+    <div class="progresso" id="progresso" hidden></div>
+
+    <div class="ambientes" id="ambientes"></div>
+
+    <div class="legenda">
+      <span><span class="versao">1.4.2</span> versão publicada</span>
+      <span><span class="versao diverge">1.4.2</span> difere da outra máquina do ambiente</span>
+      <span><span class="pilula erro">Erro</span> falha ao ler o arquivo de versão</span>
+      <span><span class="vazio-cel">–</span> não configurado</span>
+    </div>
+
+    <footer class="rodape">
+      <span>
+        Catálogo: <a href="#">sistemasDb.js</a> no TCMRJDoc · cache de 10 minutos.
+        Endereços: <span class="mono" id="rodapeServidor">TCMBD</span> · <span class="mono">CSLIB_UserManager.dbo.Apps_VersionAddresses</span> (registros ativos) · cache de 5 minutos.
+      </span>
+    </footer>
+  </main>
+</div>
+
+<script src="siat.js"></script>
+<script>
+  // Dados fictícios. O item SIGARH do catálogo tem "Versoes": ["SIGARH", "SIGARH Agendador", "SIGARH Relatórios"];
+  // "SIGARH Relatórios" não existe na tabela do servidor escolhido e vira aviso.
+  const AMBIENTES = [
+    { id: 'dsv', sigla: 'DSV', nome: 'Desenvolvimento' },
+    { id: 'hml', sigla: 'HML', nome: 'Homologação' },
+    { id: 'prd', sigla: 'PRD', nome: 'Produção' },
+    { id: 'cont', sigla: 'CONT', nome: 'Contingência' },
+  ];
+  const catalogo = {
+    dsv: [{ url: 'https://tcmrj2.tcmnet.tcm/sigarh_dsv', maquinas: ['TCM2016WEB3', 'TCM2016WEB4'], caminho: 'W:\\TcmRoot\\DSV\\Sites\\sigarh_dsv' }],
+    hml: [{ url: 'https://tcmrj2.tcmnet.tcm/sigarh_hml', maquinas: ['TCM2016WEB3', 'TCM2016WEB4'], caminho: 'W:\\TcmRoot\\HML\\Sites\\sigarh_hml' }],
+    prd: [{ url: 'https://tcmrj.tcmnet.tcm/sigarh', maquinas: ['TCM2016WEB1', 'TCM2016WEB2'], caminho: 'W:\\TcmRoot\\Sites\\sigarh' }],
+    cont: [{ url: 'https://tcmrjc.tcmnet.tcm/sigarh', maquinas: ['TCM2016WEBC'], caminho: 'W:\\TcmRoot\\Sites\\sigarh' }],
+  };
+  // Por componente e ambiente: [máquina 1, máquina 2]; cada máquina: [versão ou "ERROR: mensagem" ou null, caminho].
+  const caminho = (maq, amb, pasta) => `\\\\${maq}\\TcmRoot\\${amb === 'prd' ? '' : amb.toUpperCase() + '\\'}Sites\\${pasta}\\VERSAO.TXT`;
+  const versoes = [
+    { nome: 'SIGARH', pasta: 'sigarh', dsv: ['7.25.0', '7.25.0'], hml: ['7.24.3', '7.24.3'], prd: ['7.24.1', '7.23.9'] },
+    { nome: 'SIGARH Agendador', pasta: 'sigarh_agendador', dsv: ['2.1.0', null], hml: ['2.0.4', null], prd: ['ERROR: Tempo limite de 5 s esgotado ao ler o arquivo.', null] },
+  ];
+  const naoEncontrados = ['SIGARH Relatórios'];
+  const maquinas = { dsv: ['TCM2016WEB3', 'TCM2016WEB4'], hml: ['TCM2016WEB3', 'TCM2016WEB4'], prd: ['TCM2016WEB1', 'TCM2016WEB2'] };
+
+  const { esc, icone } = SIAT;
+  const $ = id => document.getElementById(id);
+  const ehErro = v => String(v || '').startsWith('ERROR:');
+  const diverge = (a, b) => a != null && b != null && !ehErro(a) && !ehErro(b) && a !== b;
+  const VAZIO = '<span class="vazio-cel"><span aria-hidden="true">–</span><span class="so-leitor">não configurado</span></span>';
+
+  $('atualizar').innerHTML = icone('atualizar', 14) + 'Atualizar agora';
+
+  function instancias(amb) {
+    const lista = catalogo[amb.id] || [];
+    if (!lista.length) return VAZIO;
+    return lista.map(i => `<div class="instancia"><dl>
+      <dt>URL</dt><dd><a href="${esc(i.url)}" target="_blank" rel="noopener noreferrer">${esc(i.url)}<span class="so-leitor"> (abre em nova aba)</span></a></dd>
+      ${i.maquinas.map(m => `<dt>Máquina</dt><dd><span class="mono">${esc(m)}</span>${SIAT.botaoCopiar(m, `máquina ${m} de ${amb.sigla} do SIGARH`)}</dd>`).join('')}
+      <dt>Caminho</dt><dd><span class="mono">${esc(i.caminho)}</span>${SIAT.botaoCopiar(i.caminho, `caminho de ${amb.sigla} do SIGARH`)}</dd>
+    </dl></div>`).join('');
+  }
+
+  function celula(v, divergente, divisa) {
+    const classe = divisa ? ' class="divisa"' : '';
+    if (v == null) return `<td${classe}>${VAZIO}</td>`;
+    if (ehErro(v)) return `<td${classe}><span class="pilula erro"><span aria-hidden="true">Erro</span><span class="so-leitor">Erro ao ler a versão</span></span></td>`;
+    return `<td${classe}><span class="versao${divergente ? ' diverge' : ''}">${esc(v)}</span>${divergente ? '<span class="so-leitor">, difere da outra máquina</span>' : ''}</td>`;
+  }
+
+  function tabelaVersoes(amb) {
+    const linhas = versoes.map(c => {
+      const [v1, v2] = c[amb.id];
+      const div = diverge(v1, v2);
+      const caminhos = [v1, v2].map((v, i) => {
+        if (v == null) return '';
+        const cam = caminho(maquinas[amb.id][i], amb.id, c.pasta);
+        return `<span class="suave">Máquina ${i + 1}</span>`
+          + `<span class="caminho"><span class="mono">${esc(cam)}</span>${SIAT.botaoCopiar(cam, `caminho de ${amb.sigla}, máquina ${i + 1}, do ${c.nome}`)}</span>`
+          + (ehErro(v) ? `<span class="erro-msg">${esc(v.slice(6).trim())}</span>` : '');
+      }).join('');
+      return `<tr class="registro"><td class="nome">${esc(c.nome)}</td>${celula(v1, div, true)}${celula(v2, div, false)}</tr>
+        <tr class="caminhos-linha"><td colspan="3"><div class="caminhos">${caminhos}</div></td></tr>`;
+    }).join('');
+    return `<span class="bloco-titulo" id="versoes-${amb.id}">Versões em ${amb.sigla}</span>
+      <div class="tabela-rolagem"><table class="tabela tabela-ficha" aria-labelledby="versoes-${amb.id}">
+        <thead><tr><th scope="col">Componente</th><th scope="col" class="divisa">Máquina 1</th><th scope="col">Máquina 2</th></tr></thead>
+        <tbody>${linhas}</tbody>
+      </table></div>`;
+  }
+
+  function desenhar(servidor) {
+    $('ambientes').innerHTML = AMBIENTES.map(amb => `
+      <section class="painel ficha-ambiente" data-amb="${amb.id}" aria-labelledby="amb-${amb.id}">
+        <header><span class="amb">${amb.sigla}</span><h2 id="amb-${amb.id}">${amb.nome}</h2></header>
+        <div class="bloco"><span class="bloco-titulo">No catálogo</span>${instancias(amb)}</div>
+        <div class="bloco">${amb.id === 'cont'
+          ? '<p class="nota">Não há endereços de versão para Contingência.</p>'
+          : tabelaVersoes(amb)}</div>
+      </section>`).join('');
+
+    const temDiv = versoes.some(c => ['dsv', 'hml', 'prd'].some(a => diverge(...c[a])));
+    const temErro = versoes.some(c => ['dsv', 'hml', 'prd'].some(a => c[a].some(ehErro)));
+    $('situacao').innerHTML = [
+      !temDiv && !temErro ? '<span class="pilula ok">Sem pendências</span>' : '',
+      temDiv ? '<span class="pilula alerta">Com divergência</span>' : '',
+      temErro ? '<span class="pilula erro">Com erro</span>' : '',
+    ].join('');
+
+    $('avisos').innerHTML = naoEncontrados.map(n =>
+      `<div class="aviso" role="note"><span><strong>Nome vinculado não encontrado</strong>${esc(n)} não está entre os registros ativos de <span class="mono">${esc(servidor.nome)}</span>. Confira o campo Versoes do SIGARH no sistemasDb.js.</span></div>`).join('');
+    $('rodapeServidor').textContent = servidor.nome;
+  }
+
+  function contexto(s) {
+    SIAT.contexto($('contexto'), s, 'Ficha do sistema');
+    $('contexto').querySelector('.contexto-aviso').textContent = { dsv: 'Desenvolvimento', hml: 'Homologação', prd: 'Produção' }[s.amb];
+  }
+
+  const consulta = SIAT.consulta({ status: $('status'), progresso: $('progresso'), consultar: $('atualizar'), cancelar: $('cancelar') });
+  function ler(servidor) {
+    contexto(servidor);
+    consulta.iniciar(`Lendo 5 arquivos de versão em ${servidor.nome}`, 1200, duracao => {
+      desenhar(servidor);
+      $('status').textContent = `Catálogo lido às ${SIAT.hora()} · Versões geradas às ${SIAT.hora()} em ${SIAT.segundos(duracao)}`;
+    });
+  }
+
+  const seletor = SIAT.seletorServidor($('servidor'), SIAT.url.ler('servidor') || 'TCMBD', ler);
+  $('atualizar').addEventListener('click', () => ler(seletor.valor()));
+
+  contexto(seletor.valor());
+  desenhar(seletor.valor());
+  $('status').textContent = `Catálogo lido às ${SIAT.hora()} · Versões geradas às ${SIAT.hora()} em 1,2 s`;
+</script>
+</body>
+</html>

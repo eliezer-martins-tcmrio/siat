@@ -8,10 +8,12 @@ using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NetDevPack.SimpleMediator;
+using Tcmrj.Siat.App.Web.Features.Catalogo;
 using Tcmrj.Siat.App.Web.Features.Servidores;
 using Tcmrj.Siat.App.Web.Features.Versoes;
 using Tcmrj.Siat.App.Web.Services;
 using Tcmrj.Siat.App.Web.Services.Interfaces;
+using Tcmrj.Siat.App.Web.ViewModels.Catalogo;
 using Tcmrj.Siat.App.Web.ViewModels.Shared;
 using Tcmrj.Siat.App.Web.ViewModels.Versoes;
 using Tcmrj.Siat.Domain.Enums;
@@ -471,5 +473,197 @@ public sealed class VersoesPaginaTests : BunitContext
         var pagina = Abrir();
 
         pagina.Find(".mono").TextContent.Should().Be("Versoes_Sistemas.CanSelect");
+    }
+
+    // ---------- Fichas (specs/004-ficha-sistema, História 2 e História 5; T037, T053) ----------
+
+    // eTCM e eTCM Impressão vão para a ficha do eTCM, SGQ para a dele; STP fica sem ficha.
+    private static readonly FichasVM Mapa = new(new Dictionary<string, string>
+    {
+        ["etcm"] = "eTCM",
+        ["etcm impressao"] = "eTCM",
+        ["sgq"] = "SGQ",
+    });
+
+    private void ComCatalogo(Result<FichasVM, Erro> fichas)
+    {
+        _autorizacao.Setup(a => a.PodeAcessarModuloAsync(Modulo.Catalogo_Sistemas)).ReturnsAsync(true);
+        _mediador.Setup(m => m.Send(It.IsAny<ListarFichas.Query>(), It.IsAny<CancellationToken>())).ReturnsAsync(fichas);
+    }
+
+    private TaskCompletionSource<Result<FichasVM, Erro>> ComCatalogoPendente()
+    {
+        _autorizacao.Setup(a => a.PodeAcessarModuloAsync(Modulo.Catalogo_Sistemas)).ReturnsAsync(true);
+        var fonte = new TaskCompletionSource<Result<FichasVM, Erro>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _mediador.Setup(m => m.Send(It.IsAny<ListarFichas.Query>(), It.IsAny<CancellationToken>()))
+            .Returns((IRequest<Result<FichasVM, Erro>> _, CancellationToken token) => fonte.Task.WaitAsync(token));
+        return fonte;
+    }
+
+    // Nome como se vê, sem o "Ficha do " só para leitor de tela.
+    private static string[] NomesVisiveis(IRenderedComponent<Pagina> pagina) =>
+        pagina.FindAll("tbody tr.linha-expansivel td.nome").Select(td =>
+        {
+            var copia = (AngleSharp.Dom.IElement)td.Clone();
+            foreach (var oculto in copia.QuerySelectorAll(".so-leitor").ToArray())
+            {
+                oculto.Remove();
+            }
+
+            return copia.TextContent.Trim();
+        }).ToArray();
+
+    private static string[] Filtros(IRenderedComponent<Pagina> pagina) =>
+        pagina.FindAll(".segmentado button").Select(b => b.GetAttribute("data-filtro")!).ToArray();
+
+    [Fact]
+    public void Com_o_catalogo_a_tabela_nao_espera_as_fichas_e_os_links_aparecem_quando_chegam()
+    {
+        Devolver(Versoes());
+        var fonte = ComCatalogoPendente();
+
+        var pagina = Abrir();
+
+        _mediador.Verify(m => m.Send(It.IsAny<ListarFichas.Query>(), It.IsAny<CancellationToken>()), Times.Once);
+        Nomes(pagina).Should().Equal("eTCM", "eTCM Impressão", "SGQ", "STP");
+        pagina.FindAll("td.nome a").Should().BeEmpty();
+        Filtros(pagina).Should().NotContain("SemFicha");
+
+        fonte.SetResult(Mapa);
+
+        pagina.WaitForAssertion(() => pagina.FindAll("td.nome a").Should().HaveCount(3));
+    }
+
+    [Fact]
+    public void Nome_no_mapa_vira_link_para_a_ficha_e_fora_do_mapa_fica_texto()
+    {
+        Devolver(Versoes());
+        ComCatalogo(Mapa);
+
+        var pagina = Abrir();
+
+        var links = pagina.FindAll("td.nome a");
+        links.Select(a => a.GetAttribute("href")).Should().Equal(
+            "sistemas/catalogo/ficha?sistema=eTCM", "sistemas/catalogo/ficha?sistema=eTCM", "sistemas/catalogo/ficha?sistema=SGQ");
+        links[1].QuerySelector(".so-leitor")!.TextContent.Should().Be("Ficha do ");
+        links[1].TextContent.Should().Be("Ficha do eTCM Impressão");
+        NomesVisiveis(pagina).Should().Equal("eTCM", "eTCM Impressão", "SGQ", "STP");
+        pagina.FindAll("tbody tr.linha-expansivel")[3].QuerySelectorAll("td.nome a").Should().BeEmpty();
+    }
+
+    [Fact]
+    public void O_link_leva_o_servidor_escolhido_quando_nao_e_o_padrao()
+    {
+        Devolver(Versoes(Dev));
+        ComCatalogo(Mapa);
+
+        var pagina = Abrir("sistemas/versoes?servidor=tcmbd3-dev");
+
+        pagina.Find("td.nome a").GetAttribute("href").Should().Be("sistemas/catalogo/ficha?sistema=eTCM&servidor=tcmbd3-dev");
+    }
+
+    [Fact]
+    public void Clicar_no_link_nao_abre_a_linha()
+    {
+        Devolver(Versoes());
+        ComCatalogo(Mapa);
+        var pagina = Abrir();
+
+        // O clique no link não sobe até a linha (no navegador, a página navega para a ficha sem abrir a linha).
+        var link = pagina.Find("td.nome a");
+        link.Attributes.Select(a => a.Name).Should().Contain(n => n.EndsWith("onclick:stoppropagation", StringComparison.OrdinalIgnoreCase));
+        pagina.FindAll(".linha-detalhe").Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Sem_ficha_vem_depois_de_Com_erro_com_a_quantidade_e_filtra()
+    {
+        Devolver(Versoes());
+        ComCatalogo(Mapa);
+        var pagina = Abrir();
+
+        Filtros(pagina).Should().Equal("Todos", "ComDivergencia", "ComErro", "SemFicha");
+        var semFicha = pagina.Find("button[data-filtro='SemFicha']");
+        semFicha.TextContent.Should().Be("Sem ficha1");
+        semFicha.GetAttribute("aria-pressed").Should().Be("false");
+
+        semFicha.Click();
+
+        Nomes(pagina).Should().Equal("STP");
+        pagina.Find("button[data-filtro='SemFicha']").GetAttribute("aria-pressed").Should().Be("true");
+        Navegacao.Uri.Should().EndWith("sistemas/versoes?filtro=semficha");
+        Navegacao.History.First().Options.ReplaceHistoryEntry.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Sem_ficha_combina_com_a_busca_e_tem_estados_vazios_proprios()
+    {
+        Devolver(Versoes());
+        ComCatalogo(Mapa);
+
+        var pagina = Abrir("sistemas/versoes?busca=etcm&filtro=semficha");
+
+        pagina.Find(".estado p").TextContent.Should().Be("Não há nenhum sistema sem ficha com \"etcm\" no nome.");
+    }
+
+    [Fact]
+    public void Sem_ficha_sem_nenhum_sistema_fora_do_mapa()
+    {
+        Devolver(Versoes());
+        ComCatalogo(new FichasVM(new Dictionary<string, string>
+        {
+            ["etcm"] = "eTCM", ["etcm impressao"] = "eTCM", ["sgq"] = "SGQ", ["stp"] = "STP",
+        }));
+
+        var pagina = Abrir("sistemas/versoes?filtro=semficha");
+
+        pagina.Find(".estado p").TextContent.Should().Be("Não há nenhum sistema sem ficha nesta leitura.");
+    }
+
+    [Fact]
+    public void Filtro_sem_ficha_da_URL_espera_o_mapa_chegar()
+    {
+        Devolver(Versoes());
+        var fonte = ComCatalogoPendente();
+
+        var pagina = Abrir("sistemas/versoes?filtro=semficha");
+
+        Nomes(pagina).Should().HaveCount(4);
+        pagina.Find("button[data-filtro='Todos']").GetAttribute("aria-pressed").Should().Be("true");
+
+        fonte.SetResult(Mapa);
+
+        pagina.WaitForAssertion(() => Nomes(pagina).Should().Equal("STP"));
+        pagina.Find("button[data-filtro='SemFicha']").GetAttribute("aria-pressed").Should().Be("true");
+    }
+
+    [Fact]
+    public void Falha_das_fichas_avisa_e_deixa_os_nomes_sem_link_e_sem_o_filtro()
+    {
+        Devolver(Versoes());
+        ComCatalogo(new Erro("catalogo.x", "O GitLab não respondeu."));
+
+        var pagina = Abrir("sistemas/versoes?filtro=semficha");
+
+        pagina.FindAll(".aviso").Select(a => a.TextContent.Trim()).Should().Contain("As fichas dos sistemas estão indisponíveis: O GitLab não respondeu.");
+        pagina.FindAll("td.nome a").Should().BeEmpty();
+        Filtros(pagina).Should().NotContain("SemFicha");
+        Nomes(pagina).Should().HaveCount(4);
+        pagina.Find("button[data-filtro='Todos']").GetAttribute("aria-pressed").Should().Be("true");
+    }
+
+    [Fact]
+    public void So_com_as_versoes_nao_pede_as_fichas_e_fica_em_Todos_sem_aviso()
+    {
+        Devolver(Versoes());
+
+        var pagina = Abrir("sistemas/versoes?filtro=semficha");
+
+        _mediador.Verify(m => m.Send(It.IsAny<ListarFichas.Query>(), It.IsAny<CancellationToken>()), Times.Never);
+        pagina.FindAll("td.nome a").Should().BeEmpty();
+        Filtros(pagina).Should().NotContain("SemFicha");
+        Nomes(pagina).Should().HaveCount(4);
+        pagina.Find("button[data-filtro='Todos']").GetAttribute("aria-pressed").Should().Be("true");
+        pagina.FindAll(".aviso").Should().BeEmpty();
     }
 }

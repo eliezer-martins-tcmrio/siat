@@ -23,7 +23,8 @@
      ao catálogo anterior ou, sem ele, ao erro com "Tentar de novo". Fechar a página cancela a leitura.
    - "Atualizar agora" força a releitura. Falha numa releitura mostra a leitura anterior com um aviso (FR-023).
    - Busca: FiltroLocal sobre SistemaVM.TextoDeBusca, gravada no parâmetro "busca" da URL com replace a cada mudança;
-     abrir a URL aplica a busca. Esc no campo limpa o texto e a URL. *@
+     abrir a URL aplica a busca. Esc no campo limpa o texto e a URL. O vínculo de versões não entra na busca (FR-011).
+   - O nome do sistema leva à ficha (specs/004-ficha-sistema, FR-004), com "Ficha do" só para o leitor de tela. *@
 
 @if (acesso is null)
 {
@@ -118,7 +119,7 @@ else
                                     @foreach (var sistema in visiveis)
                                     {
                                         <tr @key="sistema">
-                                            <td class="nome">@sistema.Nome</td>
+                                            <td class="nome"><a href="@Navegacao.Ficha(sistema.Nome)"><span class="so-leitor">Ficha do </span>@sistema.Nome</a></td>
                                             @foreach (var ambiente in sistema.Ambientes)
                                             {
                                                 <CelulaAmbiente Sistema="@sistema.Nome" Ambiente="ambiente" />

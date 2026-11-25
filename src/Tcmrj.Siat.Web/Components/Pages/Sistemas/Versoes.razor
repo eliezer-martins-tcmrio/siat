@@ -4,6 +4,7 @@
 @using CSharpFunctionalExtensions
 @using Microsoft.Extensions.Options
 @using NetDevPack.SimpleMediator
+@using Tcmrj.Siat.App.Web.ViewModels.Catalogo
 @using Tcmrj.Siat.App.Web.ViewModels.Versoes
 @using Tcmrj.Siat.Domain.Models
 @using Tcmrj.Siat.Web.Services
@@ -11,6 +12,7 @@
 @using ListarPermitidos = Tcmrj.Siat.App.Web.Features.Servidores.ListarPermitidos
 @using ObterVersoes = Tcmrj.Siat.App.Web.Features.Versoes.ObterVersoes
 @using ObterAndamento = Tcmrj.Siat.App.Web.Features.Versoes.ObterAndamento
+@using ListarFichas = Tcmrj.Siat.App.Web.Features.Catalogo.ListarFichas
 @inject IAutorizacaoConsultaService AutorizacaoConsulta
 @inject IMediator Mediator
 @inject NavigationManager Navigation
@@ -30,6 +32,10 @@
      a página cancela a leitura e o acompanhamento.
    - Filtros: FiltroLocal sobre o nome (sem acento e minúsculas) e o grupo segmentado por situação. Servidor, busca e
      filtro vão para a URL com replace; abrir a URL restaura os três.
+   - Fichas (specs/004-ficha-sistema, research.md R9): com Catalogo_Sistemas.CanSelect, ListarFichas vai junto com a
+     leitura, sem a tabela esperar por ela (FR-031). Com o mapa, o nome vira link para a ficha (com o servidor escolhido)
+     e aparece o filtro "Sem ficha"; filtro=semficha na URL fica guardado até o mapa chegar e, sem o recurso ou com
+     falha do catálogo, vale "Todos". Falha: aviso e nomes sem link.
    - Versões, caminhos e mensagens vêm de arquivos e da tabela: sempre texto codificado pelo Razor (FR-021). *@
 
 @if (acesso is null)
@@ -69,6 +75,11 @@ else
     @if (avisoServidor is not null)
     {
         <Aviso>@avisoServidor</Aviso>
+    }
+
+    @if (motivoDasFichas is not null)
+    {
+        <Aviso>As fichas dos sistemas estão indisponíveis: @SemPontoFinal(motivoDasFichas).</Aviso>
     }
 
     @if (VersoesAtuais?.Falha is { } falha)
@@ -132,7 +143,7 @@ else
                         <div class="segmentado" role="group" aria-label="Filtrar por situação">
                             @foreach (var (opcao, rotulo, quantidade) in OpcoesDeFiltro(versoes))
                             {
-                                <button type="button" data-filtro="@opcao" aria-pressed="@(opcao == filtro ? "true" : "false")"
+                                <button type="button" data-filtro="@opcao" aria-pressed="@(opcao == FiltroEfetivo ? "true" : "false")"
                                         @onclick="() => EscolherFiltro(opcao)">@rotulo<span class="num">@quantidade</span></button>
                             }
                         </div>
@@ -177,7 +188,14 @@ else
                                                             aria-controls="@(aberto ? idDetalhe : null)" aria-label="@($"Caminhos consultados de {sistema.Nome}")"
                                                             @onclick="() => Alternar(sistema.Id)" @onclick:stopPropagation="true">
                                                         @Seta
-                                                    </button>@sistema.Nome
+                                                    </button>@if (fichas?.Ficha(sistema) is { } nomeDoItem)
+                                                    {
+                                                        <a href="@Navegacao.Ficha(nomeDoItem, ServidorDaUrl)" @onclick:stopPropagation="true"><span class="so-leitor">Ficha do </span>@sistema.Nome</a>
+                                                    }
+                                                    else
+                                                    {
+                                                        @sistema.Nome
+                                                    }
                                                 </td>
                                                 @foreach (var celula in sistema.Celulas)
                                                 {
@@ -305,7 +323,20 @@ else
     private EstadoDaUrl? urlVista;
     private readonly List<EstadoDaUrl> gravadas = [];
 
+    // Mapa das fichas (nulo: sem o recurso do catálogo, ainda pendente ou com falha), o motivo da falha e a seleção de
+    // "Sem ficha", uma instância por mapa.
+    private FichasVM? fichas;
+    private string? motivoDasFichas;
+    private Func<SistemaVersoesVM, bool>? soSemFicha;
+    private readonly CancellationTokenSource fechamento = new();
+
     private VersoesVM? VersoesAtuais => leituras.Resultado;
+
+    /// <summary>"Sem ficha" só vale com o mapa; antes dele (ou sem ele), a tela fica em "Todos".</summary>
+    private FiltroDeSituacao FiltroEfetivo => filtro == FiltroDeSituacao.SemFicha && fichas is null ? FiltroDeSituacao.Todos : filtro;
+
+    /// <summary>Servidor que o link da ficha leva: nenhum quando é o padrão.</summary>
+    private string? ServidorDaUrl => string.Equals(chave, Opcoes.CurrentValue.ServidorPadrao, StringComparison.Ordinal) ? null : chave;
 
     private bool Lendo => leituras.Estado == Servicos.EstadoConsulta.Consultando;
 
@@ -321,10 +352,11 @@ else
         ? $"Lendo {n.ToString(PtBr)} {(n == 1 ? "arquivo" : "arquivos")} de versão"
         : $"Lendo endereços em {NomeDoServidor}";
 
-    private Func<SistemaVersoesVM, bool>? SelecaoDoFiltro => filtro switch
+    private Func<SistemaVersoesVM, bool>? SelecaoDoFiltro => FiltroEfetivo switch
     {
         FiltroDeSituacao.ComDivergencia => SoComDivergencia,
         FiltroDeSituacao.ComErro => SoComErro,
+        FiltroDeSituacao.SemFicha => soSemFicha,
         _ => null,
     };
 
@@ -332,10 +364,11 @@ else
     {
         get
         {
-            var nenhum = filtro switch
+            var nenhum = FiltroEfetivo switch
             {
                 FiltroDeSituacao.ComDivergencia => "nenhum sistema com divergência",
                 FiltroDeSituacao.ComErro => "nenhum sistema com erro",
+                FiltroDeSituacao.SemFicha => "nenhum sistema sem ficha",
                 _ => "nenhum sistema",
             };
             return string.IsNullOrWhiteSpace(busca)
@@ -359,6 +392,13 @@ else
         urlVista = daUrl;
         busca = daUrl.Busca;
         filtro = daUrl.Filtro;
+
+        // As fichas só com o recurso do catálogo (FR-005), em paralelo com a leitura das versões (FR-031).
+        if (await AutorizacaoConsulta.PodeAcessarModuloAsync(Modulo.Catalogo_Sistemas))
+        {
+            _ = CarregarFichasAsync();
+        }
+
         grupos = await Mediator.Send(new ListarPermitidos.Query(Modulo.Versoes_Sistemas), CancellationToken.None);
         (chave, avisoServidor) = Resolver(daUrl.Servidor);
         await LerAsync(atualizar: false);
@@ -582,18 +622,61 @@ else
         }
     }
 
+    private async Task CarregarFichasAsync()
+    {
+        Result<FichasVM, Erro> obtido;
+        try
+        {
+            obtido = await Mediator.Send(new ListarFichas.Query(), fechamento.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        if (descartada)
+        {
+            return;
+        }
+
+        if (obtido.IsSuccess)
+        {
+            var mapa = obtido.Value;
+            fichas = mapa;
+            soSemFicha = s => mapa.Ficha(s) is null;
+        }
+        else if (obtido.Error.Code != Erros.Catalogo.CodigoAcessoNegado)
+        {
+            // Com o recurso do catálogo retirado durante o uso, a tela fica como sem ele, sem aviso.
+            motivoDasFichas = obtido.Error.Message;
+        }
+
+        try
+        {
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (ObjectDisposedException)
+        {
+            // Página fechada durante a renderização.
+        }
+    }
+
     private void Cancelar()
     {
         Interacao.Interagir();
         leituras.Cancelar();
     }
 
-    private static IEnumerable<(FiltroDeSituacao Opcao, string Rotulo, int Quantidade)> OpcoesDeFiltro(VersoesVM versoes) =>
-    [
-        (FiltroDeSituacao.Todos, "Todos", versoes.Total),
-        (FiltroDeSituacao.ComDivergencia, "Com divergência", versoes.ComDivergencia),
-        (FiltroDeSituacao.ComErro, "Com erro", versoes.ComErro),
-    ];
+    private IEnumerable<(FiltroDeSituacao Opcao, string Rotulo, int Quantidade)> OpcoesDeFiltro(VersoesVM versoes)
+    {
+        yield return (FiltroDeSituacao.Todos, "Todos", versoes.Total);
+        yield return (FiltroDeSituacao.ComDivergencia, "Com divergência", versoes.ComDivergencia);
+        yield return (FiltroDeSituacao.ComErro, "Com erro", versoes.ComErro);
+        if (fichas is { } mapa)
+        {
+            yield return (FiltroDeSituacao.SemFicha, "Sem ficha", versoes.Sistemas.Count(s => mapa.Ficha(s) is null));
+        }
+    }
 
     private static string? Normalizar(string? texto) => string.IsNullOrWhiteSpace(texto) ? null : texto;
 
@@ -607,5 +690,7 @@ else
     {
         descartada = true;
         leituras?.Dispose();
+        fechamento.Cancel();
+        fechamento.Dispose();
     }
 }

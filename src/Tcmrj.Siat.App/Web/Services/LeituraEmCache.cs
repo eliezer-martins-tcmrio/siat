@@ -118,6 +118,29 @@ public sealed class LeituraEmCache<TChave, TValor>
         }
     }
 
+    /// <summary>
+    /// Espia o último valor da chave sem iniciar leitura e sem entrar na contagem de quem espera
+    /// (specs/004-ficha-sistema/research.md R5): a ficha usa o resultado da tela de Versões quando ele vale.
+    /// </summary>
+    /// <returns>
+    /// O último valor quando está na validade e a última releitura não falhou; nulo caso contrário. Durante um
+    /// "atualizar" em andamento, o valor anterior ainda na validade.
+    /// </returns>
+    public TValor? Valido(TChave chave)
+    {
+        ArgumentNullException.ThrowIfNull(chave);
+
+        lock (trava)
+        {
+            return entradas.TryGetValue(chave, out var entrada)
+                && entrada.UltimaValida is { } valida
+                && entrada.UltimaFalha is null
+                && DentroDaValidade(valida)
+                    ? valida
+                    : null;
+        }
+    }
+
     private bool DentroDaValidade(TValor valor) => relogio.GetUtcNow() - horarioDe(valor) < validade();
 
     // Sempre sob a trava.

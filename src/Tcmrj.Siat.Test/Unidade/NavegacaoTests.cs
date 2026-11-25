@@ -113,8 +113,45 @@ public class NavegacaoTests
     [InlineData("", FiltroDeSituacao.Todos)]
     [InlineData("xyz", FiltroDeSituacao.Todos)]
     [InlineData("DIV", FiltroDeSituacao.Todos)]
-    public void LerFiltro_aceita_div_e_erro_e_o_resto_e_Todos(string? valor, FiltroDeSituacao esperado)
+    [InlineData("semficha", FiltroDeSituacao.SemFicha)]
+    public void LerFiltro_aceita_div_erro_e_semficha_e_o_resto_e_Todos(string? valor, FiltroDeSituacao esperado)
     {
         Navegacao.LerFiltro(valor).Should().Be(esperado);
+    }
+
+    [Fact]
+    public void Versoes_com_filtro_SemFicha_grava_semficha()
+    {
+        Navegacao.Versoes(null, null, FiltroDeSituacao.SemFicha).Should().Be("sistemas/versoes?filtro=semficha");
+    }
+
+    [Fact]
+    public void A_ficha_fica_embaixo_do_catalogo()
+    {
+        Navegacao.RotaFicha.Should().Be("sistemas/catalogo/ficha");
+        Navegacao.RotaFicha.Should().StartWith(Navegacao.RotaCatalogo);
+    }
+
+    [Fact]
+    public void Ficha_leva_o_sistema_e_o_servidor_escapados()
+    {
+        Navegacao.Ficha("SIGARH").Should().Be("sistemas/catalogo/ficha?sistema=SIGARH");
+        Navegacao.Ficha("eTCM Impressão", "tcmbd3-dev")
+            .Should().Be("sistemas/catalogo/ficha?sistema=eTCM%20Impress%C3%A3o&servidor=tcmbd3-dev");
+    }
+
+    [Fact]
+    public void Ficha_escapa_os_caracteres_de_endereco()
+    {
+        Navegacao.Ficha("A&B/C?#%").Should().Be("sistemas/catalogo/ficha?sistema=A%26B%2FC%3F%23%25");
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Ficha_sem_servidor_fica_sem_o_parametro(string? servidor)
+    {
+        Navegacao.Ficha("SIGARH", servidor).Should().Be("sistemas/catalogo/ficha?sistema=SIGARH");
     }
 }

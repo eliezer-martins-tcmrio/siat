@@ -10,6 +10,7 @@ using Tcmrj.Siat.App.Web.Services;
 using Tcmrj.Siat.App.Web.Services.Interfaces;
 using Tcmrj.Siat.Domain.Enums;
 using Tcmrj.Siat.Domain.Models;
+using Tcmrj.Siat.Domain.Models.Catalogo;
 using Tcmrj.Siat.Domain.Models.Versoes;
 using Tcmrj.Siat.Domain.Repositories;
 
@@ -192,6 +193,225 @@ public sealed class VersoesPublicadasServiceTests : IDisposable
         _servico.QuantidadeEmLeitura(Dsv.Chave).Should().BeNull();
     }
 
+    // ObterDoSistemaAsync: versões da ficha (specs/004-ficha-sistema/research.md R5 e R6; FR-025 a FR-030).
+
+    private static readonly VinculoDeVersoes SoSgq = VinculoDeVersoes.De(["sgq"]);
+
+    private Task<Result<VersoesObtidas, Erro>> ObterDoSistema(Servidor servidor, VinculoDeVersoes? vinculo = null, bool atualizar = false) =>
+        _servico.ObterDoSistemaAsync(servidor, vinculo ?? SoSgq, atualizar, Teste);
+
+    private static EnderecoDeVersao Linha(int id, string sistema) =>
+        new(id, sistema, new Dictionary<(Ambiente, Maquina), ParDeEndereco>
+        {
+            [(Ambiente.Dsv, Maquina.Maquina1)] = new($@"\\tcm2016web3\TcmRoot\DSV\Sites\s{id}\VERSAO.TXT", null),
+        });
+
+    [Fact]
+    public async Task Ficha_usa_o_cache_valido_da_tela_de_Versoes_sem_ler()
+    {
+        var daTela = Sucesso(await Obter(Dsv)).Versoes;
+
+        var obtidas = Sucesso(await ObterDoSistema(Dsv));
+
+        obtidas.Versoes.Should().BeSameAs(daTela);
+        obtidas.Falha.Should().BeNull();
+        _repositorio.Consultas(Dsv).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Ficha_usa_o_proprio_cache_valido_sem_ler()
+    {
+        var primeira = Sucesso(await ObterDoSistema(Dsv)).Versoes;
+        _relogio.Advance(TimeSpan.FromMinutes(4));
+
+        Sucesso(await ObterDoSistema(Dsv)).Versoes.Should().BeSameAs(primeira);
+        _repositorio.Consultas(Dsv).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Com_os_dois_caches_validos_usa_o_mais_recente()
+    {
+        var daFicha = Sucesso(await ObterDoSistema(Dsv)).Versoes;
+        _relogio.Advance(TimeSpan.FromMinutes(1));
+        var daTela = Sucesso(await Obter(Dsv)).Versoes;
+
+        Sucesso(await ObterDoSistema(Dsv)).Versoes.Should().BeSameAs(daTela);
+
+        _relogio.Advance(TimeSpan.FromMinutes(1));
+        var fichaNova = Sucesso(await ObterDoSistema(Dsv, atualizar: true)).Versoes;
+        Sucesso(await ObterDoSistema(Dsv)).Versoes.Should().BeSameAs(fichaNova).And.NotBeSameAs(daFicha);
+    }
+
+    [Fact]
+    public async Task Cache_da_tela_cuja_ultima_releitura_falhou_nao_e_usado()
+    {
+        await Obter(Dsv);
+        _repositorio.Proximo = Erros.Versoes.TempoEsgotado(Dsv.Nome);
+        Sucesso(await Obter(Dsv, atualizar: true)).Falha.Should().NotBeNull();
+
+        Sucesso(await ObterDoSistema(Dsv));
+
+        _repositorio.Consultas(Dsv).Should().Be(3);
+    }
+
+    [Fact]
+    public async Task Sem_cache_valido_le_uma_vez_e_so_os_enderecos_do_vinculo()
+    {
+        _repositorio.Linhas = [Linha(1, "SGQ"), Linha(2, "STP"), Linha(3, "SGQ Relatórios")];
+
+        var obtidas = Sucesso(await ObterDoSistema(Dsv, VinculoDeVersoes.De(["SGQ", "sgq relatorios"])));
+
+        _repositorio.Consultas(Dsv).Should().Be(1);
+        obtidas.Versoes.Sistemas.Select(s => s.Nome).Should().BeEquivalentTo("SGQ", "SGQ Relatórios");
+        _arquivos.Lidos.Should().BeEquivalentTo(
+            @"\\tcm2016web3\TcmRoot\DSV\Sites\s1\VERSAO.TXT",
+            @"\\tcm2016web3\TcmRoot\DSV\Sites\s3\VERSAO.TXT");
+    }
+
+    [Fact]
+    public async Task Nenhuma_linha_do_vinculo_na_tabela_nao_e_erro()
+    {
+        var obtidas = Sucesso(await ObterDoSistema(Dsv, VinculoDeVersoes.De(["Inexistente"])));
+
+        obtidas.Versoes.Sistemas.Should().BeEmpty();
+        _arquivos.Lidos.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task O_resultado_parcial_da_ficha_nao_entra_no_cache_da_tela()
+    {
+        _repositorio.Linhas = [Linha(1, "SGQ"), Linha(2, "STP")];
+        await ObterDoSistema(Dsv);
+
+        var daTela = Sucesso(await Obter(Dsv)).Versoes;
+
+        _repositorio.Consultas(Dsv).Should().Be(2);
+        daTela.Sistemas.Select(s => s.Nome).Should().Equal("SGQ", "STP");
+    }
+
+    [Fact]
+    public async Task Vinculos_e_servidores_diferentes_tem_resultados_separados()
+    {
+        _repositorio.Linhas = [Linha(1, "SGQ"), Linha(2, "STP")];
+
+        var sgq = Sucesso(await ObterDoSistema(Dsv)).Versoes;
+        var stp = Sucesso(await ObterDoSistema(Dsv, VinculoDeVersoes.De(["STP"]))).Versoes;
+        var sgqHml = Sucesso(await ObterDoSistema(Hml)).Versoes;
+
+        sgq.Sistemas.Single().Nome.Should().Be("SGQ");
+        stp.Sistemas.Single().Nome.Should().Be("STP");
+        sgqHml.Servidor.Should().BeSameAs(Hml);
+        _repositorio.Consultas(Dsv).Should().Be(2);
+        _repositorio.Consultas(Hml).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Atualizar_ignora_os_dois_caches_e_rele_so_o_vinculo()
+    {
+        _repositorio.Linhas = [Linha(1, "SGQ"), Linha(2, "STP")];
+        await Obter(Dsv);
+        await ObterDoSistema(Dsv);
+        _arquivos.Lidos.Clear();
+
+        var obtidas = Sucesso(await ObterDoSistema(Dsv, atualizar: true));
+
+        _repositorio.Consultas(Dsv).Should().Be(2);
+        obtidas.Versoes.Sistemas.Single().Nome.Should().Be("SGQ");
+        _arquivos.Lidos.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task Ficha_pedidos_simultaneos_do_mesmo_servidor_e_vinculo_fazem_uma_leitura()
+    {
+        var liberar = _repositorio.Prender();
+
+        var a = ObterDoSistema(Dsv);
+        await _repositorio.Iniciou.WaitAsync(Espera, Teste);
+        var b = ObterDoSistema(Dsv);
+        liberar.SetResult();
+
+        Sucesso(await b.WaitAsync(Espera, Teste)).Versoes.Should().BeSameAs(Sucesso(await a.WaitAsync(Espera, Teste)).Versoes);
+        _repositorio.Consultas(Dsv).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Ficha_cancelar_o_unico_pedido_cancela_a_leitura_e_nada_fica_guardado()
+    {
+        _repositorio.Prender();
+        using var cancelamento = new CancellationTokenSource();
+
+        var pedido = _servico.ObterDoSistemaAsync(Dsv, SoSgq, false, cancelamento.Token);
+        await _repositorio.Iniciou.WaitAsync(Espera, Teste);
+        await cancelamento.CancelAsync();
+
+        (await pedido.WaitAsync(Espera, Teste)).Error.Should().Be(Erros.Versoes.Cancelada);
+        _repositorio.TokenRecebido.IsCancellationRequested.Should().BeTrue();
+
+        Sucesso(await ObterDoSistema(Dsv));
+        _repositorio.Consultas(Dsv).Should().Be(2, "a leitura cancelada não ficou guardada");
+    }
+
+    [Fact]
+    public async Task Ficha_cancelar_um_de_dois_pedidos_nao_interrompe_a_leitura()
+    {
+        var liberar = _repositorio.Prender();
+        using var cancelamento = new CancellationTokenSource();
+
+        var quemCancela = _servico.ObterDoSistemaAsync(Dsv, SoSgq, false, cancelamento.Token);
+        await _repositorio.Iniciou.WaitAsync(Espera, Teste);
+        var quemEspera = ObterDoSistema(Dsv);
+        await cancelamento.CancelAsync();
+
+        (await quemCancela.WaitAsync(Espera, Teste)).Error.Should().Be(Erros.Versoes.Cancelada);
+        _repositorio.TokenRecebido.IsCancellationRequested.Should().BeFalse();
+        liberar.SetResult();
+        Sucesso(await quemEspera.WaitAsync(Espera, Teste));
+    }
+
+    [Fact]
+    public async Task Ficha_falha_sem_anterior_devolve_o_erro()
+    {
+        _repositorio.Proximo = Erros.Versoes.TabelaIndisponivel(Dsv.Nome, "fora do ar");
+
+        (await ObterDoSistema(Dsv)).Error.Code.Should().Be(Erros.Versoes.CodigoTabelaIndisponivel);
+    }
+
+    [Fact]
+    public async Task Ficha_falha_com_anterior_devolve_o_anterior_com_a_falha_e_o_seguinte_rele()
+    {
+        var anterior = Sucesso(await ObterDoSistema(Dsv)).Versoes;
+        _repositorio.Proximo = Erros.Versoes.TempoEsgotado(Dsv.Nome);
+
+        var comFalha = Sucesso(await ObterDoSistema(Dsv, atualizar: true));
+        comFalha.Versoes.Should().BeSameAs(anterior);
+        comFalha.Falha!.Erro.Code.Should().Be(Erros.Versoes.CodigoTempoEsgotado);
+
+        Sucesso(await ObterDoSistema(Dsv)).Falha.Should().BeNull();
+        _repositorio.Consultas(Dsv).Should().Be(3);
+    }
+
+    [Fact]
+    public async Task Ficha_andamento_pela_chave_da_ficha_sem_mexer_no_da_tela()
+    {
+        _servico.QuantidadeEmLeitura(Dsv.Chave, SoSgq).Should().BeNull();
+        var liberarTabela = _repositorio.Prender();
+        var liberarArquivos = _arquivos.Prender();
+
+        var pedido = ObterDoSistema(Dsv);
+        await _repositorio.Iniciou.WaitAsync(Espera, Teste);
+        _servico.QuantidadeEmLeitura(Dsv.Chave, SoSgq).Should().BeNull("a tabela ainda está sendo lida");
+
+        liberarTabela.SetResult();
+        await _arquivos.Iniciou.WaitAsync(Espera, Teste);
+        _servico.QuantidadeEmLeitura(Dsv.Chave, SoSgq).Should().Be(1);
+        _servico.QuantidadeEmLeitura(Dsv.Chave).Should().BeNull("a tela de Versões não está lendo");
+        _servico.QuantidadeEmLeitura(Dsv.Chave, VinculoDeVersoes.De(["STP"])).Should().BeNull();
+
+        liberarArquivos.SetResult();
+        Sucesso(await pedido.WaitAsync(Espera, Teste));
+        await EsperarAsync(() => _servico.QuantidadeEmLeitura(Dsv.Chave, SoSgq) is null);
+    }
+
     // A limpeza do andamento acontece no fim da tarefa de leitura, logo depois de quem esperava ser solto.
     private static async Task EsperarAsync(Func<bool> condicao)
     {
@@ -210,6 +430,9 @@ public sealed class VersoesPublicadasServiceTests : IDisposable
         private TaskCompletionSource _iniciou = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public Erro? Proximo { get; set; }
+
+        /// <summary>Linhas devolvidas; sem elas, uma linha "SGQ".</summary>
+        public IReadOnlyList<EnderecoDeVersao>? Linhas { get; set; }
 
         public CancellationToken TokenRecebido { get; private set; }
 
@@ -241,7 +464,7 @@ public sealed class VersoesPublicadasServiceTests : IDisposable
                 return erro;
             }
 
-            IReadOnlyList<EnderecoDeVersao> linhas =
+            IReadOnlyList<EnderecoDeVersao> linhas = Linhas ??
             [
                 new EnderecoDeVersao(1, "SGQ", new Dictionary<(Ambiente, Maquina), ParDeEndereco>
                 {
@@ -261,6 +484,9 @@ public sealed class VersoesPublicadasServiceTests : IDisposable
 
         public string? Erro { get; set; }
 
+        /// <summary>Endereços pedidos, na ordem.</summary>
+        public ConcurrentQueue<string> Lidos { get; } = new();
+
         public CancellationToken TokenRecebido { get; private set; }
 
         public Task Iniciou => _iniciou.Task;
@@ -276,6 +502,7 @@ public sealed class VersoesPublicadasServiceTests : IDisposable
 
         public async Task<Result<string, string>> LerAsync(string endereco, CancellationToken cancellationToken)
         {
+            Lidos.Enqueue(endereco);
             TokenRecebido = cancellationToken;
             var liberacao = _liberacao;
             _liberacao = null;

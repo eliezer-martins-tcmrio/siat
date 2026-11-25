@@ -238,6 +238,82 @@ public sealed class LeituraEmCacheTests
         _origem.Leituras("b").Should().Be(3);
     }
 
+    // Valido(chave): espia o cache sem ler (specs/004-ficha-sistema/research.md R5).
+
+    [Fact]
+    public void Valido_antes_da_primeira_leitura_e_nulo()
+    {
+        _cache.Valido("a").Should().BeNull();
+        _origem.Leituras("a").Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Valido_devolve_o_valor_dentro_da_validade_sem_ler()
+    {
+        var lido = Sucesso(await Obter()).Valor;
+        _relogio.Advance(TimeSpan.FromMinutes(4));
+
+        _cache.Valido("a").Should().BeSameAs(lido);
+        _origem.Leituras("a").Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Valido_depois_da_validade_e_nulo_e_nao_le()
+    {
+        await Obter();
+        _relogio.Advance(TimeSpan.FromMinutes(5));
+
+        _cache.Valido("a").Should().BeNull();
+        _origem.Leituras("a").Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Valido_e_nulo_quando_a_ultima_releitura_falhou()
+    {
+        await Obter();
+        _origem.Proximo = new Erro("teste.fora", "Fora do ar.");
+        Sucesso(await Obter(atualizar: true)).Falha.Should().NotBeNull();
+
+        _cache.Valido("a").Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Valido_de_outra_chave_e_nulo()
+    {
+        await Obter("a");
+
+        _cache.Valido("b").Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Valido_nao_entra_na_contagem_de_quem_espera()
+    {
+        _origem.Prender();
+        using var cancelamento = new CancellationTokenSource();
+
+        var pedido = ObterCom(cancelamento.Token);
+        await _origem.Iniciou.WaitAsync(Espera, Teste);
+        _cache.Valido("a").Should().BeNull();
+        await cancelamento.CancelAsync();
+
+        (await pedido.WaitAsync(Espera, Teste)).Error.Code.Should().Be(Cancelada.Code);
+        _origem.TokenRecebido.IsCancellationRequested.Should().BeTrue("Valido não segura a leitura");
+    }
+
+    [Fact]
+    public async Task Valido_durante_um_atualizar_devolve_o_anterior_ainda_na_validade()
+    {
+        var anterior = Sucesso(await Obter()).Valor;
+        var liberar = _origem.Prender();
+
+        var atualizando = Obter(atualizar: true);
+        await _origem.Iniciou.WaitAsync(Espera, Teste);
+
+        _cache.Valido("a").Should().BeSameAs(anterior);
+        liberar.SetResult();
+        Sucesso(await atualizando.WaitAsync(Espera, Teste)).Valor.Numero.Should().Be(2);
+    }
+
     /// <summary>Valor lido: a chave, o número da leitura daquela chave e quando.</summary>
     private sealed record Lido(string Chave, int Numero, DateTimeOffset Em);
 

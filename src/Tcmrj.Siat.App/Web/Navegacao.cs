@@ -16,6 +16,12 @@ public static class Navegacao
 
     public const string RotaVersoes = "sistemas/versoes";
 
+    /// <summary>
+    /// Ficha do sistema (specs/004-ficha-sistema/research.md R3): embaixo do Catálogo, para o item Catálogo do menu
+    /// (<c>NavLinkMatch.Prefix</c>) ficar marcado nela (FR-003).
+    /// </summary>
+    public const string RotaFicha = "sistemas/catalogo/ficha";
+
     public const string RotaMailQueue = "consultas/mailqueue";
 
     public const string RotaAuditLog = "consultas/auditlog";
@@ -23,6 +29,9 @@ public static class Navegacao
     public const string ParametroBusca = "busca";
 
     public const string ParametroServidor = "servidor";
+
+    /// <summary>Nome do item do catálogo na URL da ficha.</summary>
+    public const string ParametroSistema = "sistema";
 
     public const string ParametroSmtp = "smtp";
 
@@ -42,12 +51,17 @@ public static class Navegacao
 
     public const string ParametroAte = "ate";
 
-    /// <summary>Filtro por situação das Versões: <c>div</c> ou <c>erro</c>; ausente é <see cref="FiltroDeSituacao.Todos"/>.</summary>
+    /// <summary>
+    /// Filtro por situação das Versões: <c>div</c>, <c>erro</c> ou <c>semficha</c>; ausente é
+    /// <see cref="FiltroDeSituacao.Todos"/>.
+    /// </summary>
     public const string ParametroFiltro = "filtro";
 
     public const string ValorFiltroDivergencia = "div";
 
     public const string ValorFiltroErro = "erro";
+
+    public const string ValorFiltroSemFicha = "semficha";
 
     public const int QuantidadePadrao = 50;
 
@@ -68,16 +82,34 @@ public static class Navegacao
             {
                 FiltroDeSituacao.ComDivergencia => ValorFiltroDivergencia,
                 FiltroDeSituacao.ComErro => ValorFiltroErro,
+                FiltroDeSituacao.SemFicha => ValorFiltroSemFicha,
                 _ => null,
             }));
 
-    /// <summary>Filtro do parâmetro <c>filtro</c>: <c>div</c>, <c>erro</c> ou, para qualquer outro valor, Todos (sem aviso).</summary>
+    /// <summary>
+    /// Filtro do parâmetro <c>filtro</c>: <c>div</c>, <c>erro</c>, <c>semficha</c> ou, para qualquer outro valor, Todos
+    /// (sem aviso).
+    /// </summary>
     public static FiltroDeSituacao LerFiltro(string? valor) => valor switch
     {
         ValorFiltroDivergencia => FiltroDeSituacao.ComDivergencia,
         ValorFiltroErro => FiltroDeSituacao.ComErro,
+        ValorFiltroSemFicha => FiltroDeSituacao.SemFicha,
         _ => FiltroDeSituacao.Todos,
     };
+
+    /// <summary>
+    /// URL da ficha do sistema (specs/004-ficha-sistema/contracts/rotas-ui.md). O nome vai escapado com
+    /// <see cref="Uri.EscapeDataString"/>; servidor nulo, vazio ou só com espaços (o padrão) fica fora da URL.
+    /// </summary>
+    public static string Ficha(string sistema, string? servidor = null)
+    {
+        ArgumentNullException.ThrowIfNull(sistema);
+        return Montar(
+            RotaFicha,
+            (ParametroSistema, sistema),
+            (ParametroServidor, string.IsNullOrWhiteSpace(servidor) ? null : servidor));
+    }
 
     public static string MailQueue(string? servidor = null, int? smtp = null, string? texto = null, int? qtd = null, string? sel = null) =>
         Montar(
