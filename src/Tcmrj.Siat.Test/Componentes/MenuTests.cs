@@ -105,4 +105,37 @@ public sealed class MenuTests : BunitContext
         menu.Markup.Should().NotContain("Sistemas");
         menu.Markup.Should().NotContain("sistemas/catalogo");
     }
+
+    [Fact]
+    public void Com_Versoes_Sistemas_CanSelect_o_grupo_Sistemas_mostra_Versoes_depois_de_Catalogo()
+    {
+        var menu = RenderizarCom("Catalogo_Sistemas.CanSelect", "Versoes_Sistemas.CanSelect", "MailQueue.CanSelect");
+
+        menu.FindAll(".menu-grupo").Select(g => g.GetAttribute("aria-label")).Should().Equal("Sistemas", "Consultas");
+        var itens = menu.FindAll(".menu-grupo")[0].QuerySelectorAll("a.menu-item");
+        itens.Select(a => a.TextContent.Trim()).Should().Equal("Catálogo", "Versões");
+        itens[1].GetAttribute("href").Should().Be("sistemas/versoes");
+    }
+
+    [Fact]
+    public void So_com_Versoes_Sistemas_CanSelect_o_grupo_Sistemas_aparece_so_com_Versoes()
+    {
+        var menu = RenderizarCom("Versoes_Sistemas.CanSelect");
+
+        menu.Find(".menu-grupo").GetAttribute("aria-label").Should().Be("Sistemas");
+        var itens = menu.FindAll("a.menu-item");
+        itens.Should().ContainSingle();
+        itens[0].TextContent.Trim().Should().Be("Versões");
+        itens[0].GetAttribute("href").Should().Be("sistemas/versoes");
+        menu.Markup.Should().NotContain("sistemas/catalogo").And.NotContain("Consultas");
+    }
+
+    [Fact]
+    public void Sem_Catalogo_e_sem_Versoes_o_grupo_Sistemas_nao_aparece()
+    {
+        var menu = RenderizarCom("AuditLog.CanSelect");
+
+        menu.FindAll(".menu-grupo").Select(g => g.GetAttribute("aria-label")).Should().Equal("Consultas");
+        menu.Markup.Should().NotContain("sistemas/versoes");
+    }
 }

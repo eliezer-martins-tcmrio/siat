@@ -1,0 +1,35 @@
+@using Tcmrj.Siat.App.Web.ViewModels.Versoes
+@using Tcmrj.Siat.Domain.Models.Versoes
+
+@* Célula de uma máquina na tabela de Versões (specs/003-versoes-publicadas/contracts/rotas-ui.md, CelulaVersao).
+   - Versão: selo "versao ok"; divergente da outra máquina: "versao divergente" (destaque em amarelo) e o texto
+     "difere da outra máquina" para o leitor de tela. Erro: pílula "Erro". Sem endereço: "–" e "não configurado".
+   - A versão vem de um arquivo externo: sai sempre como texto codificado pelo Razor (FR-021), nunca MarkupString.
+   - A máquina 1 de cada ambiente leva a borda divisória (divisa), como no contrato visual design/versoes.html. *@
+<td class="@(Celula.Divisa ? "divisa" : null)">
+    @switch (Celula.Situacao)
+    {
+        case SituacaoDaCelula.Versao when Divergente:
+            <span class="versao divergente">@Celula.Versao</span><span class="so-leitor">, difere da outra máquina</span>
+            break;
+        case SituacaoDaCelula.Versao:
+            <span class="versao ok">@Celula.Versao</span>
+            break;
+        case SituacaoDaCelula.Erro:
+            <span class="pilula erro"><span aria-hidden="true">Erro</span><span class="so-leitor">Erro ao ler a versão</span></span>
+            break;
+        default:
+            <span class="vazio-cel"><span aria-hidden="true">–</span><span class="so-leitor">não configurado</span></span>
+            break;
+    }
+</td>
+
+@code {
+    /// <summary>Leitura da máquina (situação, versão e ambiente).</summary>
+    [Parameter, EditorRequired]
+    public CelulaVersaoVM Celula { get; set; } = default!;
+
+    /// <summary>A versão difere da outra máquina do mesmo ambiente.</summary>
+    [Parameter]
+    public bool Divergente { get; set; }
+}

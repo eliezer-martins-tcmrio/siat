@@ -3,9 +3,10 @@
 Sistema Integrado de Apoio Técnico do TCMRio. Tem duas seções, ambas somente leitura:
 
 - **Sistemas › Catálogo**: onde cada sistema roda (URL, máquina e caminho por ambiente), lido do `sistemasDb.js` do TCMRJDoc no GitLab.
+- **Sistemas › Versões**: a versão publicada de cada sistema em DSV, HML e PRD, nas duas máquinas de cada ambiente, lida dos endereços de `CSLIB_UserManager.dbo.Apps_VersionAddresses` (substitui o `VersaoDeSistemasPublicados.ps1`).
 - **Consultas**: **MailQueue** e **AuditLog**, sobre uma lista fechada de servidores SQL Server.
 
-Especificação, plano e tarefas: `specs/001-consultas/` e `specs/002-catalogo-sistemas/`. Design: `DESIGN.md`.
+Especificação, plano e tarefas: `specs/001-consultas/`, `specs/002-catalogo-sistemas/` e `specs/003-versoes-publicadas/`. Design: `DESIGN.md`.
 
 ## Como rodar
 
@@ -37,6 +38,7 @@ O `global.json` fixa o SDK `10.0.100` com `rollForward: latestMajor`: o SDK 10 o
 | `ConnectionStrings` | `UserManagerConnection`, `AuditoriaDbConnection`, `Consultas` | As duas primeiras apontam para o `CSLIB_UserManager` (permissões e nomes de aplicação) e para o `AUDITORIADB` (log do próprio SIAT). `Consultas` é o modelo da conexão com os servidores da lista (o servidor e o banco vêm do `servidores.json`; autenticação integrada, conta de serviço somente leitura). |
 | `ConsultasOptions` | `CommandTimeout` (60 s), `ConnectTimeout` (15 s) | Tempos limite das consultas. |
 | `Servidores` | veja [Lista de servidores](#lista-de-servidores-servidoresjson) | Vem do `servidores.json`. |
+| `Versoes` | `ServidorPadrao` (`tcmbd-prd`), `TempoLimiteSegundos` (5), `LeiturasSimultaneas` (32), `MinutosDeCache` (5) | Versões publicadas (veja [Versões publicadas](#versões-publicadas-versoes)). |
 | `CatalogoSistemas` | `GitLab:BaseUrl`, `GitLab:Projeto`, `GitLab:Arquivo`, `GitLab:Ref`, `GitLab:Token`, `TempoLimiteSegundos` (10), `MinutosDeCache` (10) | Origem do catálogo de sistemas (veja [Catálogo de sistemas](#catálogo-de-sistemas-catalogosistemas)). O token fica no `appsettings`, como o `ClientSecret`. |
 
 ### ClientSecret
@@ -51,12 +53,19 @@ O token vai em `CatalogoSistemas:GitLab:Token`, no `appsettings.json`, junto do 
 
 Sem token, ou com a configuração inválida, o SIAT sobe normalmente e só a tela Catálogo mostra "A origem do catálogo não está configurada". O token do GitLab expira em até 365 dias: **renove-o uma vez por ano**, antes do vencimento, e troque o valor no `appsettings.json` de cada ambiente. Token vencido aparece na tela como "O GitLab recusou o acesso ao catálogo (token inválido ou expirado)".
 
+### Versões publicadas (`Versoes`)
+
+A tela **Sistemas › Versões** lê os endereços ativos de `CSLIB_UserManager.dbo.Apps_VersionAddresses` no servidor escolhido (lista fechada do `servidores.json`; sem escolha, o `ServidorPadrao`) e, para cada endereço, o arquivo de versão (`VERSAO.TXT`, `.INI` em compartilhamento de rede) ou a URL `https`, com até `LeiturasSimultaneas` leituras em paralelo e `TempoLimiteSegundos` por arquivo. O resultado fica em cache por `MinutosDeCache` minutos por servidor; "Atualizar agora" relê na hora ([contracts/configuracao.md](specs/003-versoes-publicadas/contracts/configuracao.md)).
+
+A tela abre com o banco de produção (`ServidorPadrao = tcmbd-prd`, também no `appsettings.json` do repositório); DSV e HML ficam no seletor. Uma chave que não está na lista não impede a subida: a tela pede para escolher o servidor. Não há segredo novo: SQL e compartilhamentos usam a conta do pool do IIS.
+
 ## Publicação no IIS
 
 - Instalar o Hosting Bundle do .NET 10 no servidor.
 - Ligar o recurso **WebSockets** do IIS: o Blazor Server depende de uma conexão contínua (SignalR). Sem ele a tela cai para um transporte mais lento ou não conecta.
 - Conferir `TcmrjOidc:Authority`, `ClientId = SIAT`, `ClientSecret`, `UserManagerService:ApplicationId` e as connection strings do ambiente.
 - Conferir o token do catálogo (`CatalogoSistemas:GitLab:Token`) no `appsettings.json` publicado e que o servidor alcança `https://git.tcmnet.tcm`.
+- Versões publicadas: `ServidorPadrao = tcmbd-prd` na seção `Versoes`; `SELECT` em `dbo.Apps_VersionAddresses` para a conta do pool no `CSLIB_UserManager` dos três servidores; leitura nos compartilhamentos cadastrados na tabela (`\\tcm2016web1..4\TcmRoot`, `\\tcm2016webc\TcmRoot`, `\\unity\Corp2\Desenvolvimento`, `\\unity\producao\prod`) e HTTPS de saída para os endereços `https` (veja [contracts/configuracao.md](specs/003-versoes-publicadas/contracts/configuracao.md), Operação). A falta de permissão aparece só na célula ("Acesso negado à conta do SIAT").
 - **Chaves de proteção de dados** (cookie de sessão e antiforgery): o pool de aplicativos precisa de **perfil de usuário carregado** (`Load User Profile = True`), para o ASP.NET Core guardar as chaves no perfil da conta do pool. Sem isso as chaves ficam só na memória e o login e os formulários quebram a cada reinício. A alternativa é chamar `AddDataProtection().PersistKeysToFileSystem(...)` apontando para uma pasta que só a conta do pool lê e grava (o código do SIAT ainda não faz essa chamada).
 - **URLs de retorno do login**: o cliente OIDC precisa ter `https://<nome-do-siat>/signin-oidc` e `https://<nome-do-siat>/signout-callback-oidc` cadastrados (script `002` do `dbchange`). Se o SIAT for publicado num subdiretório do IIS, o subdiretório entra antes: `https://<nome>/<subdiretório>/signin-oidc`.
 - Conferir que a conta do pool tem leitura em `CSLIB_UserManager` e `AUDITORIADB` e nos servidores do `servidores.json`.
@@ -106,7 +115,7 @@ Quem tem o recurso do módulo vê e consulta os três, inclusive quando roda o S
 
 Um recurso por módulo (permissão `CanSelect`): `Catalogo_Sistemas` e `Versoes_Sistemas` (grupo `Sistemas`), `MailQueue` e `AuditLog` (grupo `Consultas`). Nas consultas, o recurso libera os três ambientes (DSV, HML e PRD).
 
-Quem não tem o recurso do módulo não vê o item no menu (nem servidores no seletor, nas consultas), e a URL da consulta mostra "Acesso negado" sem consultar o banco. Em PRD a faixa de contexto fica destacada e avisa que a consulta é registrada em log. Toda tentativa de consulta, inclusive a negada, é registrada em `AUDITORIADB.audit.Log` (`TypeID` 10).
+Quem não tem o recurso do módulo não vê o item no menu (nem servidores no seletor, nas consultas), e a URL da consulta mostra "Acesso negado" sem consultar o banco. Em PRD a faixa de contexto fica destacada e avisa que a consulta é registrada em log. Toda tentativa de consulta, inclusive a negada, é registrada em `AUDITORIADB.audit.Log` (`TypeID` 10). A leitura das versões não vai para esse log: versões e caminhos de publicação não são dados sensíveis.
 
 ## Compilar e testar
 
@@ -125,4 +134,5 @@ Os fluxos das telas, o login real no SIA, o contraste e o foco visível nos dois
 - **Nome DNS de PRD**: o `@UrlBasePrd` do script `002` é um placeholder (questão em aberto 5 do PRD).
 - **Hashes do `ClientSecret`** de `SIAT-dev` e `SIAT` no script `002`.
 - **Catálogo de sistemas (T052, T053)**: roteiro do [quickstart da 002](specs/002-catalogo-sistemas/quickstart.md) com o token real e o script `003` aplicado, e a comparação visual com `design/sistemas.html`.
+- **Versões publicadas (T059, T060)**: roteiro do [quickstart da 003](specs/003-versoes-publicadas/quickstart.md) com o script `VersaoDeSistemasPublicados.ps1` lado a lado (SC-003) e as conferências de operação antes de publicar.
 - **Validação manual (T110)**: cenários 1 a 22 do quickstart, desempenho (SC-003 e SC-004, com os planos de execução com e sem filtros) e o roteiro de acessibilidade WCAG 2.2 AA.

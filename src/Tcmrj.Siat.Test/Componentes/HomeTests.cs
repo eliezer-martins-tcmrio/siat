@@ -10,7 +10,10 @@ using Tcmrj.Siat.Web.Components.Pages;
 
 namespace Tcmrj.Siat.Test.Componentes;
 
-/// <summary>Página inicial (contracts/rotas-ui.md): vai para Sistemas, depois para a primeira Consulta permitida.</summary>
+/// <summary>
+/// Página inicial (contracts/rotas-ui.md): vai para a primeira ferramenta permitida na ordem do menu (Catálogo, Versões,
+/// MailQueue, AuditLog).
+/// </summary>
 public sealed class HomeTests : BunitContext
 {
     private readonly Mock<IAutorizacaoConsultaService> _autorizacao = new();
@@ -44,6 +47,26 @@ public sealed class HomeTests : BunitContext
     }
 
     [Fact]
+    public void So_com_Versoes_vai_para_as_versoes()
+    {
+        Permitir(Modulo.Versoes_Sistemas, Modulo.MailQueue);
+
+        Render<Home>();
+
+        Navegacao.Uri.Should().EndWith("/sistemas/versoes");
+    }
+
+    [Fact]
+    public void Com_Catalogo_e_Versoes_vai_para_o_catalogo()
+    {
+        Permitir(Modulo.Catalogo_Sistemas, Modulo.Versoes_Sistemas);
+
+        Render<Home>();
+
+        Navegacao.Uri.Should().EndWith("/sistemas/catalogo");
+    }
+
+    [Fact]
     public void So_com_MailQueue_vai_para_a_MailQueue()
     {
         Permitir(Modulo.MailQueue);
@@ -54,7 +77,7 @@ public sealed class HomeTests : BunitContext
     }
 
     [Fact]
-    public void Sem_nenhum_modulo_explica_a_quem_pedir_acesso_citando_o_catalogo_e_as_consultas()
+    public void Sem_nenhum_modulo_explica_a_quem_pedir_acesso_citando_sistemas_e_consultas()
     {
         Permitir();
 
@@ -62,7 +85,7 @@ public sealed class HomeTests : BunitContext
 
         Navegacao.History.Should().BeEmpty();
         var texto = pagina.Find(".estado").TextContent;
-        texto.Should().Contain("Sistemas").And.Contain("catálogo de sistemas").And.Contain("Consultas")
+        texto.Should().Contain("Sistemas").And.Contain("catálogo e versões de sistemas").And.Contain("Consultas")
             .And.Contain("MailQueue").And.Contain("AuditLog");
     }
 }

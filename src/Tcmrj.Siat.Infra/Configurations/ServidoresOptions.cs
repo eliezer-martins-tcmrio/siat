@@ -36,6 +36,9 @@ public sealed class ServidorConfigurado
 
     public string? BancoAuditoria { get; set; }
 
+    /// <summary>Opcional; sem ele, <see cref="Servidor.BancoUserManagerPadrao"/>.</summary>
+    public string? BancoUserManager { get; set; }
+
     /// <summary>Converte para o modelo do domínio. Só chamar depois da validação.</summary>
     public Servidor ParaServidor() => new()
     {
@@ -45,6 +48,7 @@ public sealed class ServidorConfigurado
         Ambiente = Ambiente ?? throw new InvalidOperationException($"Servidor '{Chave}' sem Ambiente."),
         BancoMailQueue = string.IsNullOrWhiteSpace(BancoMailQueue) ? Servidor.BancoMailQueuePadrao : BancoMailQueue,
         BancoAuditoria = string.IsNullOrWhiteSpace(BancoAuditoria) ? Servidor.BancoAuditoriaPadrao : BancoAuditoria,
+        BancoUserManager = string.IsNullOrWhiteSpace(BancoUserManager) ? Servidor.BancoUserManagerPadrao : BancoUserManager,
     };
 }
 

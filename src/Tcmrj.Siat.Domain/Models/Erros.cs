@@ -102,6 +102,49 @@ public static class Erros
             "Você não tem acesso ao catálogo de sistemas.");
     }
 
+    /// <summary>
+    /// Erros das Versões Publicadas (specs/003-versoes-publicadas, data-model.md e contracts/origem-enderecos.md). Só a
+    /// leitura da tabela de endereços gera erro da tela; o erro de um arquivo de versão fica na célula.
+    /// </summary>
+    public static class Versoes
+    {
+        public const string CodigoAcessoNegado = "versoes.acesso-negado";
+
+        public const string CodigoTabelaIndisponivel = "versoes.tabela-indisponivel";
+
+        public const string CodigoTempoEsgotado = "versoes.tempo-esgotado";
+
+        public const string CodigoSemSistemasAtivos = "versoes.sem-sistemas-ativos";
+
+        public const string CodigoCancelada = "versoes.cancelada";
+
+        /// <summary>Motivo usado quando a tabela não existe ou a conta do SIAT não pode lê-la (208, 229, 230, 916, 927).</summary>
+        public const string MotivoSemPermissao = "tabela inexistente ou sem permissão para a conta do SIAT";
+
+        public static Erro AcessoNegado => new(
+            CodigoAcessoNegado,
+            "Você não tem acesso às versões publicadas.");
+
+        /// <summary>Falha de conexão, permissão ou tabela inexistente em <c>Apps_VersionAddresses</c>.</summary>
+        public static Erro TabelaIndisponivel(string servidor, string motivo) => new(
+            CodigoTabelaIndisponivel,
+            $"Não foi possível ler os endereços de versão em {servidor}: {motivo}");
+
+        public static Erro TempoEsgotado(string servidor) => new(
+            CodigoTempoEsgotado,
+            $"A leitura dos endereços de versão em {servidor} excedeu o tempo limite.");
+
+        /// <summary>A tabela não tem registro ativo: estado vazio da tela, não erro de leitura.</summary>
+        public static Erro SemSistemasAtivos(string servidor) => new(
+            CodigoSemSistemasAtivos,
+            $"Nenhum sistema cadastrado em {servidor}.");
+
+        /// <summary>Quem pediu a leitura cancelou; não é falha da origem.</summary>
+        public static Erro Cancelada => new(
+            CodigoCancelada,
+            "A leitura das versões foi cancelada.");
+    }
+
     public static class UsuariosDeRede
     {
         public const string CodigoCadastroIndisponivel = "usuario-de-rede.cadastro-indisponivel";

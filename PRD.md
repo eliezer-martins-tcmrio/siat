@@ -117,6 +117,8 @@ Substitui `VersaoDeSistemasPublicados.ps1`.
 - VE-05: Leituras em paralelo, com tempo limite por arquivo; o resultado fica em cache por alguns minutos e mostra quando foi gerado.
 - VE-06 (desejável): Unir Sistemas e Versões numa visão por sistema.
 
+VE-01 a VE-05 atendidos pela feature 003 (`specs/003-versoes-publicadas/`). O servidor dos endereços é escolhido na lista fechada de servidores (`servidores.json`), com PRD como padrão.
+
 ### 7.3 Consultas — MailQueue
 
 - MQ-01: Escolha do servidor (lista fechada, filtrada pelas permissões) e do SMTP.

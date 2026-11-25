@@ -1,6 +1,6 @@
 @inject IWebHostEnvironment Ambiente
 
-@* Marca no topo do menu, no padrão do SiCATI: sigla do TCMRio (positiva no claro, negativa no escuro, trocadas pelo
+@* Marca no topo do menu: sigla do TCMRio (positiva no claro, negativa no escuro, trocadas pelo
    siat.css conforme data-theme) e "SIAT" após um divisor fino; embaixo, o nome do sistema.
    Fora de produção, uma fita de borda a borda no topo do menu diz em que publicação do SIAT o usuário está
    (Development = desenvolvimento, vermelho; Staging = homologação, verde), na convenção dos outros sistemas do
@@ -24,7 +24,7 @@
 
 @code {
     /// <summary>
-    /// Publicação do SIAT, pelo <c>ASPNETCORE_ENVIRONMENT</c>, como no SiCATI. Em produção não mostra nada: a fita só
+    /// Publicação do SIAT, pelo <c>ASPNETCORE_ENVIRONMENT</c>. Em produção não mostra nada: a fita só
     /// serve para não confundir uma cópia de teste com a de produção.
     /// </summary>
     private (string Chave, string Nome)? PublicacaoAtual() =>

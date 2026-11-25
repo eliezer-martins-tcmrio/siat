@@ -21,15 +21,15 @@ Menu lateral de 208px, fixo, em grupos: **Sistemas** (Catálogo, Versões), **Co
 
 Logo simplificado do TCMRio (sigla) no topo do menu, com 20px de altura, seguido de "SIAT" após um divisor fino; embaixo, "Sistema Integrado de Apoio Técnico" numa linha só (11px). Fora de produção, a fita da publicação fica acima do logo (ver Publicação). Versão positiva no tema claro (`design/img/tcmrio-sigla.png`) e negativa no escuro (`design/img/tcmrio-sigla-negativo.png`), conforme o manual de marca. Não alterar cores nem proporções do logo.
 
-Do restante da identidade, o SIAT usa só o marinho e o celeste. Areia, coral, gradientes, ondas e Lato/Merriweather ficam de fora: são para peças de comunicação, e coral competiria com o vermelho de PRD e de erro.
+Do restante da identidade, o SIAT usa só o marinho e o celeste. Areia, coral, gradientes, ondas e Lato/Merriweather ficam de fora: são para peças de comunicação, e coral competiria com o vermelho de DSV e de erro.
 
 ## Ambientes
 
 | Ambiente | Token | Cor |
 |---|---|---|
-| DSV | `--color-env-dsv` | azul-violeta |
+| DSV | `--color-env-dsv` | vermelho |
 | HML | `--color-env-hml` | âmbar |
-| PRD | `--color-env-prd` | vermelho |
+| PRD | `--color-env-prd` | azul-violeta |
 | Contingência | `--color-env-cont` | cinza |
 
 Cada um tem `-soft` (fundo) e `-line` (borda); PRD tem também `-solid`. Os componentes leem `--amb`, `--amb-soft` e `--amb-line`, definidos por `data-amb="dsv|hml|prd|cont"`.
@@ -49,7 +49,7 @@ O ambiente do **servidor consultado** (acima) e a **publicação do próprio SIA
 | Produção | — | sem fita |
 
 - **Fita da publicação** (`.fita-publicacao`): faixa sólida de borda a borda no topo do menu, com a palavra inteira em caixa alta e texto branco, na convenção dos outros sistemas do Tribunal (como o SiCATI). Só aparece fora de produção.
-- Forma e lugar exclusivos: a fita nunca aparece no conteúdo e nunca usa sigla; o ambiente do servidor nunca aparece no menu como fita. Assim o vermelho da fita não é lido como PRD nem como erro, e o verde não é lido como ok.
+- Forma e lugar exclusivos: a fita nunca aparece no conteúdo e nunca usa sigla; o ambiente do servidor nunca aparece no menu como fita. Assim o vermelho da fita não é lido como DSV nem como erro, e o verde não é lido como ok.
 - Os tokens `--color-publicacao-*` só são usados pela fita.
 
 ## Tokens
@@ -68,8 +68,10 @@ Os recorrentes viram componentes próprios do SIAT por cima do Blazor Blueprint 
 - **Seletor de servidor** e **faixa de contexto**: ver Ambientes.
 - **Painel** (`.painel`): superfície com borda fina; seções internas separadas por linha. Não aninhar painéis.
 - **Faixa de resumo** (`.resumo`): uma superfície dividida em células, nunca cartões soltos.
+- **Filtro segmentado** (`.segmentado`): filtros exclusivos num grupo (`role="group"` com nome), cada botão com `aria-pressed` e a quantidade; o escolhido vai para a URL.
 - **Tabela** (`.tabela`): cabeçalho fixo, rolagem horizontal própria. Só a exceção ganha cor; o valor normal é texto simples.
 - **Lista expansível** (`.lista`): linha em grade que abre o detalhe no lugar; a linha aberta vai para a URL (`sel`).
+- **Linha expansível de tabela** (`.linha-expansivel` + `.linha-detalhe`): botão expansor com `aria-expanded` e nome acessível na primeira célula; o detalhe ocupa a linha de baixo inteira (Versões: caminhos consultados).
 - **Botões**: uma ação primária por tela; 40px de altura mínima (32px no pequeno); foco de 3px.
 - **Copiar**: botão sempre visível ao lado do valor, com confirmação por 1,5 s.
 - **Busca**: atalho `/` foca, `Esc` limpa; vários termos, sem diferenciar acentos e maiúsculas.

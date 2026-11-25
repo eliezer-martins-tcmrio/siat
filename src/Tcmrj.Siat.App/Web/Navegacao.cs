@@ -14,6 +14,8 @@ public static class Navegacao
 
     public const string RotaCatalogo = "sistemas/catalogo";
 
+    public const string RotaVersoes = "sistemas/versoes";
+
     public const string RotaMailQueue = "consultas/mailqueue";
 
     public const string RotaAuditLog = "consultas/auditlog";
@@ -40,11 +42,42 @@ public static class Navegacao
 
     public const string ParametroAte = "ate";
 
+    /// <summary>Filtro por situação das Versões: <c>div</c> ou <c>erro</c>; ausente é <see cref="FiltroDeSituacao.Todos"/>.</summary>
+    public const string ParametroFiltro = "filtro";
+
+    public const string ValorFiltroDivergencia = "div";
+
+    public const string ValorFiltroErro = "erro";
+
     public const int QuantidadePadrao = 50;
 
     /// <summary>URL do catálogo de sistemas; busca vazia ou só com espaços fica fora da URL.</summary>
     public static string Catalogo(string? busca = null) =>
         Montar(RotaCatalogo, (ParametroBusca, string.IsNullOrWhiteSpace(busca) ? null : busca));
+
+    /// <summary>
+    /// URL das Versões publicadas (specs/003-versoes-publicadas/contracts/rotas-ui.md). Servidor nulo, busca vazia ou
+    /// só com espaços e o filtro <see cref="FiltroDeSituacao.Todos"/> ficam fora da URL.
+    /// </summary>
+    public static string Versoes(string? servidor = null, string? busca = null, FiltroDeSituacao filtro = FiltroDeSituacao.Todos) =>
+        Montar(
+            RotaVersoes,
+            (ParametroServidor, servidor),
+            (ParametroBusca, string.IsNullOrWhiteSpace(busca) ? null : busca),
+            (ParametroFiltro, filtro switch
+            {
+                FiltroDeSituacao.ComDivergencia => ValorFiltroDivergencia,
+                FiltroDeSituacao.ComErro => ValorFiltroErro,
+                _ => null,
+            }));
+
+    /// <summary>Filtro do parâmetro <c>filtro</c>: <c>div</c>, <c>erro</c> ou, para qualquer outro valor, Todos (sem aviso).</summary>
+    public static FiltroDeSituacao LerFiltro(string? valor) => valor switch
+    {
+        ValorFiltroDivergencia => FiltroDeSituacao.ComDivergencia,
+        ValorFiltroErro => FiltroDeSituacao.ComErro,
+        _ => FiltroDeSituacao.Todos,
+    };
 
     public static string MailQueue(string? servidor = null, int? smtp = null, string? texto = null, int? qtd = null, string? sel = null) =>
         Montar(
