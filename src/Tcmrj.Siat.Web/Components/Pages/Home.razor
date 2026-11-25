@@ -2,14 +2,18 @@
 @attribute [Authorize]
 @using Tcmrj.Siat.Web.Services
 @inject IAutorizacaoConsultaService AutorizacaoConsulta
-@inject NavigationManager Navigation
 
-@* Página inicial: vai para a primeira ferramenta permitida, na ordem do menu (Catálogo, Versões, MailQueue,
-   AuditLog); sem nenhuma, explica a quem pedir acesso. Só exige autenticação (specs/003-versoes-publicadas/contracts/rotas-ui.md). *@
-@if (semAcesso)
+@* Página Início (.specs/features/pagina-home): atalhos para as ferramentas que o usuário pode usar, agrupados e na ordem
+   do menu (lista única Ferramentas, AD-001); sem nenhuma, explica a quem pedir acesso. Não lê fonte de dados, por isso
+   só exige autenticação (critério 8). *@
+<CabecalhoPagina Titulo="Início" Descricao="Sistema Integrado de Apoio Técnico do TCMRio." />
+
+@if (grupos is null)
 {
-    <CabecalhoPagina Titulo="SIAT" Descricao="Sistema Integrado de Apoio Técnico do TCMRio." />
-
+    @* Permissões ainda em verificação: nem atalhos nem a mensagem de falta de acesso (critério 7). *@
+}
+else if (grupos.Count == 0)
+{
     @if (situacaoVinculo is not null)
     {
         @* Sem matrícula não há permissão possível: o motivo é o cadastro no UserManager, não o grupo do SIAT. *@
@@ -30,43 +34,46 @@
 }
 else
 {
-    <PageTitle>SIAT</PageTitle>
+    @foreach (var grupo in grupos)
+    {
+        var idTitulo = $"inicio-{grupo.Nome.ToLowerInvariant()}";
+        <section class="inicio-grupo" aria-labelledby="@idTitulo">
+            <h2 id="@idTitulo">@grupo.Nome</h2>
+            <div class="painel telas">
+                @foreach (var ferramenta in grupo.Ferramentas)
+                {
+                    <a href="@ferramenta.Rota" data-modulo="@ferramenta.Modulo.ToString()">
+                        <strong>
+                            <LucideIcon Name="@ferramenta.Icone" Size="17" aria-hidden="true" focusable="false" />
+                            @ferramenta.Rotulo
+                        </strong>
+                        <span>@ferramenta.Descricao</span>
+                    </a>
+                }
+            </div>
+        </section>
+    }
 }
 
 @code {
-    private static readonly (Modulo Modulo, string Rota)[] Ferramentas =
-    [
-        (Modulo.Catalogo_Sistemas, Navegacao.RotaCatalogo),
-        (Modulo.Versoes_Sistemas, Navegacao.RotaVersoes),
-        (Modulo.MailQueue, Navegacao.RotaMailQueue),
-        (Modulo.AuditLog, Navegacao.RotaAuditLog),
-    ];
-
     [CascadingParameter]
     private Task<AuthenticationState>? EstadoAutenticacao { get; set; }
 
-    private bool semAcesso;
+    private IReadOnlyList<GrupoDeFerramentas>? grupos;
     private string? situacaoVinculo;
     private string? usuarioDeRede;
 
     protected override async Task OnInitializedAsync()
     {
-        foreach (var (modulo, rota) in Ferramentas)
-        {
-            if (await AutorizacaoConsulta.PodeAcessarModuloAsync(modulo))
-            {
-                Navigation.NavigateTo(rota, replace: true);
-                return;
-            }
-        }
+        var permitidos = await Ferramentas.PermitidasAsync(AutorizacaoConsulta.PodeAcessarModuloAsync);
 
-        if (EstadoAutenticacao is not null)
+        if (permitidos.Count == 0 && EstadoAutenticacao is not null)
         {
             var usuario = (await EstadoAutenticacao).User;
             situacaoVinculo = VinculoDeRede.Situacao(usuario);
             usuarioDeRede = usuario.Identity?.Name;
         }
 
-        semAcesso = true;
+        grupos = permitidos;
     }
 }

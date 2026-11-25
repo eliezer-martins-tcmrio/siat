@@ -700,6 +700,16 @@ pre.codigo.escuro { background: var(--color-code-bg); border-color: var(--color-
 .telas strong { display: block; color: var(--color-ink); }
 .telas span { color: var(--color-muted); font-size: 13px; }
 
+/* ---------- Página Início ---------- */
+
+/* Um bloco por grupo de ferramentas (Sistemas, Consultas), com os atalhos na grade .telas. */
+.inicio-grupo { display: flex; flex-direction: column; gap: 10px; }
+.inicio-grupo > h2 { font-size: 16px; font-weight: 600; color: var(--color-ink); }
+/* O contorno de foco global (3px, fora) invadiria o atalho vizinho: fica para dentro, como no menu. */
+.inicio-grupo .telas a:focus-visible { outline-offset: -3px; }
+.inicio-grupo .telas strong { display: flex; align-items: center; gap: 8px; }
+.inicio-grupo .telas strong svg { flex: none; color: var(--color-muted); }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 0s !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
   .progresso::after { width: 100%; translate: 0 0; opacity: 0.5; }

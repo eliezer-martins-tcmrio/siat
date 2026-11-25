@@ -1,14 +1,15 @@
 @inject IAuthorizationService Autorizacao
 
-@* Grupos do menu, na ordem: Sistemas (Catálogo e Versões) e Consultas (MailQueue, AuditLog). Cada item aparece para quem tem
-   a política do módulo (Modulo.Politica(), a mesma em todos os ambientes); o grupo some quando nenhum item dele
-   aparece (FR-003). A autorização real é feita na página e na feature (FR-004). *@
+@* Grupos do menu, na ordem da lista única de ferramentas (Ferramentas, AD-001): Sistemas (Catálogo e Versões) e Consultas
+   (MailQueue, AuditLog). Cada item aparece para quem tem a política do módulo (Modulo.Politica(), a mesma em todos os
+   ambientes); o grupo some quando nenhum item dele aparece (FR-003). A autorização real é feita na página e na feature
+   (FR-004). *@
 <nav class="menu-nav" aria-label="Navegação principal">
     @foreach (var grupo in gruposVisiveis)
     {
         <div class="menu-grupo" role="group" aria-label="@grupo.Nome">
             <span class="menu-titulo" aria-hidden="true">@grupo.Nome</span>
-            @foreach (var item in grupo.Itens)
+            @foreach (var item in grupo.Ferramentas)
             {
                 <NavLink class="menu-item" href="@item.Rota" Match="NavLinkMatch.Prefix" data-modulo="@item.Modulo.ToString()">
                     <LucideIcon Name="@item.Icone" Size="17" aria-hidden="true" focusable="false" />
@@ -20,25 +21,11 @@
 </nav>
 
 @code {
-    private static readonly GrupoMenu[] Grupos =
-    [
-        new("Sistemas",
-        [
-            new(Modulo.Catalogo_Sistemas, "Catálogo", Navegacao.RotaCatalogo, "server"),
-            new(Modulo.Versoes_Sistemas, "Versões", Navegacao.RotaVersoes, "git-compare"),
-        ]),
-        new("Consultas",
-        [
-            new(Modulo.MailQueue, "MailQueue", Navegacao.RotaMailQueue, "mail"),
-            new(Modulo.AuditLog, "AuditLog", Navegacao.RotaAuditLog, "list"),
-        ]),
-    ];
-
     [CascadingParameter]
     private Task<AuthenticationState>? EstadoAutenticacao { get; set; }
 
     private Task<AuthenticationState>? estadoAvaliado;
-    private IReadOnlyList<GrupoMenu> gruposVisiveis = [];
+    private IReadOnlyList<GrupoDeFerramentas> gruposVisiveis = [];
 
     // Avalia uma vez por estado de autenticação (o estado muda no login, no logout e no fim da sessão).
     protected override async Task OnParametersSetAsync()
@@ -51,28 +38,7 @@
         estadoAvaliado = EstadoAutenticacao;
         var usuario = (await EstadoAutenticacao).User;
 
-        var visiveis = new List<GrupoMenu>(Grupos.Length);
-        foreach (var grupo in Grupos)
-        {
-            var itens = new List<ItemMenu>(grupo.Itens.Count);
-            foreach (var item in grupo.Itens)
-            {
-                if ((await Autorizacao.AuthorizeAsync(usuario, item.Modulo.Politica())).Succeeded)
-                {
-                    itens.Add(item);
-                }
-            }
-
-            if (itens.Count > 0)
-            {
-                visiveis.Add(grupo with { Itens = itens });
-            }
-        }
-
-        gruposVisiveis = visiveis;
+        gruposVisiveis = await Ferramentas.PermitidasAsync(
+            async modulo => (await Autorizacao.AuthorizeAsync(usuario, modulo.Politica())).Succeeded);
     }
-
-    private sealed record GrupoMenu(string Nome, IReadOnlyList<ItemMenu> Itens);
-
-    private sealed record ItemMenu(Modulo Modulo, string Rotulo, string Rota, string Icone);
 }
