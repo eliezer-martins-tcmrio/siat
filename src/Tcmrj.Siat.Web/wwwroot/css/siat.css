@@ -705,6 +705,10 @@ pre.codigo.escuro { background: var(--color-code-bg); border-color: var(--color-
 /* Um bloco por grupo de ferramentas (Sistemas, Consultas), com os atalhos na grade .telas. */
 .inicio-grupo { display: flex; flex-direction: column; gap: 10px; }
 .inicio-grupo > h2 { font-size: 16px; font-weight: 600; color: var(--color-ink); }
+/* Os fios entre atalhos vêm da sombra de .telas a: o painel corta o que passa dos cantos arredondados (fios da borda
+   e o fundo do hover), e a divisória entre seções do .painel não vale aqui (engrossava o fio do segundo atalho). */
+.inicio-grupo .telas { overflow: hidden; }
+.inicio-grupo .telas > a + a { border-top: 0; }
 /* O contorno de foco global (3px, fora) invadiria o atalho vizinho: fica para dentro, como no menu. */
 .inicio-grupo .telas a:focus-visible { outline-offset: -3px; }
 .inicio-grupo .telas strong { display: flex; align-items: center; gap: 8px; }

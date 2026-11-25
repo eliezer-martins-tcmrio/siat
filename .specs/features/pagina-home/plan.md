@@ -2,8 +2,8 @@
 
 **Approved**: 2026-11-25 - user: "Aprovado"
 **Settled mid-build:** none
-**Review:** <written when the review is sent - sent at <HEAD short hash>>
-**Fix pass:** <written when the fix pass is made - done - <what it changed, or no changes needed>>
+**Review:** sent at 2842733
+**Fix pass:** done - observação 1: o painel de atalhos corta o que passa dos cantos arredondados e não ganha a divisória do .painel (siat.css, só .inicio-grupo); observações 2 e 3 sem mudança (ver o relatório)
 
 ## Problem
 
