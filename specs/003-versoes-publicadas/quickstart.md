@@ -29,7 +29,8 @@ Roteiro manual dos fluxos da feature (Princípio V). Regras e componentes têm t
 | Passo | Esperado |
 |---|---|
 | Entrar com A | Menu **Sistemas** com **Catálogo** e **Versões** |
-| Abrir **Versões** sem cache | Andamento "Lendo endereços em TCMBD3\DEV", depois "Lendo N arquivos de versão", com tempo decorrido e Cancelar; em seguida a tabela |
+| Abrir **Versões** pelo menu | Abre com o servidor padrão `TCMBD` (faixa "Produção") |
+| Escolher `TCMBD3\DEV` no seletor, sem cache | Andamento "Lendo endereços em TCMBD3\DEV", depois "Lendo N arquivos de versão", com tempo decorrido e Cancelar; em seguida a tabela |
 | Olhar o cabeçalho e o rodapé | Servidor `TCMBD3\DEV` no seletor, na faixa de contexto e no rodapé; "Gerado às HH:mm em N,N s" |
 | Conferir a ordem | Ordem alfabética pt-BR; "eTCM Impressão" e "Portal da Segurança" com acento correto |
 | Olhar **SICATI** | Seis células com versão; nenhuma divergente se DSV-1 e DSV-2 tiverem a mesma |
