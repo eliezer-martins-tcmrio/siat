@@ -115,7 +115,12 @@ Substitui `VersaoDeSistemasPublicados.ps1`.
 - VE-03: Destaca divergência entre as máquinas de um ambiente e erro de leitura (com a mensagem e o caminho consultado).
 - VE-04: Resumo no topo: total de sistemas, sem pendências, com divergência, com erro. Filtros por texto, "com divergência" e "com erro".
 - VE-05: Leituras em paralelo, com tempo limite por arquivo; o resultado fica em cache por alguns minutos e mostra quando foi gerado.
-- VE-06 (desejável): Unir Sistemas e Versões numa visão por sistema.
+- VE-06 (desejável): **Ficha do sistema**: uma página por item do catálogo que reúne, por ambiente, as instâncias do catálogo e a versão publicada em cada máquina, com divergência e erro destacados como em VE-03.
+  - VE-06.1: O vínculo é explícito. Cada item do `sistemasDb.js` pode ter um campo `Versoes` com os nomes de `Apps_VersionAddresses.Sistema` correspondentes. Um item pode ter vários (o sistema e seus componentes ou serviços). A comparação ignora acentos e maiúsculas. O SIAT não deduz vínculos sozinho; sem vínculo, a ficha mostra só o catálogo.
+  - VE-06.2: A ficha abre pelo nome do sistema no Catálogo e em Versões. O endereço pode ser compartilhado (RG-13) e o servidor dos endereços fica na URL, com PRD como padrão.
+  - VE-06.3: A ficha exige `Catalogo_Sistemas.CanSelect`. A parte de versões só aparece para quem tem `Versoes_Sistemas.CanSelect` (RG-03).
+  - VE-06.4: A parte do catálogo abre logo (RNF-04). A parte de versões usa o cache de Versões quando ele é válido; senão, lê só os endereços daquele sistema, mostrando o andamento e permitindo cancelar (RG-14).
+  - VE-06.5: Um nome de `Versoes` que não existe no servidor escolhido aparece como aviso na ficha. Em Versões, um sistema sem item no catálogo aparece sem link, e há um filtro "sem ficha".
 
 VE-01 a VE-05 atendidos pela feature 003 (`specs/003-versoes-publicadas/`). O servidor dos endereços é escolhido na lista fechada de servidores (`servidores.json`), com PRD como padrão.
 
@@ -166,7 +171,7 @@ Porte do `gestao-copilot`. As regras de negócio do projeto atual (README e test
 Integração com o Jenkins (`asi_builds`).
 
 - BU-01: Lista de jobs com o último build, o resultado, a data e quem disparou, pela API HTTP do Jenkins.
-- BU-02: Ligação entre sistema, job e versão publicada, quando houver correspondência.
+- BU-02: Ligação entre sistema, job e versão publicada, no mesmo padrão do VE-06.1: cada item do `sistemasDb.js` pode ter um campo `Jenkins` com os nomes dos jobs correspondentes. A ficha do sistema (VE-06) mostra o último build de cada job vinculado ao lado da versão publicada, para quem tem `Builds.CanSelect`. Um job que não existe no Jenkins aparece como aviso na ficha.
 - BU-03 (futuro): Ao final de uma publicação, o pipeline atualiza automaticamente a documentação ou o catálogo de sistemas no GitLab.
 
 ## 8. Requisitos não funcionais
@@ -220,4 +225,4 @@ Cada fase é publicada sozinha e entrega valor sem depender das seguintes. As fe
 4. Quais grupos do UserManager recebem os recursos de PRD.
 5. Nome DNS e certificado HTTPS do SIAT (sugestão: um nome `siat` no domínio interno).
 6. Repositórios de documentação incluídos na fase 5 e o modo de edição de cada um (commit direto ou merge request).
-7. Se a correspondência entre sistema e job do Jenkins já existe em algum lugar ou precisa ser criada (no JSON do catálogo).
+7. Se a correspondência entre sistema e job do Jenkins já existe em algum lugar (por exemplo, no `asi_builds`) e pode preencher o campo `Jenkins` do catálogo (BU-02), ou se precisa ser levantada à mão.
