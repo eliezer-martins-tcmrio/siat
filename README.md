@@ -66,6 +66,26 @@ A ficha (`/sistemas/catalogo/ficha?sistema={nome}`, com `&servidor={chave}` opci
 
 O vínculo entre um item do catálogo e as linhas de `Apps_VersionAddresses` é explícito: o campo opcional `Versoes` do item, no `sistemasDb.js`, lista os nomes de `Apps_VersionAddresses.Sistema` daquele sistema e dos seus componentes, por exemplo `"Versoes": ["SIGARH", "SIGARH Agendador"]`. A comparação ignora acentos, maiúsculas e espaços nas pontas. Sem o campo, a ficha mostra só o catálogo e explica como vincular; um campo que não é lista de nomes vira aviso na ficha; um nome que não está entre os registros ativos do servidor escolhido também. Em Versões, cada nome vinculado vira link para a ficha e o filtro **Sem ficha** mostra os que nenhum item cita ([contracts/campo-versoes.md](specs/004-ficha-sistema/contracts/campo-versoes.md)).
 
+### Testar uma edição do `sistemasDb.js` sem subir para o GitLab
+
+O SIAT só lê o catálogo pela API de arquivos do GitLab, mas aceita qualquer `BaseUrl`. Para ver na tela uma edição feita num clone local do TCMRJDoc (um vínculo novo no campo `Versoes`, por exemplo) antes do commit, aponte o SIAT para um servidor local que devolve esse arquivo em qualquer caminho:
+
+1. Suba o servidor e deixe o terminal aberto. Ele relê o arquivo a cada pedido, então dá para continuar editando sem reiniciá-lo (troque o caminho pelo do seu clone):
+
+   ```powershell
+   python -c "import http.server as h
+   class H(h.BaseHTTPRequestHandler):
+       def do_GET(s):
+           d = open(r'D:\Projetos\TCMRJDoc\sistemasDb.js', 'rb').read()
+           s.send_response(200); s.send_header('Content-Type', 'text/plain; charset=utf-8'); s.end_headers(); s.wfile.write(d)
+   h.HTTPServer(('127.0.0.1', 8085), H).serve_forever()"
+   ```
+
+2. No `appsettings.json` local, troque `CatalogoSistemas:GitLab:BaseUrl` por `http://127.0.0.1:8085` e `Versoes:ServidorPadrao` por `tcmbd3-dev`, para não consultar produção da máquina de desenvolvimento. Mantenha o `Token` preenchido: a validação exige um token, e ele só vai para o servidor local.
+3. Rode o SIAT (`dotnet run --project src/Tcmrj.Siat.Web`) e abra a ficha, por exemplo `/sistemas/catalogo/ficha?sistema=SGQ`, ou a tela de Versões com o filtro **Sem ficha**. O catálogo fica em cache por `MinutosDeCache` minutos: depois de editar o arquivo, use "Atualizar agora".
+
+O link do `sistemasDb.js` no rodapé aponta para o servidor local, e não convém escolher `TCMBD` no seletor de servidor. Ao terminar, volte os dois valores (`https://git.tcmnet.tcm` e `tcmbd-prd`) e não faça commit dessas trocas.
+
 ## Publicação no IIS
 
 - Instalar o Hosting Bundle do .NET 10 no servidor.
