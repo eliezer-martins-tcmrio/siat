@@ -10,8 +10,9 @@ namespace Tcmrj.Siat.Infra.Repositories;
 
 /// <summary>
 /// Leitura do banco MailQueue (<see cref="Servidor.BancoMailQueue"/>) de um servidor da lista fechada, com o SQL
-/// embutido (<c>Sql/mensagens.sql</c> e <c>Sql/smtps.sql</c>, R5) e só SELECT. Parâmetros tipados, para o plano em
-/// cache ser reaproveitado. O <see cref="CancellationToken"/> vai para <c>OpenAsync</c>,
+/// embutido (<c>Sql/mensagens.sql</c> e <c>Sql/smtps.sql</c>, R5) e só SELECT, com parâmetros tipados.
+/// <c>mensagens.sql</c> usa <c>OPTION (RECOMPILE)</c>: os filtros são opcionais e um plano único em cache esgota o
+/// tempo sem filtros em bancos grandes. O <see cref="CancellationToken"/> vai para <c>OpenAsync</c>,
 /// <c>ExecuteReaderAsync</c> e <c>ReadAsync</c>, e o SqlClient interrompe o comando no servidor (SC-004).
 /// <para>
 /// Erros viram <see cref="Erros.Consultas"/> com o servidor (e o banco, quando o problema é de acesso). Cancelamento
