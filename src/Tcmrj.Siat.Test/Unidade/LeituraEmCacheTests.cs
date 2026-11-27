@@ -314,6 +314,63 @@ public sealed class LeituraEmCacheTests
         Sucesso(await atualizando.WaitAsync(Espera, Teste)).Valor.Numero.Should().Be(2);
     }
 
+    // ---------- Limpeza (specs/005-copilot-meu-consumo/research.md R8) ----------
+
+    [Fact]
+    public async Task Leitura_nova_tira_as_entradas_vencidas_ha_mais_que_a_validade()
+    {
+        await Obter("a");
+        await Obter("b");
+        _cache.Quantidade.Should().Be(2);
+        _relogio.Advance(TimeSpan.FromMinutes(10));
+
+        await Obter("c");
+
+        _cache.Quantidade.Should().Be(1);
+        _cache.Valido("a").Should().BeNull();
+        Sucesso(await Obter("a")).Valor.Numero.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Entrada_vencida_ha_menos_que_a_validade_continua()
+    {
+        await Obter("a");
+        _relogio.Advance(TimeSpan.FromMinutes(9));
+
+        await Obter("c");
+
+        _cache.Quantidade.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Entrada_ainda_valida_continua()
+    {
+        await Obter("a");
+        _relogio.Advance(TimeSpan.FromMinutes(4));
+
+        await Obter("c");
+
+        _cache.Quantidade.Should().Be(2);
+        Sucesso(await Obter("a")).Valor.Numero.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Entrada_com_leitura_em_curso_continua()
+    {
+        await Obter("a");
+        _relogio.Advance(TimeSpan.FromMinutes(10));
+        var liberacao = _origem.Prender();
+        var relendo = Obter("a");
+        await _origem.Iniciou.WaitAsync(Espera, Teste);
+        _origem.Soltar();
+
+        await Obter("c");
+
+        _cache.Quantidade.Should().Be(2);
+        liberacao.SetResult();
+        Sucesso(await relendo.WaitAsync(Espera, Teste)).Valor.Numero.Should().Be(2);
+    }
+
     /// <summary>Valor lido: a chave, o número da leitura daquela chave e quando.</summary>
     private sealed record Lido(string Chave, int Numero, DateTimeOffset Em);
 

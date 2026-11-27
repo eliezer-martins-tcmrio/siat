@@ -152,6 +152,120 @@ public static class Erros
             "A leitura das versões foi cancelada.");
     }
 
+    /// <summary>
+    /// Erros do Copilot (specs/005-copilot-meu-consumo/research.md R9, contracts/github-api.md). Nenhuma mensagem
+    /// recebe ou mostra o token de billing, o segredo da OAuth App, o código de autorização nem o corpo das respostas
+    /// de erro do GitHub.
+    /// </summary>
+    public static class Copilot
+    {
+        public const string CodigoAcessoNegado = "copilot.acesso-negado";
+
+        public const string CodigoNaoConfigurado = "copilot.nao-configurado";
+
+        public const string CodigoSemConexao = "copilot.sem-conexao";
+
+        public const string CodigoNaoMembro = "copilot.nao-membro";
+
+        public const string CodigoSemLicencaNemLimite = "copilot.sem-licenca-nem-limite";
+
+        public const string CodigoPeriodoInvalido = "copilot.periodo-invalido";
+
+        public const string CodigoTokenRecusado = "copilot.token-recusado";
+
+        public const string CodigoAcessoRecusadoPeloGitHub = "copilot.acesso-recusado-pelo-github";
+
+        public const string CodigoNaoEncontrado = "copilot.nao-encontrado";
+
+        public const string CodigoLimiteDeRequisicoes = "copilot.limite-de-requisicoes";
+
+        public const string CodigoGitHubIndisponivel = "copilot.github-indisponivel";
+
+        public const string CodigoRespostaInesperada = "copilot.resposta-inesperada";
+
+        public const string CodigoCancelada = "copilot.cancelada";
+
+        /// <summary>Primeira frase da mensagem de limite de requisições, sem o tempo para tentar de novo.</summary>
+        public const string TextoLimiteDeRequisicoes = "Limite de chamadas do GitHub atingido.";
+
+        public static Erro AcessoNegado => new(
+            CodigoAcessoNegado,
+            "Você não tem acesso ao consumo do Copilot.");
+
+        /// <summary>Seção <c>Copilot</c> ausente ou incompleta: só esta página falha (Princípio IV).</summary>
+        public static Erro NaoConfigurado => new(
+            CodigoNaoConfigurado,
+            "O módulo Copilot não está configurado no servidor.");
+
+        /// <summary>O usuário do SIAT não tem conta do GitHub conectada neste navegador.</summary>
+        public static Erro SemConexao => new(
+            CodigoSemConexao,
+            "Conecte sua conta do GitHub para ver o seu consumo.");
+
+        /// <summary>A conta não é membro ativo da organização (404 na associação, outro estado ou outro id; FR-010).</summary>
+        public static Erro NaoMembro(string login, string organizacao) => new(
+            CodigoNaoMembro,
+            $"A conta {login} do GitHub não é membro ativo da organização {organizacao}.");
+
+        /// <summary>Sem licença e sem budget individual: nenhum relatório é lido (FR-021).</summary>
+        public static Erro SemLicencaNemLimite(string organizacao) => new(
+            CodigoSemLicencaNemLimite,
+            $"Sua conta não tem licença Copilot nem limite individual na organização {organizacao}.");
+
+        public static Erro PeriodoInvalido => new(
+            CodigoPeriodoInvalido,
+            "Selecione datas válidas, em ordem, num intervalo de até 92 dias entre o início dos 24 meses disponíveis e hoje (UTC).");
+
+        /// <summary>401 do GitHub.</summary>
+        public static Erro TokenRecusado => new(
+            CodigoTokenRecusado,
+            "O token de billing do GitHub não foi aceito. Verifique a configuração no servidor.");
+
+        /// <summary>403 sem limite de requisições.</summary>
+        public static Erro AcessoRecusadoPeloGitHub => new(
+            CodigoAcessoRecusadoPeloGitHub,
+            "O GitHub recusou o acesso. Verifique as permissões e a aprovação do token.");
+
+        /// <summary>404 fora da associação.</summary>
+        public static Erro NaoEncontrado => new(
+            CodigoNaoEncontrado,
+            "Organização não encontrada ou indisponível para a credencial.");
+
+        /// <summary>
+        /// 429, ou 403 com <c>x-ratelimit-remaining: 0</c> ou <c>retry-after</c> (FR-031). Com
+        /// <paramref name="tenteEm"/>, a mensagem diz em quantos minutos tentar de novo, contados de
+        /// <paramref name="agora"/> (o <see cref="Erro"/> só leva código e mensagem; por isso o tempo vai no texto).
+        /// </summary>
+        public static Erro LimiteDeRequisicoes(DateTimeOffset? tenteEm, DateTimeOffset agora)
+        {
+            if (tenteEm is not { } quando)
+            {
+                return new(CodigoLimiteDeRequisicoes, TextoLimiteDeRequisicoes);
+            }
+
+            var minutos = Math.Max(1, (int)Math.Ceiling((quando - agora).TotalMinutes));
+            var unidade = minutos == 1 ? "minuto" : "minutos";
+            return new(
+                CodigoLimiteDeRequisicoes,
+                $"{TextoLimiteDeRequisicoes} Tente de novo em {minutos.ToString(System.Globalization.CultureInfo.InvariantCulture)} {unidade}.");
+        }
+
+        /// <summary>5xx, tempo limite ou falha de rede.</summary>
+        public static Erro GitHubIndisponivel => new(
+            CodigoGitHubIndisponivel,
+            "O GitHub não respondeu. Tente de novo.");
+
+        /// <summary>JSON fora do formato, unidade de consumo desconhecida ou paginação incompleta.</summary>
+        public static Erro RespostaInesperada => new(
+            CodigoRespostaInesperada,
+            "O GitHub retornou uma resposta inesperada.");
+
+        /// <summary>Quem pediu a leitura cancelou; não é falha da origem e a página volta ao resultado anterior.</summary>
+        public static Erro Cancelada => new(
+            CodigoCancelada,
+            "A leitura do consumo do Copilot foi cancelada.");
+    }
+
     public static class UsuariosDeRede
     {
         public const string CodigoCadastroIndisponivel = "usuario-de-rede.cadastro-indisponivel";

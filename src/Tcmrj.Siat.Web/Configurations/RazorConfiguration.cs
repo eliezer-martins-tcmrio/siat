@@ -44,6 +44,7 @@ public static class RazorConfiguration
         app.UseHttpsRedirection();
 
         app.UseAuthentication();
+        app.UseMiddleware<Services.ConexaoGitHubMiddleware>(); // conexão com o GitHub no usuário do circuito (Copilot)
         app.UseAuthorization();
         app.UseAntiforgery();
 
@@ -61,6 +62,9 @@ public static class RazorConfiguration
         {
             app.MapRazorPages();
         }
+
+        // Conectar e desconectar a conta do GitHub (Copilot; specs/005-copilot-meu-consumo).
+        app.UseCopilotGitHubConfiguration();
 
         app.MapRazorComponents<Components.App>()
             .AddInteractiveServerRenderMode();

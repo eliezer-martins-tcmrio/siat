@@ -149,4 +149,36 @@ public sealed class MenuTests : BunitContext
         itens.Single(a => a.TextContent.Trim() == "Catálogo").GetAttribute("aria-current").Should().Be("page");
         itens.Single(a => a.TextContent.Trim() == "Versões").HasAttribute("aria-current").Should().BeFalse();
     }
+
+    /// <summary>Grupo Gestão depois de Consultas, com o Copilot (specs/005-copilot-meu-consumo, FR-002; T028).</summary>
+    [Fact]
+    public void Com_CopilotProprio_CanSelect_o_grupo_Gestao_vem_depois_de_Consultas()
+    {
+        var menu = RenderizarCom("MailQueue.CanSelect", "CopilotProprio.CanSelect");
+
+        menu.FindAll(".menu-grupo").Select(g => g.GetAttribute("aria-label")).Should().Equal("Consultas", "Gestão");
+        var copilot = menu.FindAll("a.menu-item").Single(a => a.TextContent.Trim() == "Copilot");
+        copilot.GetAttribute("href").Should().Be("copilot");
+    }
+
+    [Fact]
+    public void Sem_CopilotProprio_CanSelect_o_grupo_Gestao_nao_aparece()
+    {
+        var menu = RenderizarCom("MailQueue.CanSelect", "AuditLog.CanSelect", "Catalogo_Sistemas.CanSelect");
+
+        menu.Markup.Should().NotContain("Gestão").And.NotContain("copilot");
+    }
+
+    [Theory]
+    [InlineData("copilot")]
+    [InlineData("copilot/pessoas/ana")]
+    [InlineData("copilot/pessoas/ana?de=2026-10-01&ate=2026-10-31")]
+    public void Nas_paginas_do_Copilot_o_item_Copilot_fica_marcado(string url)
+    {
+        var menu = RenderizarEm(url, "MailQueue.CanSelect", "CopilotProprio.CanSelect");
+
+        var itens = menu.FindAll("a.menu-item");
+        itens.Single(a => a.TextContent.Trim() == "Copilot").GetAttribute("aria-current").Should().Be("page");
+        itens.Single(a => a.TextContent.Trim() == "MailQueue").HasAttribute("aria-current").Should().BeFalse();
+    }
 }

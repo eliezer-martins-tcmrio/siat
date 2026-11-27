@@ -10,7 +10,7 @@ namespace Tcmrj.Siat.App.Web;
 /// <param name="Icone">Nome do ícone Lucide.</param>
 public sealed record Ferramenta(Modulo Modulo, string Rotulo, string Descricao, string Rota, string Icone);
 
-/// <summary>Grupo de ferramentas (Sistemas, Consultas), com as ferramentas na ordem do menu.</summary>
+/// <summary>Grupo de ferramentas (Sistemas, Consultas, Gestão), com as ferramentas na ordem do menu.</summary>
 public sealed record GrupoDeFerramentas(string Nome, IReadOnlyList<Ferramenta> Ferramentas);
 
 /// <summary>
@@ -36,6 +36,11 @@ public static class Ferramentas
             new(Modulo.AuditLog, "AuditLog",
                 "Registros de auditoria (AUDITORIADB · audit.Log), do mais recente para o mais antigo.",
                 Navegacao.RotaAuditLog, "list"),
+        ]),
+        new("Gestão",
+        [
+            new(Modulo.CopilotProprio, "Copilot", "Seu consumo de AI Credits do Copilot: período, modelos e limite.",
+                Navegacao.RotaCopilot, "bot"),
         ]),
     ];
 

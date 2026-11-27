@@ -737,3 +737,78 @@ pre.codigo.escuro { background: var(--color-code-bg); border-color: var(--color-
   background: var(--color-accent-ink); border-color: var(--color-accent-ink); color: var(--color-surface);
 }
 .botao.alternar-periodo[aria-expanded="true"]:hover { background: oklch(from var(--color-accent-ink) calc(l + 0.06) c h); }
+
+/* ---------- Gestão › Copilot › Meu consumo (design/copilot.html; specs/005-copilot-meu-consumo) ---------- */
+.nota { font-size: 12px; color: var(--color-muted); }
+
+/* Pessoa: foto, nome e etiquetas (licença e times). */
+.pessoa { display: flex; align-items: center; gap: 14px; }
+.pessoa-foto { width: 48px; height: 48px; border-radius: 50%; flex: none; background: var(--color-neutral-soft); object-fit: cover; }
+.pessoa-foto.sem-foto { display: grid; place-items: center; color: var(--color-muted); font-weight: 600; }
+.pessoa .login { font-family: var(--font-mono); font-size: 13px; color: var(--color-muted); }
+.etiquetas { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
+.etiquetas .time { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border: 1px solid var(--color-line); border-radius: 999px; font-size: 12px; color: var(--color-ink); background: var(--color-surface); }
+.etiquetas .time:hover { background: var(--color-soft); }
+.etiquetas .time .via { color: var(--color-muted); }
+
+/* Filtro de período: datas, atalhos, Aplicar e Limpar período. */
+.filtro-periodo .campo { flex: 0 1 170px; }
+.filtro-periodo .atalhos { display: flex; flex-wrap: wrap; gap: 6px; flex-basis: 100%; }
+.filtro-periodo .atalhos button { min-height: 28px; padding: 0 10px; border: 1px solid var(--color-line); border-radius: 999px; background: var(--color-surface); color: var(--color-ink); font-size: 12px; }
+.filtro-periodo .atalhos button:hover { background: var(--color-soft); }
+.filtro-periodo .atalhos button[aria-pressed="true"] { border-color: var(--color-accent); background: var(--color-accent-soft); color: var(--color-accent-ink); font-weight: 600; }
+.filtro-periodo .erro-periodo { flex-basis: 100%; margin: 0; font-size: 13px; color: var(--color-bad); }
+.filtro-periodo input[aria-invalid="true"] { border-color: var(--color-bad); }
+
+/* Resumo numérico: a faixa .resumo, com valor, detalhe e a barra de uso. */
+.resumo dd .detalhe { display: block; margin-top: 2px; font-size: 12px; font-weight: 400; color: var(--color-muted); line-height: 1.4; }
+.resumo dd.indisponivel { font-size: 15px; color: var(--color-muted); }
+
+/* Barra de uso: faixa em texto e barra; nunca só cor. */
+.barra-uso { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 400; }
+.barra-uso .linha { display: flex; align-items: baseline; gap: 8px; }
+.barra-uso .percentual { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
+/* Trilho e preenchimento são span (dentro de dd): display block para a largura e a altura valerem. */
+.barra-uso .trilho { display: block; height: 8px; border-radius: 999px; background: var(--color-track); overflow: hidden; }
+.barra-uso .preenchido { display: block; height: 100%; border-radius: inherit; background: var(--color-ok); }
+.barra-uso[data-faixa="atencao"] .preenchido { background: var(--color-warn); }
+.barra-uso[data-faixa="atingido"] .preenchido { background: var(--color-bad); }
+.barra-uso[data-faixa="atencao"] .faixa { color: var(--color-warn); font-weight: 600; }
+.barra-uso[data-faixa="atingido"] .faixa, .barra-uso[data-faixa="limite-zero"] .faixa { color: var(--color-bad); font-weight: 600; }
+.barra-uso .faixa { color: var(--color-ok); }
+.barra-uso[data-faixa="indisponivel"] .faixa { color: var(--color-muted); }
+.barra-uso .nota { line-height: 1.4; }
+
+/* Evolução diária: colunas por dia em SVG; cada dia é um botão. */
+.evolucao > header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 18px; }
+.evolucao > header h2 { font-size: 14px; font-weight: 600; margin: 0; }
+.evolucao > header .empurra { margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.evolucao .grafico { padding: 14px 18px 8px; }
+.evolucao .colunas { display: flex; align-items: flex-end; gap: 2px; height: 180px; border-bottom: 1px solid var(--color-line); }
+.evolucao .dia { flex: 1 1 0; min-width: 4px; height: 100%; display: flex; align-items: flex-end; padding: 0; border: 0; border-radius: 3px 3px 0 0; background: none; cursor: pointer; }
+.evolucao .dia:hover, .evolucao .dia:focus-visible { background: var(--color-soft); }
+.evolucao .dia svg { display: block; width: 100%; height: 100%; }
+.evolucao .dia rect { fill: var(--color-accent); }
+.evolucao .eixo { display: flex; justify-content: space-between; padding-top: 4px; font-size: 11px; color: var(--color-muted); font-variant-numeric: tabular-nums; }
+.evolucao .legenda-modelos { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 8px 18px 12px; font-size: 12px; color: var(--color-muted); }
+.evolucao .legenda-modelos span { display: inline-flex; align-items: center; gap: 6px; }
+.evolucao .marca { width: 10px; height: 10px; border-radius: 2px; flex: none; }
+.serie-1 { fill: var(--color-accent); background: var(--color-accent); }
+.serie-2 { fill: var(--color-env-dsv); background: var(--color-env-dsv); }
+.serie-3 { fill: var(--color-env-hml); background: var(--color-env-hml); }
+.serie-4 { fill: var(--color-ok); background: var(--color-ok); }
+.serie-5 { fill: var(--color-env-prd); background: var(--color-env-prd); }
+.serie-outros { fill: var(--color-env-cont); background: var(--color-env-cont); }
+.alternar { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+
+/* Tabela de modelos. */
+.tabela-modelos td.num, .tabela-modelos th.num { text-align: right; }
+.tabela-modelos .sem-modelo { color: var(--color-muted); font-style: italic; }
+.participacao { display: inline-flex; align-items: center; gap: 8px; justify-content: flex-end; }
+.participacao .trilho { display: block; width: 64px; height: 6px; border-radius: 999px; background: var(--color-track); overflow: hidden; }
+.participacao .preenchido { display: block; height: 100%; background: var(--color-accent); }
+
+/* Explicação de conexão (sem conta conectada). */
+.conectar { max-width: 640px; padding: 28px; }
+.conectar h2 { font-size: 18px; margin: 0 0 8px; }
+.conectar p { color: var(--color-muted); margin: 0 0 16px; max-width: 60ch; }

@@ -182,7 +182,7 @@ Integração com o Jenkins (`asi_builds`).
 - RNF-02: **.NET 10**, com referência às bibliotecas internas (`Tcmrj.Autenticacao.AspNetCore`, `Tcmrj.Autorizacao.App`, `Tcmrj.CoreLib.*`).
 - RNF-03: SQL sempre com `SqlParameter` e connection string montada com `SqlConnectionStringBuilder`. Planos de execução das consultas MailQueue e AuditLog medidos com e sem filtros antes da publicação.
 - RNF-04: As páginas abrem em até 2 s. As consultas mostram o progresso e podem ser canceladas.
-- RNF-05: Segredos (PAT do GitHub, segredos OAuth) fora do repositório, em configuração protegida do servidor. Exceções da constituição (Princípio III): o `ClientSecret` do OIDC e o token de leitura do GitLab do catálogo ficam no `appsettings`. O SIAT não usa `dotnet user-secrets`.
+- RNF-05: Segredos (PAT do GitHub, segredos OAuth) fora do repositório, em configuração protegida do servidor. Exceções da constituição (Princípio III): o `ClientSecret` do OIDC, o token de leitura do GitLab do catálogo, o token de leitura de billing do GitHub e o `ClientSecret` da aplicação OAuth do GitHub ficam no `appsettings`. O SIAT não usa `dotnet user-secrets`.
 - RNF-06: Versão do Blazor Blueprint fixada. Componentes de uso recorrente (tabela de resultados, cabeçalho de página, seletor de servidor) encapsulados em componentes próprios.
 - RNF-07: Testes automatizados das regras (parâmetros, permissões, interpretação de versões, regras do Copilot) e de componentes; fluxos principais num roteiro de validação manual.
 

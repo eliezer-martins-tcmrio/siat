@@ -1,0 +1,58 @@
+@using Tcmrj.Siat.App.Web.ViewModels.Copilot
+
+@* Consumo por modelo (specs/005-copilot-meu-consumo, FR-018): modelo, créditos, valor bruto, valor líquido e
+   participação no valor bruto, na ordem do serviço (créditos decrescentes). Nomes do GitHub como texto (FR-022). *@
+
+<section class="painel" aria-labelledby="titulo-modelos">
+    <header class="painel-cabecalho"><h2 id="titulo-modelos">Consumo por modelo</h2></header>
+    @if (Modelos.Count == 0)
+    {
+        <EstadoVazio Titulo="@SemConsumo" />
+    }
+    else
+    {
+        <div class="tabela-rolagem">
+            <table class="tabela tabela-modelos">
+                <thead>
+                    <tr>
+                        <th scope="col">Modelo</th>
+                        <th scope="col" class="num">Créditos consumidos</th>
+                        <th scope="col" class="num">Valor bruto</th>
+                        <th scope="col" class="num">Valor líquido</th>
+                        <th scope="col" class="num">Participação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var modelo in Modelos)
+                    {
+                        <tr @key="modelo.Rotulo">
+                            <th scope="row" class="@(modelo.Informado ? "nome" : "sem-modelo")">@modelo.Rotulo</th>
+                            <td class="num">@FormatoCopilot.Creditos(modelo.Consumo.Creditos)</td>
+                            <td class="num">@FormatoCopilot.Usd(modelo.Consumo.ValorBruto)</td>
+                            <td class="num">@FormatoCopilot.Usd(modelo.Consumo.ValorLiquido)</td>
+                            <td class="num">
+                                <span class="participacao">
+                                    <span>@Participacao(modelo.Participacao)</span>
+                                    <span class="trilho" role="presentation"><span class="preenchido" style="width: @Largura(modelo.Participacao)"></span></span>
+                                </span>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@code {
+    public const string SemConsumo = "Sem consumo reportado neste período";
+
+    [Parameter, EditorRequired]
+    public IReadOnlyList<ModeloVM> Modelos { get; set; } = [];
+
+    private static string Participacao(decimal fracao) =>
+        (fracao * 100).ToString("0.0", CultureInfo.GetCultureInfo("pt-BR")) + "%";
+
+    private static string Largura(decimal fracao) =>
+        Math.Clamp(fracao * 100, 0, 100).ToString("0.##", CultureInfo.InvariantCulture) + "%";
+}

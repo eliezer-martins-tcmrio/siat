@@ -1,0 +1,39 @@
+@using Tcmrj.Siat.App.Web.ViewModels.Copilot
+@using Tcmrj.Siat.Domain.Models.Copilot
+
+@* Uso do limite no mês (specs/005-copilot-meu-consumo, FR-016 e FR-034): percentual, faixa em texto e barra; a cor
+   nunca é a única indicação. Sem razão (limite zero ou indisponível), só o texto da faixa. *@
+
+<div class="barra-uso" data-faixa="@Classe">
+    <span class="linha">
+        @if (Uso.Percentual is { } percentual)
+        {
+            <span class="percentual">@percentual</span>
+        }
+        <span class="faixa">@Uso.RotuloDaFaixa</span>
+    </span>
+    @if (Uso.Faixa != FaixaDeUso.Indisponivel)
+    {
+        <span class="trilho" role="presentation"><span class="preenchido" style="width: @Largura"></span></span>
+    }
+    @if (Uso.Nota is { } nota)
+    {
+        <span class="nota">@nota</span>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public UsoDoLimiteVM Uso { get; set; } = default!;
+
+    private string Classe => Uso.Faixa switch
+    {
+        FaixaDeUso.Atencao => "atencao",
+        FaixaDeUso.Atingido => "atingido",
+        FaixaDeUso.LimiteZero => "limite-zero",
+        FaixaDeUso.Indisponivel => "indisponivel",
+        _ => "normal",
+    };
+
+    private string Largura => Uso.Preenchimento.ToString("0", CultureInfo.InvariantCulture) + "%";
+}

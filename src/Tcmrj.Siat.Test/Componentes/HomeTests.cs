@@ -87,16 +87,17 @@ public sealed class HomeTests : BunitContext
 
     /// <summary>Critério 2.</summary>
     [Fact]
-    public void Com_todas_agrupa_em_Sistemas_e_Consultas_na_ordem_do_menu()
+    public void Com_todas_agrupa_em_Sistemas_Consultas_e_Gestao_na_ordem_do_menu()
     {
         Permitir(Enum.GetValues<Modulo>());
 
         var pagina = Render<Home>();
 
-        Grupos(pagina).Should().Equal("Sistemas", "Consultas");
+        Grupos(pagina).Should().Equal("Sistemas", "Consultas", "Gestão");
         var grupos = pagina.FindAll(".inicio-grupo");
         grupos[0].QuerySelectorAll(".telas a strong").Select(s => s.TextContent.Trim()).Should().Equal("Catálogo", "Versões");
         grupos[1].QuerySelectorAll(".telas a strong").Select(s => s.TextContent.Trim()).Should().Equal("MailQueue", "AuditLog");
+        grupos[2].QuerySelectorAll(".telas a strong").Select(s => s.TextContent.Trim()).Should().Equal("Copilot");
     }
 
     /// <summary>Critério 2: grupo sem ferramenta permitida não aparece.</summary>
@@ -143,7 +144,7 @@ public sealed class HomeTests : BunitContext
         var pagina = Render<Home>();
 
         pagina.Markup.Should().NotContain("Consultas").And.NotContain("MailQueue").And.NotContain("AuditLog")
-            .And.NotContain("Versões");
+            .And.NotContain("Versões").And.NotContain("Gestão").And.NotContain("copilot");
     }
 
     /// <summary>Critérios 4 e 5: rótulo, descrição e destino de cada atalho.</summary>
@@ -164,7 +165,8 @@ public sealed class HomeTests : BunitContext
                 ("MailQueue", "E-mails enfileirados pelos sistemas, do mais recente para o mais antigo.",
                     "consultas/mailqueue"),
                 ("AuditLog", "Registros de auditoria (AUDITORIADB · audit.Log), do mais recente para o mais antigo.",
-                    "consultas/auditlog"));
+                    "consultas/auditlog"),
+                ("Copilot", "Seu consumo de AI Credits do Copilot: período, modelos e limite.", "copilot"));
     }
 
     /// <summary>Critério 5: o atalho é um link comum, que abre na mesma aba.</summary>
@@ -192,7 +194,7 @@ public sealed class HomeTests : BunitContext
         var texto = pagina.Find(".estado").TextContent;
         texto.Should().Contain("Você não tem acesso às ferramentas do SIAT").And.Contain("Sistemas")
             .And.Contain("catálogo e versões de sistemas").And.Contain("Consultas")
-            .And.Contain("MailQueue").And.Contain("AuditLog");
+            .And.Contain("MailQueue").And.Contain("AuditLog").And.Contain("Copilot");
     }
 
     /// <summary>Critério 6: sem matrícula, o aviso de vínculo de rede no lugar da mensagem.</summary>

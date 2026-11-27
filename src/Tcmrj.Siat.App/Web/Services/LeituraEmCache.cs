@@ -19,6 +19,9 @@ namespace Tcmrj.Siat.App.Web.Services;
 /// <item>Cancelamento (Princípio VII): cada pedido entra na contagem de quem espera; cancelado, sai dela e recebe o erro
 /// de cancelamento. Quando a contagem chega a zero, o token da leitura é cancelado, o que interrompe a origem. Leitura
 /// cancelada não muda o estado, e o pedido seguinte começa uma leitura nova.</item>
+/// <item>Limpeza (specs/005-copilot-meu-consumo/research.md R8): a cada leitura nova, as entradas de outras chaves sem
+/// leitura em curso e sem valor, ou com o valor vencido há mais que a validade (mais velho que duas validades), saem da
+/// memória. O Copilot tem uma chave por conta e por dia; sem a limpeza, elas ficariam para sempre.</item>
 /// </list>
 /// Nada vai para disco (Princípio I). Seguro para uso concorrente: todo o estado fica sob uma única trava.
 /// </summary>
@@ -141,14 +144,56 @@ public sealed class LeituraEmCache<TChave, TValor>
         }
     }
 
+    /// <summary>Quantidade de entradas guardadas (para os testes da limpeza).</summary>
+    internal int Quantidade
+    {
+        get
+        {
+            lock (trava)
+            {
+                return entradas.Count;
+            }
+        }
+    }
+
     private bool DentroDaValidade(TValor valor) => relogio.GetUtcNow() - horarioDe(valor) < validade();
 
     // Sempre sob a trava.
     private Leitura IniciarLeitura(TChave chave, Entrada entrada)
     {
+        Limpar(chave);
         var leitura = new Leitura(entrada);
         leitura.Tarefa = Task.Run(() => LerAsync(chave, leitura));
         return leitura;
+    }
+
+    // Sempre sob a trava. Tira as entradas de outras chaves que não têm leitura em curso e que não têm valor ou cujo
+    // valor venceu há mais que uma validade; a entrada da chave que começa a ser lida fica.
+    private void Limpar(TChave atual)
+    {
+        var agora = relogio.GetUtcNow();
+        var limite = validade() * 2;
+        List<TChave>? vencidas = null;
+        foreach (var (chave, entrada) in entradas)
+        {
+            if (entrada.EmAndamento is not null || EqualityComparer<TChave>.Default.Equals(chave, atual))
+            {
+                continue;
+            }
+
+            if (entrada.UltimaValida is not { } valor || agora - horarioDe(valor) >= limite)
+            {
+                (vencidas ??= []).Add(chave);
+            }
+        }
+
+        if (vencidas is not null)
+        {
+            foreach (var chave in vencidas)
+            {
+                entradas.Remove(chave);
+            }
+        }
     }
 
     // Quem esperava deixa de esperar; o último a sair de uma leitura ainda em andamento a cancela.

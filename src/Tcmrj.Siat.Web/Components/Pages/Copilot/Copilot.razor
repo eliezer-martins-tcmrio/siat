@@ -1,0 +1,591 @@
+@page "/copilot"
+@page "/copilot/pessoas/{Login}"
+@attribute [Authorize]
+@implements IDisposable
+@using System.Text.RegularExpressions
+@using CSharpFunctionalExtensions
+@using Microsoft.Extensions.Options
+@using NetDevPack.SimpleMediator
+@using Tcmrj.Siat.App.Web.ViewModels.Copilot
+@using Tcmrj.Siat.Domain.Models
+@using Tcmrj.Siat.Domain.Models.Copilot
+@using Tcmrj.Siat.Infra.Configurations
+@using Tcmrj.Siat.Web.Services
+@using Servicos = Tcmrj.Siat.App.Web.Services
+@using ObterPessoaCopilot = Tcmrj.Siat.App.Web.Features.Copilot.ObterPessoaCopilot
+@using ObterConsumoDoPeriodo = Tcmrj.Siat.App.Web.Features.Copilot.ObterConsumoDoPeriodo
+@using ObterUsoDoLimite = Tcmrj.Siat.App.Web.Features.Copilot.ObterUsoDoLimite
+@inject IAutorizacaoConsultaService AutorizacaoConsulta
+@inject IConexaoGitHubService Conexoes
+@inject IMediator Mediator
+@inject NavigationManager Navigation
+@inject IInteracao Interacao
+@inject TimeProvider Relogio
+@inject IOptionsMonitor<CopilotOptions> Opcoes
+
+@* Gestão › Copilot › Meu consumo (specs/005-copilot-meu-consumo; contrato visual design/copilot.html;
+   contracts/rotas-ui.md).
+   - Acesso: CopilotProprio.CanSelect no OnInitializedAsync, antes de ler a conexão e de chamar qualquer feature; sem
+     ele, AcessoNegado. As features autorizam de novo (FR-001). Seção Copilot incompleta: só a mensagem de não
+     configurado (Princípio IV).
+   - Sem conexão: a explicação e "Conectar ao GitHub" (link com navegação completa, target _top). A mensagem de
+     "conexao" é lida uma vez e sai do endereço (replace).
+   - Com conexão: "copilot" e outro login em "copilot/pessoas/{login}" navegam para a própria pessoa mantendo o período
+     (FR-004); o login do endereço nunca é exibido nem enviado.
+   - Três consultas em paralelo (pessoa, período e, quando o período inclui o mês atual, uso do limite), que
+     compartilham a pessoa da carga no serviço. O erro da pessoa prevalece sobre o mesmo erro do período e do mês.
+     NaoMembro desfaz a ligação (forceLoad). Falha de uma parte só afeta aquela parte (FR-032); valor de parte com
+     falha aparece como indisponível, nunca como zero nem como o valor anterior (FR-020).
+   - Andamento "Lendo N de M dias", tempo decorrido e Cancelar (EstadoCarregando, aria-live); Cancelar volta ao
+     resultado anterior. "Atualizar agora" envia as três consultas com Atualizar = true (FR-030).
+   - Texto do GitHub sempre como conteúdo codificado pelo Razor (FR-022). *@
+
+@if (acesso is null)
+{
+    <PageTitle>Meu consumo do Copilot · SIAT</PageTitle>
+}
+else if (acesso == false)
+{
+    <AcessoNegado Mensagem="Você não tem acesso ao consumo do Copilot" Recurso="@Modulo.CopilotProprio.Politica()" />
+}
+else if (naoConfigurado)
+{
+    <CabecalhoPagina Titulo="Meu consumo" Descricao="@Descricao" Trilha="@Trilha" />
+    <section class="painel" aria-label="Copilot">
+        <EstadoErro Titulo="@Erros.Copilot.NaoConfigurado.Message"
+                    Orientacao="Peça à equipe que opera o SIAT para completar a seção Copilot da configuração. Os outros módulos continuam funcionando." />
+    </section>
+}
+else if (conexao is null)
+{
+    <CabecalhoPagina Titulo="Meu consumo" Descricao="@Descricao" Trilha="@Trilha" />
+
+    <div class="avisos">
+        @if (mensagemDeConexao is { } mensagem)
+        {
+            <Aviso Variante="@varianteDaMensagem">@mensagem</Aviso>
+        }
+    </div>
+
+    <section class="painel conectar" aria-labelledby="titulo-conectar">
+        <h2 id="titulo-conectar">Conecte sua conta do GitHub</h2>
+        <p>
+            O SIAT precisa saber qual é a sua conta no GitHub para mostrar o seu consumo do Copilot. A conexão pede só a
+            identificação da conta, sem acesso a repositórios, e fica neste navegador por 30 dias.
+        </p>
+        <a class="botao" id="conectar-github" href="@EnderecoDeConexao" target="_top">
+            <LucideIcon Name="github" Size="16" aria-hidden="true" focusable="false" />
+            Conectar ao GitHub
+        </a>
+    </section>
+}
+else
+{
+    <CabecalhoPagina Titulo="@Titulo" Descricao="@Descricao" Trilha="@Trilha">
+        <Status>
+            @if (PessoaAtual is { } pessoa)
+            {
+                <div class="pessoa">
+                    @if (pessoa.FotoUrl is { } foto)
+                    {
+                        <img class="pessoa-foto" src="@foto" alt="" />
+                    }
+                    else
+                    {
+                        <span class="pessoa-foto sem-foto" aria-hidden="true">@Inicial(pessoa.Login)</span>
+                    }
+                    <div>
+                        <span class="login">@pessoa.Login</span>
+                        <div class="etiquetas">
+                            <span class="pilula @(pessoa.TemLicenca ? "ok" : "info")">@pessoa.TextoDaLicenca</span>
+                            @if (pessoa.Times is { Count: > 0 } times)
+                            {
+                                @foreach (var time in times)
+                                {
+                                    <a class="time" href="@time.Url" target="_blank" rel="noopener noreferrer" @key="time.Url">
+                                        @time.Nome
+                                        @if (time.Herdado == true)
+                                        {
+                                            <span class="via">via sub-time</span>
+                                        }
+                                        <span class="so-leitor"> (abre em nova aba)</span>
+                                    </a>
+                                }
+                            }
+                            else if (pessoa.Times is not null)
+                            {
+                                <span class="nota">Sem time visível</span>
+                            }
+                            else
+                            {
+                                <span class="pilula alerta">Times indisponíveis</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <span class="status">Conectado como <span class="mono">@conexao.Login</span></span>
+            }
+        </Status>
+        <Acoes>
+            <button type="button" class="botao secundario pequeno" id="atualizar" disabled="@(Lendo || periodo is null)" @onclick="AtualizarAsync">
+                <LucideIcon Name="refresh-cw" Size="14" aria-hidden="true" focusable="false" />
+                Atualizar agora
+            </button>
+            <button type="button" class="botao discreto pequeno" id="desconectar" @onclick="Desconectar">Desconectar do GitHub</button>
+        </Acoes>
+    </CabecalhoPagina>
+
+    <FiltroDePeriodo Atual="periodo" Hoje="Hoje" Desabilitado="Lendo" AoAplicar="AplicarPeriodo" AoLimpar="LimparPeriodo" />
+
+    <div class="avisos">
+        @if (mensagemDeConexao is { } mensagem)
+        {
+            <Aviso Variante="@varianteDaMensagem">@mensagem</Aviso>
+        }
+        @if (periodoInvalido)
+        {
+            <Aviso Titulo="Período inválido">@Erros.Copilot.PeriodoInvalido.Message</Aviso>
+        }
+        @if (ErroDaPagina is null && PessoaAtual is { } comPartes)
+        {
+            @if (!comPartes.PerfilDisponivel)
+            {
+                <Aviso Variante="VarianteAviso.Info">@PessoaCopilotVM.TextoPerfilIndisponivel</Aviso>
+            }
+            @if (comPartes.ErroDosTimes is { } erroDosTimes)
+            {
+                <Aviso Titulo="Times indisponíveis">@erroDosTimes</Aviso>
+            }
+            @if (comPartes.ErroDoLimite is { } erroDoLimite)
+            {
+                <Aviso Titulo="Limite indisponível">@erroDoLimite</Aviso>
+            }
+        }
+        @if (ErroDaPagina is null && ErroDoConsumo is { } erroDoConsumo)
+        {
+            <Aviso Titulo="Consumo do período indisponível">@erroDoConsumo.Message</Aviso>
+        }
+        @if (ErroDaPagina is null && ErroDoUso is { } erroDoUso && erroDoUso.Code != ErroDoConsumo?.Code)
+        {
+            <Aviso Titulo="Uso do limite indisponível">@erroDoUso.Message</Aviso>
+        }
+    </div>
+
+    @if (Lendo)
+    {
+        <section class="painel" aria-label="Leitura do consumo">
+            <EstadoCarregando Mensagem="@MensagemDaLeitura" Linhas="@(ConsumoAtual is null ? 4 : 0)"
+                              Inicio="consumo.InicioAtual ?? pessoa.InicioAtual" AoCancelar="Cancelar"
+                              DicaCancelar="Interrompe as leituras no GitHub" />
+        </section>
+    }
+
+    @if (ErroDaPagina is { } erroDaPagina)
+    {
+        @if (erroDaPagina.Code == Erros.Copilot.CodigoSemLicencaNemLimite)
+        {
+            <section class="painel" aria-label="Consumo do Copilot">
+                <EstadoVazio Titulo="Sem licença nem limite" Mensagem="@erroDaPagina.Message" />
+            </section>
+        }
+        else
+        {
+            <section class="painel" aria-label="Consumo do Copilot">
+                <EstadoErro Titulo="Não foi possível ler o seu consumo do Copilot" Motivo="@erroDaPagina.Message"
+                            AoTentarDeNovo="TentarDeNovoAsync"
+                            Orientacao="Os dados vêm da API do GitHub. Os outros módulos do SIAT continuam funcionando." />
+            </section>
+        }
+    }
+    else if (!Lendo && ConsumoAtual is null && consumo.Cancelada)
+    {
+        <section class="painel" aria-label="Consumo do Copilot">
+            <EstadoErro Titulo="Leitura cancelada" Motivo="@Erros.Copilot.Cancelada.Message" AoTentarDeNovo="TentarDeNovoAsync"
+                        Orientacao="Nenhum dado foi lido. Tente de novo quando quiser." />
+        </section>
+    }
+    else if (periodo is not null && (PessoaAtual is not null || ConsumoAtual is not null || ErroDoConsumo is not null))
+    {
+        <ResumoNumerico Rotulo="Resumo do período" Itens="@Indicadores" />
+
+        @if (ConsumoAtual is { } lido)
+        {
+            <EvolucaoDiaria Dias="lido.Dias" AoEscolherDia="EscolherDia" />
+            <TabelaDeModelos Modelos="lido.Modelos" />
+        }
+    }
+
+    <footer class="rodape">
+        <span class="nota">
+            Licença, times e limite refletem a situação atual, mesmo num período anterior. Os relatórios de consumo do
+            GitHub podem ter atraso. Valores em dólares (USD), datas em UTC.
+            @if (ConsumoAtual is { } consultado)
+            {
+                <text> Consulta às @Hora(consultado.ConsultadoEm).</text>
+            }
+        </span>
+    </footer>
+}
+
+@code {
+    private const string Descricao = "Seu consumo de AI Credits do Copilot: período, modelos e limite.";
+
+    // Login do GitHub: letras, números e hífen simples, até 39 caracteres (o "conta" da mensagem de não membro).
+    private static readonly Regex LoginValido = new("^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$", RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
+
+    private static readonly RenderFragment Trilha =
+        @<nav class="trilha" aria-label="Trilha de navegação">
+            <ol>
+                <li>Gestão</li>
+                <li><a href="@Navegacao.RotaCopilot">Copilot</a></li>
+                <li><span aria-current="page">Meu consumo</span></li>
+            </ol>
+        </nav>;
+
+    [Parameter]
+    public string? Login { get; set; }
+
+    [SupplyParameterFromQuery(Name = Navegacao.ParametroDe)]
+    public string? De { get; set; }
+
+    [SupplyParameterFromQuery(Name = Navegacao.ParametroAte)]
+    public string? Ate { get; set; }
+
+    [SupplyParameterFromQuery(Name = Navegacao.ParametroConexao)]
+    public string? ConexaoParametro { get; set; }
+
+    [SupplyParameterFromQuery(Name = Navegacao.ParametroConta)]
+    public string? ContaParametro { get; set; }
+
+    private sealed record EstadoDaUrl(string? Login, string? De, string? Ate);
+
+    private bool? acesso;
+    private bool naoConfigurado;
+    private bool descartada;
+    private ConexaoGitHub? conexao;
+    private string? mensagemDeConexao;
+    private VarianteAviso varianteDaMensagem = VarianteAviso.Info;
+
+    private Periodo? periodo;
+    private bool periodoInvalido;
+    private EstadoDaUrl? urlVista;
+
+    private Servicos.ControleConsulta<PessoaCopilotVM> pessoa = default!;
+    private Servicos.ControleConsulta<ConsumoDoPeriodoVM> consumo = default!;
+    private Servicos.ControleConsulta<UsoDoLimiteVM> uso = default!;
+    private int diasLidos;
+
+    private DateOnly Hoje => DateOnly.FromDateTime(Relogio.GetUtcNow().UtcDateTime);
+
+    private bool Lendo => pessoa.EmAndamento || consumo.EmAndamento || uso.EmAndamento;
+
+    // Resultado só vale sem erro na última leitura: o valor anterior nunca aparece no lugar de uma falha (FR-020).
+    private PessoaCopilotVM? PessoaAtual => pessoa.Estado == Servicos.EstadoConsulta.ComErro ? null : pessoa.Resultado;
+
+    private ConsumoDoPeriodoVM? ConsumoAtual => consumo.Estado == Servicos.EstadoConsulta.ComErro ? null : consumo.Resultado;
+
+    private UsoDoLimiteVM? UsoAtual => uso.Estado == Servicos.EstadoConsulta.ComErro ? null : uso.Resultado;
+
+    /// <summary>Erro da pessoa: prevalece sobre os mesmos erros do período e do mês (sem licença, associação, GitHub).</summary>
+    private Erro? ErroDaPagina => pessoa.Estado == Servicos.EstadoConsulta.ComErro ? pessoa.Erro : null;
+
+    private Erro? ErroDoConsumo => consumo.Estado == Servicos.EstadoConsulta.ComErro ? consumo.Erro : null;
+
+    private Erro? ErroDoUso => uso.Estado == Servicos.EstadoConsulta.ComErro ? uso.Erro : null;
+
+    private string Titulo => PessoaAtual?.Titulo ?? conexao?.Login ?? "Meu consumo";
+
+    private string EnderecoDeConexao => Navegacao.ConectarGitHub(Navegacao.Copilot(conexao?.Login, De, Ate));
+
+    private string MensagemDaLeitura => periodo is { } p && consumo.EmAndamento
+        ? $"Lendo {diasLidos.ToString(CultureInfo.InvariantCulture)} de {p.QuantidadeDeDias.ToString(CultureInfo.InvariantCulture)} dias"
+        : "Verificando a conta no GitHub";
+
+    private IReadOnlyList<IndicadorResumo> Indicadores
+    {
+        get
+        {
+            var lido = ConsumoAtual;
+            var pessoaLida = PessoaAtual;
+            var lista = new List<IndicadorResumo>(4);
+
+            lista.Add(lido is null
+                ? new IndicadorResumo("Consumo bruto", Indisponivel: true)
+                : new IndicadorResumo("Consumo bruto", FormatoCopilot.Usd(lido.Total.ValorBruto),
+                    $"{FormatoCopilot.Creditos(lido.Total.Creditos)} créditos · {FormatoCopilot.Data(lido.Periodo.De)} a {FormatoCopilot.Data(lido.Periodo.Ate)}"));
+
+            lista.Add(lido is null
+                ? new IndicadorResumo("Valor líquido", Indisponivel: true)
+                : new IndicadorResumo("Valor líquido", FormatoCopilot.Usd(lido.Total.ValorLiquido), "Não inclui o preço das licenças"));
+
+            lista.Add(pessoaLida?.Limite switch
+            {
+                null => new IndicadorResumo("Limite vigente", Indisponivel: true),
+                { Valor: { } valor } => new IndicadorResumo("Limite vigente", FormatoCopilot.Usd(valor), pessoaLida.OrigemDoLimite),
+                _ => new IndicadorResumo("Limite vigente", "—", pessoaLida.OrigemDoLimite, Indisponivel: true),
+            });
+
+            if (periodo is not { } atual || !atual.IncluiMesAtual(Hoje))
+            {
+                lista.Add(new IndicadorResumo("Uso do limite", "—", "Disponível em períodos que incluem o mês atual", Indisponivel: true));
+            }
+            else if (UsoAtual is { } usoLido)
+            {
+                lista.Add(new IndicadorResumo("Uso do limite", Conteudo: @<BarraDeUso Uso="usoLido" />));
+            }
+            else
+            {
+                lista.Add(new IndicadorResumo("Uso do limite", Indisponivel: true));
+            }
+
+            return lista;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        pessoa = new(Relogio);
+        consumo = new(Relogio);
+        uso = new(Relogio);
+
+        // O acesso vem antes de tudo: sem ele, nem a conexão é lida nem feature alguma é chamada.
+        acesso = await AutorizacaoConsulta.PodeAcessarModuloAsync(Modulo.CopilotProprio);
+        if (acesso != true)
+        {
+            return;
+        }
+
+        if (Opcoes.CurrentValue.Validar().Count > 0)
+        {
+            naoConfigurado = true;
+            return;
+        }
+
+        LerMensagemDeConexao();
+        conexao = await Conexoes.ObterAsync();
+
+        // A mensagem é lida uma vez e sai do endereço; sem conexão, fica na explicação.
+        if (ConexaoParametro is not null && conexao is null)
+        {
+            Navigation.NavigateTo(Navegacao.Copilot(null, De, Ate), replace: true);
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (acesso != true || naoConfigurado || conexao is null || descartada)
+        {
+            return;
+        }
+
+        var daUrl = new EstadoDaUrl(Login, De, Ate);
+        if (daUrl == urlVista)
+        {
+            return;
+        }
+
+        urlVista = daUrl;
+
+        // "copilot", outro login ou um login inválido: a própria pessoa, com o mesmo período (FR-004).
+        if (!string.Equals(Login, conexao.Login, StringComparison.OrdinalIgnoreCase))
+        {
+            Navigation.NavigateTo(Navegacao.Copilot(conexao.Login, De, Ate), replace: true);
+            return;
+        }
+
+        var validado = Periodo.Validar(De, Ate, Hoje);
+        if (validado.IsFailure)
+        {
+            // Período inválido no endereço: a mensagem, e nada é consultado (FR-025).
+            CancelarTudo();
+            periodo = null;
+            periodoInvalido = true;
+            return;
+        }
+
+        periodo = validado.Value;
+        periodoInvalido = false;
+        await CarregarAsync(atualizar: false);
+    }
+
+    private void LerMensagemDeConexao()
+    {
+        var org = Opcoes.CurrentValue.OrganizacaoNormalizada;
+        varianteDaMensagem = ConexaoParametro is "desconectada" ? VarianteAviso.Info : VarianteAviso.Atencao;
+        mensagemDeConexao = ConexaoParametro switch
+        {
+            null => null,
+            "negada" => "A conexão com o GitHub não foi feita. Use Conectar ao GitHub para tentar de novo.",
+            "falha" => "Não foi possível conectar a conta do GitHub. Tente de novo.",
+            "outro-usuario" => "A conexão foi iniciada por outro usuário do SIAT neste navegador e não foi feita. Tente de novo.",
+            "nao-membro" => ContaParametro is { } conta && LoginValido.IsMatch(conta)
+                ? Erros.Copilot.NaoMembro(conta, org).Message
+                : $"A conta do GitHub não é membro ativo da organização {org}.",
+            "nao-membro-desconectada" => $"A conta do GitHub conectada não é mais membro ativo da organização {org}, e a ligação foi desfeita.",
+            "desconectada" => "A conta do GitHub foi desconectada deste navegador.",
+            "nao-configurado" => Erros.Copilot.NaoConfigurado.Message,
+            _ => null,
+        };
+    }
+
+    private Task AtualizarAsync() => CarregarAsync(atualizar: true);
+
+    private Task TentarDeNovoAsync() => CarregarAsync(atualizar: false);
+
+    // Pessoa, período e (com o mês atual no período) uso do limite, em paralelo; a pessoa da carga é compartilhada no
+    // serviço, e o período e o mês só leem relatórios depois dela (research.md R4).
+    private async Task CarregarAsync(bool atualizar)
+    {
+        if (descartada || periodo is not { } atual)
+        {
+            return;
+        }
+
+        if (atualizar)
+        {
+            Interacao.Interagir();
+        }
+
+        var controlePessoa = pessoa;
+        var controleConsumo = consumo;
+        var tentativaPessoa = controlePessoa.Iniciar();
+        var tentativaConsumo = controleConsumo.Iniciar();
+
+        var comUso = atual.IncluiMesAtual(Hoje);
+        if (!comUso)
+        {
+            uso.Dispose();
+            uso = new(Relogio);
+        }
+
+        var controleUso = uso;
+        var tentativaUso = comUso ? controleUso.Iniciar() : null;
+        diasLidos = 0;
+        StateHasChanged();
+
+        var envioPessoa = Enviar(new ObterPessoaCopilot.Query(atualizar), tentativaPessoa.Token);
+        var envioConsumo = Enviar(
+            new ObterConsumoDoPeriodo.Query(De, Ate, atualizar) { Progresso = new Andamento(this) }, tentativaConsumo.Token);
+        var envioUso = tentativaUso is null
+            ? Task.FromResult(Result.Success<UsoDoLimiteVM, Erro>(null!))
+            : Enviar(new ObterUsoDoLimite.Query(atualizar), tentativaUso.Token);
+
+        controlePessoa.Concluir(tentativaPessoa, await envioPessoa);
+        var obtido = await envioConsumo;
+        controleConsumo.Concluir(tentativaConsumo, obtido);
+        if (tentativaUso is not null)
+        {
+            controleUso.Concluir(tentativaUso, await envioUso);
+        }
+
+        if (descartada)
+        {
+            return;
+        }
+
+        TratarErrosDaCarga();
+    }
+
+    private async Task<Result<T, Erro>> Enviar<T>(IRequest<Result<T, Erro>> consulta, CancellationToken token)
+    {
+        try
+        {
+            return await Mediator.Send(consulta, token);
+        }
+        catch (OperationCanceledException)
+        {
+            return Erros.Copilot.Cancelada;
+        }
+    }
+
+    // Erros que mudam a página inteira: acesso retirado, conexão perdida, módulo sem configuração e conta que deixou de
+    // ser membro (a ligação é desfeita com navegação completa, para abrir um circuito sem a identidade).
+    private void TratarErrosDaCarga()
+    {
+        Erro?[] erros = [pessoa.Erro, consumo.Erro, uso.Erro];
+        if (erros.Any(e => e?.Code == Erros.Copilot.CodigoAcessoNegado))
+        {
+            acesso = false;
+        }
+        else if (erros.Any(e => e?.Code == Erros.Copilot.CodigoNaoMembro))
+        {
+            Navigation.NavigateTo(Navegacao.DesconectarGitHub(ValidacaoMotivoNaoMembro), forceLoad: true);
+        }
+        else if (erros.Any(e => e?.Code == Erros.Copilot.CodigoNaoConfigurado))
+        {
+            naoConfigurado = true;
+        }
+        else if (erros.Any(e => e?.Code == Erros.Copilot.CodigoSemConexao))
+        {
+            conexao = null;
+        }
+    }
+
+    private const string ValidacaoMotivoNaoMembro = "nao-membro";
+
+    private void Cancelar()
+    {
+        pessoa.Cancelar();
+        consumo.Cancelar();
+        uso.Cancelar();
+    }
+
+    // Período inválido ou trocado: as leituras em curso param e o que era do período anterior sai da tela.
+    private void CancelarTudo()
+    {
+        pessoa.Dispose();
+        consumo.Dispose();
+        uso.Dispose();
+        pessoa = new(Relogio);
+        consumo = new(Relogio);
+        uso = new(Relogio);
+    }
+
+    private void AplicarPeriodo(Periodo escolhido)
+    {
+        Interacao.Interagir();
+        var padrao = escolhido.EhPadrao(Hoje);
+        Navigation.NavigateTo(
+            Navegacao.Copilot(conexao?.Login, padrao ? null : Periodo.Texto(escolhido.De), padrao ? null : Periodo.Texto(escolhido.Ate)),
+            replace: true);
+    }
+
+    private void LimparPeriodo() => AplicarPeriodo(Periodo.Padrao(Hoje));
+
+    private void EscolherDia(DateOnly dia) => AplicarPeriodo(new Periodo(dia, dia));
+
+    private void Desconectar() =>
+        Navigation.NavigateTo(Navegacao.DesconectarGitHub(retorno: Navegacao.RotaCopilot), forceLoad: true);
+
+    private static string Inicial(string login) => login.Length == 0 ? "?" : login[..1].ToUpperInvariant();
+
+    // "13:05 UTC de 27/11/2026": a hora da leitura mais antiga do período.
+    private static string Hora(DateTimeOffset quando) =>
+        quando.UtcDateTime.ToString("HH:mm 'UTC de' dd/MM/yyyy", CultureInfo.InvariantCulture);
+
+    public void Dispose()
+    {
+        descartada = true;
+        pessoa?.Dispose();
+        consumo?.Dispose();
+        uso?.Dispose();
+    }
+
+    /// <summary>Andamento da leitura dos dias, repassado à consulta; renderiza no circuito.</summary>
+    private sealed class Andamento(Copilot pagina) : IProgress<int>
+    {
+        public void Report(int value)
+        {
+            if (value <= pagina.diasLidos)
+            {
+                return;
+            }
+
+            pagina.diasLidos = value;
+            _ = pagina.InvokeAsync(pagina.StateHasChanged);
+        }
+    }
+}

@@ -1,0 +1,49 @@
+@* Faixa de indicadores rotulados (specs/005-copilot-meu-consumo/research.md R11), na classe .resumo do DESIGN.md.
+   Indicador indisponível mostra "Indisponível" (ou o texto dado), nunca zero (FR-020). *@
+
+<dl class="resumo" aria-label="@Rotulo">
+    @foreach (var item in Itens)
+    {
+        <div @key="item.Rotulo">
+            <dt>@item.Rotulo</dt>
+            @if (item.Indisponivel)
+            {
+                <dd class="indisponivel">
+                    @(item.Valor ?? TextoIndisponivel)
+                    @if (item.Detalhe is { } detalheIndisponivel)
+                    {
+                        <span class="detalhe">@detalheIndisponivel</span>
+                    }
+                </dd>
+            }
+            else
+            {
+                <dd>
+                    @if (item.Conteudo is { } conteudo)
+                    {
+                        @conteudo
+                    }
+                    else
+                    {
+                        @item.Valor
+                    }
+                    @if (item.Detalhe is { } detalhe)
+                    {
+                        <span class="detalhe">@detalhe</span>
+                    }
+                </dd>
+            }
+        </div>
+    }
+</dl>
+
+@code {
+    public const string TextoIndisponivel = "Indisponível";
+
+    /// <summary>Nome da faixa para leitor de tela.</summary>
+    [Parameter]
+    public string Rotulo { get; set; } = "Resumo";
+
+    [Parameter, EditorRequired]
+    public IReadOnlyList<IndicadorResumo> Itens { get; set; } = [];
+}

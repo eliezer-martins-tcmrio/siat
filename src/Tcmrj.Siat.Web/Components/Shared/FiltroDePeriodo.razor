@@ -1,0 +1,106 @@
+@using Tcmrj.Siat.Domain.Models
+@using Tcmrj.Siat.Domain.Models.Copilot
+
+@* Filtro de período (specs/005-copilot-meu-consumo, FR-023 a FR-025; research.md R6 e R11): De e Até com min/max da
+   janela, os seis atalhos, Aplicar e Limpar período. Período inválido mostra a mensagem ligada aos campos por
+   aria-describedby e não dispara o evento. Desabilitado durante a leitura. *@
+
+<form class="painel filtros filtro-periodo" role="search" aria-label="Período" @onsubmit="AplicarAsync" @onsubmit:preventDefault>
+    <label class="campo" for="periodo-de">
+        De
+        <input id="periodo-de" type="date" min="@Minimo" max="@Maximo" @bind="de" disabled="@Desabilitado"
+               aria-invalid="@(erro is null ? "false" : "true")" aria-describedby="@(erro is null ? null : IdDoErro)" />
+    </label>
+    <label class="campo" for="periodo-ate">
+        Até
+        <input id="periodo-ate" type="date" min="@Minimo" max="@Maximo" @bind="ate" disabled="@Desabilitado"
+               aria-invalid="@(erro is null ? "false" : "true")" aria-describedby="@(erro is null ? null : IdDoErro)" />
+    </label>
+    <div class="acoes-filtro">
+        <button type="submit" class="botao" id="aplicar-periodo" disabled="@Desabilitado">Aplicar</button>
+        <button type="button" class="botao discreto" id="limpar-periodo" disabled="@Desabilitado" @onclick="LimparAsync">Limpar período</button>
+    </div>
+    <div class="atalhos" role="group" aria-label="Atalhos de período">
+        @foreach (var atalho in Periodo.Atalhos(Hoje))
+        {
+            <button type="button" @key="atalho.Rotulo" disabled="@Desabilitado"
+                    aria-pressed="@(atalho.Periodo == Atual ? "true" : "false")"
+                    @onclick="() => EscolherAsync(atalho.Periodo)">@atalho.Rotulo</button>
+        }
+    </div>
+    @if (erro is not null)
+    {
+        <p class="erro-periodo" id="@IdDoErro" role="alert">@erro</p>
+    }
+</form>
+
+@code {
+    private const string IdDoErro = "erro-periodo";
+
+    /// <summary>Período em uso (nulo quando o da URL é inválido).</summary>
+    [Parameter]
+    public Periodo? Atual { get; set; }
+
+    /// <summary>Hoje em UTC (base da janela e dos atalhos).</summary>
+    [Parameter, EditorRequired]
+    public DateOnly Hoje { get; set; }
+
+    [Parameter]
+    public bool Desabilitado { get; set; }
+
+    /// <summary>Período válido aplicado (Aplicar ou atalho).</summary>
+    [Parameter]
+    public EventCallback<Periodo> AoAplicar { get; set; }
+
+    /// <summary>Volta ao período padrão.</summary>
+    [Parameter]
+    public EventCallback AoLimpar { get; set; }
+
+    private DateOnly? de;
+    private DateOnly? ate;
+    private Periodo? visto;
+    private string? erro;
+
+    private string Minimo => Periodo.Texto(Periodo.Minimo(Hoje));
+
+    private string Maximo => Periodo.Texto(Hoje);
+
+    protected override void OnParametersSet()
+    {
+        // Só a troca do período em uso reescreve os campos: o que a pessoa digitou fica até ela aplicar.
+        if (Atual != visto)
+        {
+            visto = Atual;
+            de = Atual?.De;
+            ate = Atual?.Ate;
+            erro = null;
+        }
+    }
+
+    private async Task AplicarAsync()
+    {
+        var validado = Periodo.Validar(de is { } d ? Periodo.Texto(d) : string.Empty, ate is { } a ? Periodo.Texto(a) : string.Empty, Hoje);
+        if (validado.IsFailure)
+        {
+            erro = validado.Error.Message;
+            return;
+        }
+
+        erro = null;
+        await AoAplicar.InvokeAsync(validado.Value);
+    }
+
+    private async Task EscolherAsync(Periodo periodo)
+    {
+        de = periodo.De;
+        ate = periodo.Ate;
+        erro = null;
+        await AoAplicar.InvokeAsync(periodo);
+    }
+
+    private async Task LimparAsync()
+    {
+        erro = null;
+        await AoLimpar.InvokeAsync();
+    }
+}

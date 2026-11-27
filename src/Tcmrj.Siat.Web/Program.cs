@@ -10,6 +10,8 @@ builder.AddDBLogConfiguration();            // Serilog + DBLog em AUDITORIADB.au
 builder.AddRazorConfiguration();            // Blazor (Interactive Server), Razor Pages, Blazor Blueprint, pt-BR
 builder.AddAuthenticationConfiguration();   // OIDC no SIA ou usuário de rede, permissões do UserManager, inatividade, fallback policy
 builder.AddTcmrjSiat();                     // Mediador, validadores, services do App, servidores e consultas
+builder.Services.AddCopilotConfiguration(builder.Configuration); // Cliente do GitHub (Copilot), validado na leitura
+builder.AddCopilotGitHubConfiguration();    // "Conectar ao GitHub": esquemas OAuth e cookie (só com Copilot:OAuth completo)
 
 var app = builder.Build();
 

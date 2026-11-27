@@ -6,7 +6,7 @@ namespace Tcmrj.Siat.Test.Unidade;
 
 /// <summary>
 /// Lista única de ferramentas, lida pelo menu e pela página Início (.specs/features/pagina-home, critérios 2, 3, 4 e 9;
-/// AD-001): só as permitidas, agrupadas em Sistemas e Consultas, na ordem do menu, sem grupo vazio.
+/// AD-001): só as permitidas, agrupadas em Sistemas, Consultas e Gestão (specs/005-copilot-meu-consumo, FR-002), na ordem do menu, sem grupo vazio.
 /// </summary>
 public sealed class FerramentasTests
 {
@@ -17,11 +17,11 @@ public sealed class FerramentasTests
         [.. grupos.Select(g => $"{g.Nome}: {string.Join(", ", g.Ferramentas.Select(f => f.Rotulo))}")];
 
     [Fact]
-    public async Task Com_todas_as_permissoes_traz_Sistemas_e_Consultas_na_ordem_do_menu()
+    public async Task Com_todas_as_permissoes_traz_Sistemas_Consultas_e_Gestao_na_ordem_do_menu()
     {
         var grupos = await PermitidasCom(Enum.GetValues<Modulo>());
 
-        Resumo(grupos).Should().Equal("Sistemas: Catálogo, Versões", "Consultas: MailQueue, AuditLog");
+        Resumo(grupos).Should().Equal("Sistemas: Catálogo, Versões", "Consultas: MailQueue, AuditLog", "Gestão: Copilot");
     }
 
     [Fact]
@@ -38,6 +38,14 @@ public sealed class FerramentasTests
         var grupos = await PermitidasCom(Modulo.AuditLog, Modulo.Catalogo_Sistemas);
 
         Resumo(grupos).Should().Equal("Sistemas: Catálogo", "Consultas: AuditLog");
+    }
+
+    [Fact]
+    public async Task So_com_CopilotProprio_traz_apenas_o_grupo_Gestao()
+    {
+        var grupos = await PermitidasCom(Modulo.CopilotProprio);
+
+        Resumo(grupos).Should().Equal("Gestão: Copilot");
     }
 
     [Fact]
@@ -59,7 +67,7 @@ public sealed class FerramentasTests
             return Task.FromResult(false);
         });
 
-        perguntados.Should().Equal(Modulo.Catalogo_Sistemas, Modulo.Versoes_Sistemas, Modulo.MailQueue, Modulo.AuditLog);
+        perguntados.Should().Equal(Modulo.Catalogo_Sistemas, Modulo.Versoes_Sistemas, Modulo.MailQueue, Modulo.AuditLog, Modulo.CopilotProprio);
     }
 
     [Fact]
@@ -75,6 +83,8 @@ public sealed class FerramentasTests
                 (Modulo.MailQueue, "MailQueue", "consultas/mailqueue", "mail",
                     "E-mails enfileirados pelos sistemas, do mais recente para o mais antigo."),
                 (Modulo.AuditLog, "AuditLog", "consultas/auditlog", "list",
-                    "Registros de auditoria (AUDITORIADB · audit.Log), do mais recente para o mais antigo."));
+                    "Registros de auditoria (AUDITORIADB · audit.Log), do mais recente para o mais antigo."),
+                (Modulo.CopilotProprio, "Copilot", "copilot", "bot",
+                    "Seu consumo de AI Credits do Copilot: período, modelos e limite."));
     }
 }

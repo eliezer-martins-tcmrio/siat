@@ -2,7 +2,9 @@
 
 SIAT (Sistema Integrado de Apoio Técnico) é a aplicação web interna do TCMRio que reúne ferramentas de
 consulta para suporte e desenvolvedores: **Sistemas › Catálogo e Versões**, com a **ficha do sistema** (catálogo e
-versões vinculadas pelo campo `Versoes` do `sistemasDb.js`), e **Consultas** (MailQueue e AuditLog).
+versões vinculadas pelo campo `Versoes` do `sistemasDb.js`), **Consultas** (MailQueue e AuditLog) e
+**Gestão › Copilot** (o consumo de AI Credits do Copilot da própria pessoa, lido da API do GitHub para a conta que
+ela conecta ao SIAT).
 Visão geral, configuração e publicação: [README.md](../README.md). Design: [DESIGN.md](../DESIGN.md).
 
 ## Regras que prevalecem
@@ -37,16 +39,23 @@ especificações, planos e estas instruções. Leia-a antes de mudar comportamen
 Solução .NET 10 (`net10.0`, C# 14) no padrão do projeto-modelo do Tribunal, com o Web em Blazor:
 
 - `Tcmrj.Siat.Web`: Blazor Web App (Interactive Server) com **Blazor Blueprint** (`BlazorBlueprint.Components`,
-  ícones Lucide). Páginas em `Components/Pages/{Sistemas,Consultas}`, componentes próprios em
+  ícones Lucide). Páginas em `Components/Pages/{Sistemas,Consultas,Copilot}`, componentes próprios em
   `Components/Shared` (cabeçalho, estados vazio/erro/carregando, seletor de servidor etc.), registro de
   dependências em `Configurations/`, autenticação OIDC no SIA (`Tcmrj.Autenticacao.AspNetCore.Oidc`) ou
   modo experimental `UsuarioDeRede` (Negotiate), escolhido por `SiatConfiguration:Autenticacao`.
+  **Conexão com o GitHub** (Copilot): `Configurations/CopilotGitHubConfiguration.cs` registra, só com
+  `Copilot:OAuth` completo, o cookie `GitHubConexao` e o OAuth `GitHubOAuth` (nenhum é o esquema padrão) e os
+  endpoints `copilot/github/conectar` e `desconectar`; `Services/ValidacaoRetornoGitHub.cs` valida o retorno e
+  `Services/ConexaoGitHubMiddleware` acrescenta a identidade da conexão ao usuário do SIAT.
 - `Tcmrj.Siat.App`: casos de uso em `Web/Features/{Modulo}/{Acao}.cs` com NetDevPack.SimpleMediator,
   validadores FluentValidation em `Web/Validators`, view models em `Web/ViewModels`, serviços de aplicação
-  (autorização, registro de consulta) em `Web/Services`.
+  (autorização, registro de consulta) em `Web/Services`. No Copilot, `Web/Features/Copilot` não recebe login:
+  a conta vem só de `IConexaoGitHubService`, e o `ConsumoCopilotService` (singleton) guarda os dados do GitHub em
+  `LeituraEmCache` por tipo de dado.
 - `Tcmrj.Siat.Domain`: modelos, enums (`Modulo`, ambientes), erros (`Erros.*`) e contratos de repositório.
 - `Tcmrj.Siat.Infra`: repositórios com `Microsoft.Data.SqlClient` e SQL embutido em `Sql/*.sql`
-  (`EmbeddedResource`), fábrica de conexões (`Conexoes/`), leitura do catálogo no GitLab (`Catalogo/`), leitura dos arquivos de versão (`Versoes/`) e
+  (`EmbeddedResource`), fábrica de conexões (`Conexoes/`), leitura do catálogo no GitLab (`Catalogo/`), leitura dos arquivos de versão (`Versoes/`), leitura da API do
+  GitHub com o token de leitura, só `GET` (`Copilot/`) e
   opções de configuração (`Configurations/`). **Não há EF Core nem `DbContext` de negócio.**
 - `Tcmrj.Siat.Test`: xUnit v3 + Reqnroll (BDD em português) + bUnit + AwesomeAssertions + Moq.
 

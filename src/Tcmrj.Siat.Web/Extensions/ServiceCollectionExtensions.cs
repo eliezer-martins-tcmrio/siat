@@ -60,6 +60,12 @@ public static class ServiceCollectionExtensions
         // Exportação em HTML autocontido (história 4; sem estado).
         services.AddSingleton<IExportacaoHtmlService, ExportacaoHtmlService>();
 
+        // Copilot (specs/005-copilot-meu-consumo): conexão com o GitHub lida da identidade do circuito (Scoped) e dados
+        // em memória por tipo de dado (singleton). O cliente do GitHub é registrado por AddCopilotConfiguration.
+        services.Configure<CacheDoCopilotOptions>(builder.Configuration.GetSection(CacheDoCopilotOptions.Secao));
+        services.AddScoped<IConexaoGitHubService, ConexaoGitHubService>();
+        services.AddSingleton<IConsumoCopilotService, ConsumoCopilotService>();
+
         services.TryAddSingleton(TimeProvider.System);
 
         return builder;

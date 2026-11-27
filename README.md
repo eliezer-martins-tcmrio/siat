@@ -6,8 +6,9 @@ Sistema Integrado de Apoio Técnico do TCMRio. Tem duas seções, ambas somente 
 - **Sistemas › Versões**: a versão publicada de cada sistema em DSV, HML e PRD, nas duas máquinas de cada ambiente, lida dos endereços de `CSLIB_UserManager.dbo.Apps_VersionAddresses` (substitui o `VersaoDeSistemasPublicados.ps1`).
 - **Ficha do sistema** (Sistemas › Catálogo › {sistema}): reúne, por ambiente, as instâncias do catálogo e a versão publicada em cada máquina dos componentes vinculados ao item. Abre pelo nome do sistema no Catálogo e em Versões.
 - **Consultas**: **MailQueue** e **AuditLog**, sobre uma lista fechada de servidores SQL Server.
+- **Gestão › Copilot**: o consumo de AI Credits do Copilot da própria pessoa (período, evolução diária, modelos, limite vigente e uso do limite no mês), lido da API do GitHub para a conta do GitHub que ela conecta ao SIAT.
 
-Especificação, plano e tarefas: `specs/001-consultas/`, `specs/002-catalogo-sistemas/`, `specs/003-versoes-publicadas/` e `specs/004-ficha-sistema/`. Design: `DESIGN.md`.
+Especificação, plano e tarefas: `specs/001-consultas/`, `specs/002-catalogo-sistemas/`, `specs/003-versoes-publicadas/`, `specs/004-ficha-sistema/` e `specs/005-copilot-meu-consumo/`. Design: `DESIGN.md`.
 
 ## Como rodar
 
@@ -41,6 +42,7 @@ O `global.json` fixa o SDK `10.0.100` com `rollForward: latestMajor`: o SDK 10 o
 | `Servidores` | veja [Lista de servidores](#lista-de-servidores-servidoresjson) | Vem do `servidores.json`. |
 | `Versoes` | `ServidorPadrao` (`tcmbd-prd`), `TempoLimiteSegundos` (5), `LeiturasSimultaneas` (32), `MinutosDeCache` (5) | Versões publicadas (veja [Versões publicadas](#versões-publicadas-versoes)). |
 | `CatalogoSistemas` | `GitLab:BaseUrl`, `GitLab:Projeto`, `GitLab:Arquivo`, `GitLab:Ref`, `GitLab:Token`, `TempoLimiteSegundos` (10), `MinutosDeCache` (10) | Origem do catálogo de sistemas (veja [Catálogo de sistemas](#catálogo-de-sistemas-catalogosistemas)). O token fica no `appsettings`, como o `ClientSecret`. |
+| `Copilot` | `Organizacao`, `GitHub:Token`, `GitHub:TempoLimiteSegundos` (15), `OAuth:ClientId`, `OAuth:ClientSecret`, `LeiturasSimultaneas` (4), `Cache:*` | Consumo do Copilot (veja [Copilot](#copilot-copilot)). O token de leitura e o segredo da OAuth App ficam no `appsettings`, como o `ClientSecret`. |
 
 ### ClientSecret
 
@@ -65,6 +67,17 @@ A tela abre com o banco de produção (`ServidorPadrao = tcmbd-prd`, também no 
 A ficha (`/sistemas/catalogo/ficha?sistema={nome}`, com `&servidor={chave}` opcional) exige `Catalogo_Sistemas.CanSelect`; a parte de versões aparece só para quem tem também `Versoes_Sistemas.CanSelect`. Não há configuração nova: a ficha usa as seções `CatalogoSistemas` e `Versoes` e os mesmos caches das duas telas.
 
 O vínculo entre um item do catálogo e as linhas de `Apps_VersionAddresses` é explícito: o campo opcional `Versoes` do item, no `sistemasDb.js`, lista os nomes de `Apps_VersionAddresses.Sistema` daquele sistema e dos seus componentes, por exemplo `"Versoes": ["SIGARH", "SIGARH Agendador"]`. A comparação ignora acentos, maiúsculas e espaços nas pontas. Sem o campo, a ficha mostra só o catálogo e explica como vincular; um campo que não é lista de nomes vira aviso na ficha; um nome que não está entre os registros ativos do servidor escolhido também. Em Versões, cada nome vinculado vira link para a ficha e o filtro **Sem ficha** mostra os que nenhum item cita ([contracts/campo-versoes.md](specs/004-ficha-sistema/contracts/campo-versoes.md)).
+
+### Copilot (`Copilot`)
+
+A tela **Gestão › Copilot** (`/copilot`, que leva a `/copilot/pessoas/{login}`) exige `CopilotProprio.CanSelect` e mostra só a conta do GitHub conectada pela própria pessoa ([contracts/configuracao.md](specs/005-copilot-meu-consumo/contracts/configuracao.md)). São duas credenciais, ambas no `appsettings.json` de cada ambiente, sem `dotnet user-secrets`:
+
+- **Token de leitura** (`Copilot:GitHub:Token`): token fine-grained criado por um owner da organização, com **Administration: Read-only** e **Members: Read-only** e acesso a repositórios públicos ([contracts/github-api.md](specs/005-copilot-meu-consumo/contracts/github-api.md)). Lê licenças, budgets, times, associação e os relatórios de consumo; o SIAT só faz `GET` no GitHub. O token tem validade: **anote o vencimento e renove-o antes**, trocando o valor no `appsettings.json` de cada ambiente. Token vencido ou revogado aparece na tela como "O token de billing do GitHub não foi aceito".
+- **OAuth App** (`Copilot:OAuth:ClientId` e `ClientSecret`): uma por ambiente, sem Device Flow, com Homepage e Authorization callback URL iguais à raiz do site (`https://localhost:7271/` em desenvolvimento; `https://<host do SIAT>/` no IIS). O retorno é `copilot/github/retorno` sob o `<base href>` ([contracts/conexao-github.md](specs/005-copilot-meu-consumo/contracts/conexao-github.md)). A conexão pede só a identificação da conta (escopo vazio): o token do usuário é usado uma vez para ler `GET /user` e descartado. A ligação fica num cookie próprio (`.Siat.GitHub`) por 30 dias, sem renovação; "Desconectar do GitHub" apaga o cookie. Conexão, recusa e desconexão vão para o `AUDITORIADB.audit.Log` com `TypeID` 10.
+
+Os dados ficam em memória: licenças e times por `Cache:MinutosLicencasETimes` (5), budgets por `SegundosBudgets` (30), perfil por `HorasPerfil` (6), relatórios dos três últimos dias e do mês atual por `MinutosRelatoriosRecentes` (10) e os demais dias por `HorasRelatoriosFechados` (24); a associação à organização é relida a cada carga. "Atualizar agora" relê tudo, menos os dias fechados.
+
+Seção incompleta: o SIAT sobe normalmente, os esquemas OAuth não são registrados e só a tela do Copilot mostra "O módulo Copilot não está configurado no servidor.". O token e o segredo nunca aparecem em mensagem de erro nem em log.
 
 ### Testar uma edição do `sistemasDb.js` sem subir para o GitLab
 
@@ -96,6 +109,7 @@ O link do `sistemasDb.js` no rodapé aponta para o servidor local, e não convé
 - **Chaves de proteção de dados** (cookie de sessão e antiforgery): o pool de aplicativos precisa de **perfil de usuário carregado** (`Load User Profile = True`), para o ASP.NET Core guardar as chaves no perfil da conta do pool. Sem isso as chaves ficam só na memória e o login e os formulários quebram a cada reinício. A alternativa é chamar `AddDataProtection().PersistKeysToFileSystem(...)` apontando para uma pasta que só a conta do pool lê e grava (o código do SIAT ainda não faz essa chamada).
 - **URLs de retorno do login**: o cliente OIDC precisa ter `https://<nome-do-siat>/signin-oidc` e `https://<nome-do-siat>/signout-callback-oidc` cadastrados (script `002` do `dbchange`). Se o SIAT for publicado num subdiretório do IIS, o subdiretório entra antes: `https://<nome>/<subdiretório>/signin-oidc`.
 - Conferir que a conta do pool tem leitura em `CSLIB_UserManager` e `AUDITORIADB` e nos servidores do `servidores.json`.
+- Copilot: seção `Copilot` completa no `appsettings.json` publicado (token de leitura e a OAuth App do ambiente, com o callback na raiz do site) e HTTPS de saída para `https://github.com` e `https://api.github.com`. O cookie da conexão é protegido pelas mesmas chaves de proteção de dados do item acima: sem elas persistidas, cada reciclagem do pool desfaz as conexões e as pessoas precisam conectar de novo.
 
 ## Scripts do banco (`dbchange`)
 
@@ -105,6 +119,7 @@ Em `dbchange/196.1.1`, para o `CSLIB_UserManager` (veja [contracts/usermanager.m
 |---|---|
 | `001 ... Criação de app, recursos e grupos do SIAT.sql` | Cadastra a aplicação SIAT, os recursos `MailQueue` (`Id` 10), `AuditLog` (20), `Catalogo_Sistemas` (30) e `Versoes_Sistemas` (40) e os grupos `Consultas` (MailQueue e AuditLog) e `Sistemas` (catálogo e versões), com `CanSelect`. Idempotente. |
 | `002 ... OpenIddictApplications do SIAT.sql` | Cadastra os clientes OIDC `SIAT-dev` e `SIAT`. Idempotente. |
+| `002 ... Recurso CopilotProprio e grupo Copilot do SIAT.sql` | Cadastra o recurso `CopilotProprio` (`Id` 50) e o grupo `Copilot`, com `CanSelect`. Não inclui usuários. Idempotente. |
 
 Antes de executar:
 
@@ -140,7 +155,7 @@ Quem tem o recurso do módulo vê e consulta os três, inclusive quando roda o S
 
 ### Permissões
 
-Um recurso por módulo (permissão `CanSelect`): `Catalogo_Sistemas` e `Versoes_Sistemas` (grupo `Sistemas`), `MailQueue` e `AuditLog` (grupo `Consultas`). Nas consultas, o recurso libera os três ambientes (DSV, HML e PRD).
+Um recurso por módulo (permissão `CanSelect`): `Catalogo_Sistemas` e `Versoes_Sistemas` (grupo `Sistemas`), `MailQueue` e `AuditLog` (grupo `Consultas`) e `CopilotProprio` (grupo `Copilot`). Nas consultas, o recurso libera os três ambientes (DSV, HML e PRD). No Copilot, o recurso libera só o consumo da conta do GitHub que a própria pessoa conectou.
 
 Quem não tem o recurso do módulo não vê o item no menu (nem servidores no seletor, nas consultas), e a URL da consulta mostra "Acesso negado" sem consultar o banco. Em PRD a faixa de contexto fica destacada e avisa que a consulta é registrada em log. Toda tentativa de consulta, inclusive a negada, é registrada em `AUDITORIADB.audit.Log` (`TypeID` 10). A leitura das versões não vai para esse log: versões e caminhos de publicação não são dados sensíveis.
 

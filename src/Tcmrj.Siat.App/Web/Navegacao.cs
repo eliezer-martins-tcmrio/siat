@@ -26,6 +26,33 @@ public static class Navegacao
 
     public const string RotaAuditLog = "consultas/auditlog";
 
+    /// <summary>Gestão › Copilot (specs/005-copilot-meu-consumo/contracts/rotas-ui.md): explicação ou a própria pessoa.</summary>
+    public const string RotaCopilot = "copilot";
+
+    /// <summary>Página do próprio consumo: <c>copilot/pessoas/{login}</c>.</summary>
+    public const string RotaPessoaCopilot = "copilot/pessoas";
+
+    /// <summary>Endpoint HTTP que inicia o "Conectar ao GitHub" (desafio do esquema OAuth).</summary>
+    public const string RotaConectarGitHub = "copilot/github/conectar";
+
+    /// <summary>Endpoint HTTP que apaga a conexão com o GitHub.</summary>
+    public const string RotaDesconectarGitHub = "copilot/github/desconectar";
+
+    /// <summary>Retorno do OAuth do GitHub, tratado pelo manipulador do ASP.NET Core.</summary>
+    public const string RotaRetornoGitHub = "copilot/github/retorno";
+
+    /// <summary>Resultado da conexão ou desconexão, lido uma vez pela página e retirado do endereço.</summary>
+    public const string ParametroConexao = "conexao";
+
+    /// <summary>Endereço local para onde voltar depois de conectar ou desconectar.</summary>
+    public const string ParametroRetorno = "retorno";
+
+    /// <summary>Motivo da desconexão: <c>usuario</c> (o padrão) ou <c>nao-membro</c>.</summary>
+    public const string ParametroMotivo = "motivo";
+
+    /// <summary>Login da conta recusada na conexão, só para a mensagem.</summary>
+    public const string ParametroConta = "conta";
+
     public const string ParametroBusca = "busca";
 
     public const string ParametroServidor = "servidor";
@@ -144,6 +171,24 @@ public static class Navegacao
             (ParametroAte, Data(ate)),
             (ParametroQuantidade, Quantidade(qtd)),
             (ParametroSelecionado, sel));
+
+    /// <summary>
+    /// URL do Copilot: sem login, <c>copilot</c>; com login, <c>copilot/pessoas/{login}</c> (escapado). O período vai em
+    /// <c>de</c> e <c>ate</c>; nulos, vazios ou só com espaços ficam fora (o período padrão não vai para o endereço).
+    /// </summary>
+    public static string Copilot(string? login = null, string? de = null, string? ate = null) =>
+        Montar(
+            string.IsNullOrWhiteSpace(login) ? RotaCopilot : $"{RotaPessoaCopilot}/{Uri.EscapeDataString(login)}",
+            (ParametroDe, string.IsNullOrWhiteSpace(de) ? null : de),
+            (ParametroAte, string.IsNullOrWhiteSpace(ate) ? null : ate));
+
+    /// <summary>Endpoint de conexão com o GitHub, com o endereço local de volta escapado.</summary>
+    public static string ConectarGitHub(string retorno) =>
+        Montar(RotaConectarGitHub, (ParametroRetorno, retorno));
+
+    /// <summary>Endpoint de desconexão; motivo e retorno nulos ficam fora.</summary>
+    public static string DesconectarGitHub(string? motivo = null, string? retorno = null) =>
+        Montar(RotaDesconectarGitHub, (ParametroMotivo, motivo), (ParametroRetorno, retorno));
 
     private static string? Data(DateOnly? data) => data?.ToString(FiltroAuditLog.FormatoData, CultureInfo.InvariantCulture);
 
