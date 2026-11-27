@@ -67,6 +67,33 @@ public sealed class EvolucaoDiariaTests : BunitContext
     }
 
     [Fact]
+    public void Trocar_a_metrica_muda_o_total_e_o_eixo_de_valores()
+    {
+        var evolucao = Evolucao([Dia(Dia1, M("GPT-5", 1m)), Dia(Dia2, M("GPT-5", 3.7m))]);
+
+        evolucao.Find(".total").TextContent.Should().Be("US$ 4.70 no período (valor bruto)");
+        evolucao.FindAll(".escala span:not(.medida)").Select(s => s.TextContent).Should()
+            .Equal("US$ 0.00", "US$ 1.00", "US$ 2.00", "US$ 3.00", "US$ 4.00");
+
+        evolucao.FindAll(".segmentado button").Single(b => b.TextContent == "Créditos").Click();
+
+        evolucao.Find(".total").TextContent.Should().Be("118 no período (créditos)");
+        evolucao.FindAll(".escala span:not(.medida)")[^1].TextContent.Should().Be("100");
+    }
+
+    [Fact]
+    public void Visao_por_modelo_empilha_um_retangulo_por_serie_com_a_classe_da_cor()
+    {
+        var evolucao = Evolucao([Dia(Dia2, M("GPT-5", 2m), M("B", 1m))]);
+
+        evolucao.FindAll("button.dia rect").Should().HaveCount(1);
+
+        evolucao.Find(".alternar input").Change(true);
+
+        evolucao.FindAll("button.dia rect").Select(r => r.GetAttribute("class")).Should().Equal("serie-1", "serie-2");
+    }
+
+    [Fact]
     public void Acionar_um_dia_dispara_o_evento_com_a_data()
     {
         DateOnly? escolhido = null;

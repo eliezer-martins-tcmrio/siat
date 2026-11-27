@@ -121,7 +121,7 @@ public static class CopilotGitHubConfiguration
 
         var propriedades = new AuthenticationProperties
         {
-            RedirectUri = Local(contexto.Request, RetornoLocal(retorno) ?? Navegacao.RotaCopilot),
+            RedirectUri = Local(contexto.Request, RetornoLocal(retorno) ?? Navegacao.RotaMeuConsumo),
         };
         propriedades.Items[ValidacaoRetornoGitHub.PropriedadeMatricula] = contexto.User.FindFirst(ConexaoGitHubService.ClaimMatricula)?.Value;
         return Results.Challenge(propriedades, [EsquemaOAuth]);
@@ -129,8 +129,8 @@ public static class CopilotGitHubConfiguration
 
     /// <summary>
     /// Apaga o cookie de conexão, registra "Desconexao" (motivo <c>usuario</c> ou <c>nao-membro</c>) e volta com
-    /// navegação completa: com <c>nao-membro</c>, sempre a <c>copilot?conexao=nao-membro-desconectada</c>; senão, a
-    /// <paramref name="retorno"/> local ou a <c>copilot?conexao=desconectada</c>.
+    /// navegação completa: com <c>nao-membro</c>, sempre a <c>copilot/meu-consumo?conexao=nao-membro-desconectada</c>; senão, a
+    /// <paramref name="retorno"/> local ou a <c>copilot/meu-consumo?conexao=desconectada</c>.
     /// </summary>
     internal static async Task<IResult> DesconectarAsync(HttpContext contexto, string? motivo, string? retorno)
     {
@@ -164,7 +164,7 @@ public static class CopilotGitHubConfiguration
     }
 
     /// <summary>
-    /// Endereço de volta aceito: caminho relativo ao <c>&lt;base href&gt;</c> (como <c>copilot/pessoas/ana?de=...</c>),
+    /// Endereço de volta aceito: caminho relativo ao <c>&lt;base href&gt;</c> (como <c>copilot/meu-consumo/ana?de=...</c>),
     /// sem esquema, sem <c>/</c> ou <c>\</c> no início e sem caracteres de controle; qualquer outro valor é nulo.
     /// </summary>
     internal static string? RetornoLocal(string? retorno)

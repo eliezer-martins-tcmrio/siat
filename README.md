@@ -6,7 +6,7 @@ Sistema Integrado de Apoio Técnico do TCMRio. Tem duas seções, ambas somente 
 - **Sistemas › Versões**: a versão publicada de cada sistema em DSV, HML e PRD, nas duas máquinas de cada ambiente, lida dos endereços de `CSLIB_UserManager.dbo.Apps_VersionAddresses` (substitui o `VersaoDeSistemasPublicados.ps1`).
 - **Ficha do sistema** (Sistemas › Catálogo › {sistema}): reúne, por ambiente, as instâncias do catálogo e a versão publicada em cada máquina dos componentes vinculados ao item. Abre pelo nome do sistema no Catálogo e em Versões.
 - **Consultas**: **MailQueue** e **AuditLog**, sobre uma lista fechada de servidores SQL Server.
-- **Gestão › Copilot**: o consumo de AI Credits do Copilot da própria pessoa (período, evolução diária, modelos, limite vigente e uso do limite no mês), lido da API do GitHub para a conta do GitHub que ela conecta ao SIAT.
+- **Copilot › Meu consumo**: o consumo de AI Credits do Copilot da própria pessoa (período, evolução diária, modelos, limite vigente e uso do limite no mês), lido da API do GitHub para a conta do GitHub que ela conecta ao SIAT.
 
 Especificação, plano e tarefas: `specs/001-consultas/`, `specs/002-catalogo-sistemas/`, `specs/003-versoes-publicadas/`, `specs/004-ficha-sistema/` e `specs/005-copilot-meu-consumo/`. Design: `DESIGN.md`.
 
@@ -70,7 +70,7 @@ O vínculo entre um item do catálogo e as linhas de `Apps_VersionAddresses` é 
 
 ### Copilot (`Copilot`)
 
-A tela **Gestão › Copilot** (`/copilot`, que leva a `/copilot/pessoas/{login}`) exige `CopilotProprio.CanSelect` e mostra só a conta do GitHub conectada pela própria pessoa ([contracts/configuracao.md](specs/005-copilot-meu-consumo/contracts/configuracao.md)). São duas credenciais, ambas no `appsettings.json` de cada ambiente, sem `dotnet user-secrets`:
+A tela **Copilot › Meu consumo** (`/copilot/meu-consumo`, que leva a `/copilot/meu-consumo/{login}`) exige `CopilotProprio.CanSelect` e mostra só a conta do GitHub conectada pela própria pessoa ([contracts/configuracao.md](specs/005-copilot-meu-consumo/contracts/configuracao.md)). São duas credenciais, ambas no `appsettings.json` de cada ambiente, sem `dotnet user-secrets`:
 
 - **Token de leitura** (`Copilot:GitHub:Token`): token fine-grained criado por um owner da organização, com **Administration: Read-only** e **Members: Read-only** e acesso a repositórios públicos ([contracts/github-api.md](specs/005-copilot-meu-consumo/contracts/github-api.md)). Lê licenças, budgets, times, associação e os relatórios de consumo; o SIAT só faz `GET` no GitHub. O token tem validade: **anote o vencimento e renove-o antes**, trocando o valor no `appsettings.json` de cada ambiente. Token vencido ou revogado aparece na tela como "O token de billing do GitHub não foi aceito".
 - **OAuth App** (`Copilot:OAuth:ClientId` e `ClientSecret`): uma por ambiente, sem Device Flow, com Homepage e Authorization callback URL iguais à raiz do site (`https://localhost:7271/` em desenvolvimento; `https://<host do SIAT>/` no IIS). O retorno é `copilot/github/retorno` sob o `<base href>` ([contracts/conexao-github.md](specs/005-copilot-meu-consumo/contracts/conexao-github.md)). A conexão pede só a identificação da conta (escopo vazio): o token do usuário é usado uma vez para ler `GET /user` e descartado. A ligação fica num cookie próprio (`.Siat.GitHub`) por 30 dias, sem renovação; "Desconectar do GitHub" apaga o cookie. Conexão, recusa e desconexão vão para o `AUDITORIADB.audit.Log` com `TypeID` 10.

@@ -86,8 +86,10 @@ const SIAT = (function () {
     { titulo: 'Conhecimento', itens: [
       { id: 'documentacao', rotulo: 'Documentação', fase: 5 },
     ] },
+    { titulo: 'Copilot', itens: [
+      { id: 'copilot', rotulo: 'Meu consumo', href: 'copilot.html' },
+    ] },
     { titulo: 'Gestão', itens: [
-      { id: 'copilot', rotulo: 'Copilot', href: 'copilot.html' },
       { id: 'builds', rotulo: 'Builds', fase: 7 },
     ] },
   ];

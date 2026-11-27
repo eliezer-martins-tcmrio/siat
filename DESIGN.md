@@ -15,7 +15,7 @@ Identidade do TCMRio em versão contida, mais o ambiente em primeiro plano. Toke
 
 ## Navegação
 
-Menu lateral de 208px, fixo, em grupos: **Sistemas** (Catálogo, Versões), **Consultas** (MailQueue, AuditLog), **Conhecimento** (Documentação), **Gestão** (Copilot, Builds). Item ativo com fundo `sidebar-active` (celeste bem claro), texto em marinho e barra de acento à esquerda. Cada item só aparece para quem tem o recurso do UserManager. Rodapé: Tema, conta e Sair. Abaixo de 768px o menu vira barra superior com rolagem horizontal.
+Menu lateral de 208px, fixo, em grupos: **Sistemas** (Catálogo, Versões), **Consultas** (MailQueue, AuditLog), **Conhecimento** (Documentação), **Copilot** (Meu consumo), **Gestão** (Builds). Item ativo com fundo `sidebar-active` (celeste bem claro), texto em marinho e barra de acento à esquerda. Cada item só aparece para quem tem o recurso do UserManager. Rodapé: Tema, conta e Sair. Abaixo de 768px o menu vira barra superior com rolagem horizontal.
 
 ## Marca
 

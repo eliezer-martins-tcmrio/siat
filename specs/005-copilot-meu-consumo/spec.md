@@ -27,7 +27,7 @@ O PRD prevê o porte do `gestao-copilot` para o SIAT na fase 4 (seção 7.7). Es
 
 ### História 1 — Ver o próprio consumo do mês (Prioridade: P1)
 
-Uma desenvolvedora quer saber quanto já usou do Copilot neste mês e quanto falta para o limite. Ela entra no SIAT, abre **Gestão › Copilot** e, como a conta do GitHub já está conectada neste navegador, vê a própria página: nome e foto do GitHub, licença ativa, os times, o consumo bruto e líquido do mês até hoje, os créditos consumidos, o limite vigente e o uso do limite, a evolução diária e o consumo por modelo.
+Uma desenvolvedora quer saber quanto já usou do Copilot neste mês e quanto falta para o limite. Ela entra no SIAT, abre **Copilot › Meu consumo** e, como a conta do GitHub já está conectada neste navegador, vê a própria página: nome e foto do GitHub, licença ativa, os times, o consumo bruto e líquido do mês até hoje, os créditos consumidos, o limite vigente e o uso do limite, a evolução diária e o consumo por modelo.
 
 **Por que esta prioridade**: é a consulta que os membros fazem hoje no `gestao-copilot`; sozinha, entrega o valor do CP-03 e permite deixar de usar a ferramenta antiga para esse fim.
 
@@ -35,7 +35,7 @@ Uma desenvolvedora quer saber quanto já usou do Copilot neste mês e quanto fal
 
 **Cenários de aceitação**:
 
-1. **Dado** um usuário com `CopilotProprio.CanSelect` e a conta do GitHub conectada, **quando** abre **Gestão › Copilot**, **então** vê a página do próprio login do GitHub com o período padrão, do primeiro dia do mês atual até hoje (UTC), e o caminho de navegação **Gestão › Copilot › Meu consumo**.
+1. **Dado** um usuário com `CopilotProprio.CanSelect` e a conta do GitHub conectada, **quando** abre **Copilot › Meu consumo**, **então** vê a página do próprio login do GitHub com o período padrão, do primeiro dia do mês atual até hoje (UTC), e o caminho de navegação **Copilot › Meu consumo**.
 2. **Dado** a página aberta, **quando** é exibida, **então** o cabeçalho mostra o nome e a foto do perfil do GitHub (ou o login, sem nome público), a situação da licença ("Licença Copilot ativa" ou "Sem licença Copilot") e os times da pessoa, cada um com link para o time no GitHub, em nova aba, e a indicação "via sub-time" quando o vínculo é herdado.
 3. **Dado** a página aberta, **quando** o consumo do período é carregado, **então** o resumo mostra o consumo bruto em USD com os créditos consumidos e o período, o valor líquido com a nota "Não inclui o preço das licenças", o limite vigente com a sua origem (exceção individual ou padrão da organização) e o uso do limite.
 4. **Dado** um período que inclui o mês atual, **quando** o uso do limite é exibido, **então** ele compara o consumo bruto acumulado do mês atual (todos os modelos) com o limite vigente, com faixas de atenção a partir de 80% e de limite atingido a partir de 100%, em texto e não só pela cor, e indica quanto falta para o limite no relatório.
@@ -47,7 +47,7 @@ Uma desenvolvedora quer saber quanto já usou do Copilot neste mês e quanto fal
 
 ### História 2 — Conectar a conta do GitHub (Prioridade: P1)
 
-Um desenvolvedor abre **Gestão › Copilot** pela primeira vez. O SIAT não sabe qual é a conta dele no GitHub, então a página explica por que precisa da conexão e oferece **Conectar ao GitHub**. Ele autoriza no GitHub e volta para a própria página, já com os dados.
+Um desenvolvedor abre **Copilot › Meu consumo** pela primeira vez. O SIAT não sabe qual é a conta dele no GitHub, então a página explica por que precisa da conexão e oferece **Conectar ao GitHub**. Ele autoriza no GitHub e volta para a própria página, já com os dados.
 
 **Por que esta prioridade**: sem a conexão o SIAT não sabe de quem é o consumo; a História 1 depende dela.
 
@@ -55,7 +55,7 @@ Um desenvolvedor abre **Gestão › Copilot** pela primeira vez. O SIAT não sab
 
 **Cenários de aceitação**:
 
-1. **Dado** um usuário com `CopilotProprio.CanSelect` sem conta do GitHub conectada, **quando** abre **Gestão › Copilot**, **então** vê a explicação de que o SIAT precisa identificar a sua conta do GitHub para mostrar o consumo e o botão **Conectar ao GitHub**, e nenhum dado do Copilot é lido.
+1. **Dado** um usuário com `CopilotProprio.CanSelect` sem conta do GitHub conectada, **quando** abre **Copilot › Meu consumo**, **então** vê a explicação de que o SIAT precisa identificar a sua conta do GitHub para mostrar o consumo e o botão **Conectar ao GitHub**, e nenhum dado do Copilot é lido.
 2. **Dado** a explicação, **quando** o usuário aciona **Conectar ao GitHub** e autoriza no GitHub, **então** volta para a própria página no SIAT, com o período que estava no endereço, e os dados são carregados.
 3. **Dado** a autorização no GitHub, **quando** o SIAT a recebe, **então** confirma que a conta é membro ativo da organização configurada; se não for, a conexão é recusada com a mensagem "A conta <login> do GitHub não é membro ativo da organização <organização>.", e nenhum dado é exibido.
 4. **Dado** a autorização cancelada ou recusada no GitHub, **quando** o usuário volta ao SIAT, **então** vê a mensagem de que a conexão não foi feita e pode tentar de novo.
@@ -114,7 +114,7 @@ Um usuário com acesso só ao próprio consumo cola na barra de endereço a pág
 
 **Cenários de aceitação**:
 
-1. **Dado** um usuário sem `CopilotProprio.CanSelect`, **quando** abre a página por qualquer endereço, **então** vê a mensagem de acesso negado com o recurso necessário, o item **Copilot** não aparece no menu nem na página Início, e nenhum dado do Copilot é lido.
+1. **Dado** um usuário sem `CopilotProprio.CanSelect`, **quando** abre a página por qualquer endereço, **então** vê a mensagem de acesso negado com o recurso necessário, o item **Meu consumo** não aparece no menu nem na página Início, e nenhum dado do Copilot é lido.
 2. **Dado** um usuário com o recurso e conta conectada, **quando** abre o endereço da página de outro login, **então** é levado à própria página, com o mesmo período, e nenhum dado do outro login é lido nem enviado ao navegador.
 3. **Dado** o endereço do próprio login escrito com maiúsculas diferentes, **quando** é aberto, **então** a página é a do próprio usuário.
 4. **Dado** um usuário com o recurso e sem conta conectada, **quando** abre o endereço de qualquer login, **então** vê a explicação com **Conectar ao GitHub**, e nenhum dado é lido.
@@ -141,8 +141,8 @@ Um usuário com acesso só ao próprio consumo cola na barra de endereço a pág
 **Acesso e navegação**
 
 - **FR-001**: A página DEVE exigir `CopilotProprio.CanSelect`, verificado no servidor; sem ele, nenhum dado do Copilot é lido nem enviado ao navegador, e a tela mostra a mensagem de acesso negado indicando o recurso.
-- **FR-002**: O menu DEVE ter o item **Copilot** no grupo **Gestão** e a página Início, o atalho correspondente, só para quem tem `CopilotProprio.CanSelect`; o item leva à página do próprio usuário (ou à explicação de conexão, sem conta conectada).
-- **FR-003**: O endereço da página DEVE identificar o login do GitHub e o período; a página DEVE mostrar o caminho de navegação **Gestão › Copilot › Meu consumo**.
+- **FR-002**: O menu DEVE ter o item **Meu consumo** no grupo **Copilot** e a página Início, o atalho correspondente, só para quem tem `CopilotProprio.CanSelect`; o item leva à página do próprio usuário (ou à explicação de conexão, sem conta conectada).
+- **FR-003**: O endereço da página DEVE identificar o login do GitHub e o período; a página DEVE mostrar o caminho de navegação **Copilot › Meu consumo**.
 - **FR-004**: A página DEVE mostrar só os dados da conta do GitHub conectada pelo próprio usuário. O endereço de outro login DEVE levar à página do próprio usuário, mantendo o período, sem ler nem enviar ao navegador nenhum dado do outro login. A comparação de logins DEVE ignorar maiúsculas.
 - **FR-005**: Nesta etapa, nenhum outro recurso (inclusive `Copilot.CanSelect` e `Copilot.CanEdit`) DEVE dar acesso a dados de outras pessoas nem permitir alterar limites; a página NÃO DEVE ter nenhuma ação de escrita.
 

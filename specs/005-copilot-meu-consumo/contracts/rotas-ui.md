@@ -4,13 +4,13 @@
 
 | Rota | Tipo | Exige | Faz |
 |---|---|---|---|
-| `copilot` | Página Blazor | `CopilotProprio.CanSelect` | Sem conexão: explicação e **Conectar ao GitHub**. Com conexão: navega para `copilot/pessoas/{login}`, mantendo `de` e `ate` |
-| `copilot/pessoas/{login}` | Página Blazor (a mesma) | `CopilotProprio.CanSelect` | Página do próprio consumo; `{login}` diferente do conectado (sem diferenciar maiúsculas) navega para o próprio, mantendo `de` e `ate`; sem conexão, mostra a explicação |
-| `copilot/github/conectar?retorno={caminho}` | Endpoint HTTP | `CopilotProprio.CanSelect` | Desafio do esquema `GitHubOAuth`; `retorno` só local, senão `copilot` |
-| `copilot/github/retorno` | Callback do OAuth | tratado pelo manipulador | Valida e cria a ligação ([conexao-github.md](./conexao-github.md)); volta a `retorno` ou a `copilot?conexao={motivo}` |
-| `copilot/github/desconectar?motivo={motivo}&retorno={caminho}` | Endpoint HTTP | usuário autenticado | Apaga o cookie `GitHubConexao`, registra e volta a `copilot?conexao=nao-membro-desconectada` (motivo `nao-membro`), a `retorno` (local) ou a `copilot?conexao=desconectada` |
+| `copilot/meu-consumo` | Página Blazor | `CopilotProprio.CanSelect` | Sem conexão: explicação e **Conectar ao GitHub**. Com conexão: navega para `copilot/meu-consumo/{login}`, mantendo `de` e `ate` |
+| `copilot/meu-consumo/{login}` | Página Blazor (a mesma) | `CopilotProprio.CanSelect` | Página do próprio consumo; `{login}` diferente do conectado (sem diferenciar maiúsculas) navega para o próprio, mantendo `de` e `ate`; sem conexão, mostra a explicação |
+| `copilot/github/conectar?retorno={caminho}` | Endpoint HTTP | `CopilotProprio.CanSelect` | Desafio do esquema `GitHubOAuth`; `retorno` só local, senão `copilot/meu-consumo` |
+| `copilot/github/retorno` | Callback do OAuth | tratado pelo manipulador | Valida e cria a ligação ([conexao-github.md](./conexao-github.md)); volta a `retorno` ou a `copilot/meu-consumo?conexao={motivo}` |
+| `copilot/github/desconectar?motivo={motivo}&retorno={caminho}` | Endpoint HTTP | usuário autenticado | Apaga o cookie `GitHubConexao`, registra e volta a `copilot/meu-consumo?conexao=nao-membro-desconectada` (motivo `nao-membro`), a `retorno` (local) ou a `copilot/meu-consumo?conexao=desconectada` |
 
-Constantes em `Navegacao`: `RotaCopilot = "copilot"`, `RotaPessoaCopilot = "copilot/pessoas"`, `RotaConectarGitHub`, `RotaDesconectarGitHub`; montagem por `Navegacao.Copilot(login?, de?, ate?)`.
+Constantes em `Navegacao`: `RotaMeuConsumo = "copilot/meu-consumo"`, `RotaConectarGitHub`, `RotaDesconectarGitHub`; montagem por `Navegacao.MeuConsumo(login?, de?, ate?)`. Os endpoints do GitHub continuam em `copilot/github/*` (o retorno está cadastrado no OAuth App).
 
 ## Parâmetros da página
 
@@ -24,11 +24,11 @@ O período padrão não vai para o endereço. Valores inválidos de `de`/`ate` m
 
 ## Menu e Início
 
-`Ferramentas.Grupos` ganha o grupo **Gestão**, depois de **Consultas**: `Ferramenta(Modulo.CopilotProprio, "Copilot", "Seu consumo de AI Credits do Copilot: período, modelos e limite.", Navegacao.RotaCopilot, "bot")`. O item fica marcado como atual em `copilot` e em `copilot/pessoas/*`.
+`Ferramentas.Grupos` ganha o grupo **Copilot**, depois de **Consultas**: `Ferramenta(Modulo.CopilotProprio, "Meu consumo", "Seu consumo de AI Credits do Copilot: período, modelos e limite.", Navegacao.RotaMeuConsumo, "bot")`. O item fica marcado como atual em `copilot` e em `copilot/pessoas/*`.
 
 ## Estrutura da página
 
-1. `CabecalhoPagina` com trilha **Gestão › Copilot › Meu consumo**; título = nome (ou login); foto; ações **Atualizar agora** e **Desconectar do GitHub**; etiquetas de licença e times.
+1. `CabecalhoPagina` com trilha **Copilot › Meu consumo**; título = nome (ou login); foto; ações **Atualizar agora** e **Desconectar do GitHub**; etiquetas de licença e times.
 2. `FiltroDePeriodo` (De, Até, Aplicar, atalhos, Limpar período).
 3. Avisos: mensagem de conexão, erros de cada parte, período inválido.
 4. `ResumoNumerico`: Consumo bruto (créditos e período), Valor líquido ("Não inclui o preço das licenças"), Limite vigente (origem), Uso do limite (`BarraDeUso` ou "—").

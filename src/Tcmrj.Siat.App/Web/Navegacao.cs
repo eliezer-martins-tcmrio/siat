@@ -26,11 +26,11 @@ public static class Navegacao
 
     public const string RotaAuditLog = "consultas/auditlog";
 
-    /// <summary>Gestão › Copilot (specs/005-copilot-meu-consumo/contracts/rotas-ui.md): explicação ou a própria pessoa.</summary>
-    public const string RotaCopilot = "copilot";
-
-    /// <summary>Página do próprio consumo: <c>copilot/pessoas/{login}</c>.</summary>
-    public const string RotaPessoaCopilot = "copilot/pessoas";
+    /// <summary>
+    /// Copilot › Meu consumo (specs/005-copilot-meu-consumo/contracts/rotas-ui.md): explicação ou a própria pessoa, em
+    /// <c>copilot/meu-consumo/{login}</c>.
+    /// </summary>
+    public const string RotaMeuConsumo = "copilot/meu-consumo";
 
     /// <summary>Endpoint HTTP que inicia o "Conectar ao GitHub" (desafio do esquema OAuth).</summary>
     public const string RotaConectarGitHub = "copilot/github/conectar";
@@ -173,12 +173,13 @@ public static class Navegacao
             (ParametroSelecionado, sel));
 
     /// <summary>
-    /// URL do Copilot: sem login, <c>copilot</c>; com login, <c>copilot/pessoas/{login}</c> (escapado). O período vai em
+    /// URL do Meu consumo: sem login, <c>copilot/meu-consumo</c>; com login, <c>copilot/meu-consumo/{login}</c>
+    /// (escapado). O período vai em
     /// <c>de</c> e <c>ate</c>; nulos, vazios ou só com espaços ficam fora (o período padrão não vai para o endereço).
     /// </summary>
-    public static string Copilot(string? login = null, string? de = null, string? ate = null) =>
+    public static string MeuConsumo(string? login = null, string? de = null, string? ate = null) =>
         Montar(
-            string.IsNullOrWhiteSpace(login) ? RotaCopilot : $"{RotaPessoaCopilot}/{Uri.EscapeDataString(login)}",
+            string.IsNullOrWhiteSpace(login) ? RotaMeuConsumo : $"{RotaMeuConsumo}/{Uri.EscapeDataString(login)}",
             (ParametroDe, string.IsNullOrWhiteSpace(de) ? null : de),
             (ParametroAte, string.IsNullOrWhiteSpace(ate) ? null : ate));
 

@@ -150,7 +150,7 @@ public sealed class ValidacaoRetornoGitHubTests : IDisposable
     {
         var volta = Criar().TratarFalha(new RecusaDeConexaoGitHubException("nao-membro", "ana-m", 7), Propriedades(), Usuario());
 
-        volta.Should().Be("copilot?conexao=nao-membro&conta=ana-m");
+        volta.Should().Be("copilot/meu-consumo?conexao=nao-membro&conta=ana-m");
         var evento = _log.Eventos.Should().ContainSingle().Which;
         evento.Propriedades["Operacao"].Should().Be("Recusa");
         evento.Propriedades["Motivo"].Should().Be("nao-membro");
@@ -161,7 +161,7 @@ public sealed class ValidacaoRetornoGitHubTests : IDisposable
     {
         var volta = Criar().TratarFalha(new AuthenticationFailureException("Correlation failed."), Propriedades(), usuarioAtual: null);
 
-        volta.Should().Be("copilot?conexao=falha");
+        volta.Should().Be("copilot/meu-consumo?conexao=falha");
         var evento = _log.Eventos.Single();
         evento.Propriedades["Motivo"].Should().Be("falha");
         evento.Propriedades["Matricula"].Should().Be("123");
@@ -171,7 +171,7 @@ public sealed class ValidacaoRetornoGitHubTests : IDisposable
     [Fact]
     public void Acesso_negado_no_GitHub_e_negada()
     {
-        Criar().TratarAcessoNegado(Propriedades(), Usuario()).Should().Be("copilot?conexao=negada");
+        Criar().TratarAcessoNegado(Propriedades(), Usuario()).Should().Be("copilot/meu-consumo?conexao=negada");
         _log.Eventos.Single().Propriedades["Motivo"].Should().Be("negada");
     }
 

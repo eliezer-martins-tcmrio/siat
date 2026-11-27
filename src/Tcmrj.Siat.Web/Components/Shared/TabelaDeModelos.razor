@@ -1,7 +1,9 @@
 @using Tcmrj.Siat.App.Web.ViewModels.Copilot
 
 @* Consumo por modelo (specs/005-copilot-meu-consumo, FR-018): modelo, créditos, valor bruto, valor líquido e
-   participação no valor bruto, na ordem do serviço (créditos decrescentes). Nomes do GitHub como texto (FR-022). *@
+   participação no valor bruto, na ordem do serviço (créditos decrescentes). Nomes do GitHub como texto (FR-022).
+   Com consumo e valor líquido zero em todos os modelos, uma nota explica o zero, que vem do próprio relatório do
+   GitHub (o consumo foi todo descontado) e não de falha de leitura. *@
 
 <section class="painel" aria-labelledby="titulo-modelos">
     <header class="painel-cabecalho"><h2 id="titulo-modelos">Consumo por modelo</h2></header>
@@ -41,11 +43,23 @@
                 </tbody>
             </table>
         </div>
+        @if (LiquidoTodoDescontado(Modelos))
+        {
+            <p class="painel-nota">@NotaLiquidoZero</p>
+        }
     }
 </section>
 
 @code {
     public const string SemConsumo = "Sem consumo reportado neste período";
+
+    public const string NotaLiquidoZero =
+        "Valor líquido zero: o GitHub descontou todo o consumo do período (por exemplo, pelos créditos incluídos na " +
+        "licença), então nada foi cobrado além da licença.";
+
+    /// <summary>Há consumo bruto e o valor líquido de todos os modelos é zero.</summary>
+    public static bool LiquidoTodoDescontado(IReadOnlyList<ModeloVM> modelos) =>
+        modelos.Sum(m => m.Consumo.ValorBruto) > 0 && modelos.All(m => m.Consumo.ValorLiquido == 0);
 
     [Parameter, EditorRequired]
     public IReadOnlyList<ModeloVM> Modelos { get; set; } = [];

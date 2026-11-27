@@ -85,16 +85,16 @@ public sealed class EndpointsGitHubTests
 
         var desafio = resultado.Should().BeOfType<ChallengeHttpResult>().Which;
         desafio.AuthenticationSchemes.Should().Equal(CopilotGitHubConfiguration.EsquemaOAuth);
-        desafio.Properties!.RedirectUri.Should().Be("/copilot");
+        desafio.Properties!.RedirectUri.Should().Be("/copilot/meu-consumo");
     }
 
     [Fact]
     public async Task Conectar_guarda_o_retorno_local_e_a_matricula_no_desafio()
     {
-        var resultado = await CopilotGitHubConfiguration.ConectarAsync(Contexto(conectado: false), "copilot/pessoas/ana-m?de=2026-10-01");
+        var resultado = await CopilotGitHubConfiguration.ConectarAsync(Contexto(conectado: false), "copilot/meu-consumo/ana-m?de=2026-10-01");
 
         var propriedades = resultado.Should().BeOfType<ChallengeHttpResult>().Which.Properties!;
-        propriedades.RedirectUri.Should().Be("/copilot/pessoas/ana-m?de=2026-10-01");
+        propriedades.RedirectUri.Should().Be("/copilot/meu-consumo/ana-m?de=2026-10-01");
         propriedades.Items[ValidacaoRetornoGitHub.PropriedadeMatricula].Should().Be("123");
     }
 
@@ -103,9 +103,9 @@ public sealed class EndpointsGitHubTests
     {
         SemEsquemas();
 
-        var resultado = await CopilotGitHubConfiguration.ConectarAsync(Contexto(conectado: false), "copilot");
+        var resultado = await CopilotGitHubConfiguration.ConectarAsync(Contexto(conectado: false), "copilot/meu-consumo");
 
-        Destino(resultado).Should().Be("/copilot?conexao=nao-configurado");
+        Destino(resultado).Should().Be("/copilot/meu-consumo?conexao=nao-configurado");
     }
 
     // ---------- Desconectar ----------
@@ -115,9 +115,9 @@ public sealed class EndpointsGitHubTests
     {
         var contexto = Contexto();
 
-        var resultado = await CopilotGitHubConfiguration.DesconectarAsync(contexto, null, "copilot");
+        var resultado = await CopilotGitHubConfiguration.DesconectarAsync(contexto, null, "copilot/meu-consumo");
 
-        Destino(resultado).Should().Be("/copilot");
+        Destino(resultado).Should().Be("/copilot/meu-consumo");
         _autenticacao.Verify(a => a.SignOutAsync(contexto, ConexaoGitHubService.TipoDeAutenticacao, It.IsAny<AuthenticationProperties?>()), Times.Once);
         var evento = _log.Eventos.Should().ContainSingle().Which;
         evento.Propriedades["Operacao"].Should().Be("Desconexao");
@@ -131,15 +131,15 @@ public sealed class EndpointsGitHubTests
     [InlineData(null)]
     public async Task Desconectar_com_retorno_externo_vai_para_desconectada(string? retorno)
     {
-        Destino(await CopilotGitHubConfiguration.DesconectarAsync(Contexto(), null, retorno)).Should().Be("/copilot?conexao=desconectada");
+        Destino(await CopilotGitHubConfiguration.DesconectarAsync(Contexto(), null, retorno)).Should().Be("/copilot/meu-consumo?conexao=desconectada");
     }
 
     [Fact]
     public async Task Desconectar_por_nao_membro_vai_sempre_para_nao_membro_desconectada()
     {
-        var resultado = await CopilotGitHubConfiguration.DesconectarAsync(Contexto(), "nao-membro", "copilot/pessoas/ana-m");
+        var resultado = await CopilotGitHubConfiguration.DesconectarAsync(Contexto(), "nao-membro", "copilot/meu-consumo/ana-m");
 
-        Destino(resultado).Should().Be("/copilot?conexao=nao-membro-desconectada");
+        Destino(resultado).Should().Be("/copilot/meu-consumo?conexao=nao-membro-desconectada");
         _log.Eventos.Single().Propriedades["Motivo"].Should().Be("nao-membro");
     }
 
@@ -150,7 +150,7 @@ public sealed class EndpointsGitHubTests
 
         var resultado = await CopilotGitHubConfiguration.DesconectarAsync(Contexto(conectado: false), null, null);
 
-        Destino(resultado).Should().Be("/copilot?conexao=desconectada");
+        Destino(resultado).Should().Be("/copilot/meu-consumo?conexao=desconectada");
         _log.Eventos.Should().BeEmpty();
         _autenticacao.VerifyNoOtherCalls();
     }

@@ -3,7 +3,7 @@
 SIAT (Sistema Integrado de Apoio Técnico) é a aplicação web interna do TCMRio que reúne ferramentas de
 consulta para suporte e desenvolvedores: **Sistemas › Catálogo e Versões**, com a **ficha do sistema** (catálogo e
 versões vinculadas pelo campo `Versoes` do `sistemasDb.js`), **Consultas** (MailQueue e AuditLog) e
-**Gestão › Copilot** (o consumo de AI Credits do Copilot da própria pessoa, lido da API do GitHub para a conta que
+**Copilot › Meu consumo** (o consumo de AI Credits do Copilot da própria pessoa, lido da API do GitHub para a conta que
 ela conecta ao SIAT).
 Visão geral, configuração e publicação: [README.md](../README.md). Design: [DESIGN.md](../DESIGN.md).
 

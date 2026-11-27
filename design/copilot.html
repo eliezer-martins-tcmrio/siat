@@ -7,7 +7,7 @@
 <script>(function(){var t='system';try{t=localStorage.getItem('siat-tema')||t}catch(e){}document.documentElement.dataset.theme=t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light'})()</script>
 <link rel="stylesheet" href="siat.css">
 <style>
-  /* Contrato visual da Gestão › Copilot › Meu consumo (specs/005-copilot-meu-consumo, contracts/rotas-ui.md), a partir
+  /* Contrato visual da página Copilot › Meu consumo (specs/005-copilot-meu-consumo, contracts/rotas-ui.md), a partir
      do user-detail.tsx e do usage-evolution.tsx do gestao-copilot. Os estilos abaixo vão iguais para o siat.css. */
   .trilha ol { display: flex; flex-wrap: wrap; gap: 4px; list-style: none; padding: 0; margin: 0 0 6px; font-size: 12px; color: var(--color-muted); }
   .trilha li + li::before { content: "›"; margin-right: 4px; }
@@ -106,8 +106,7 @@
 
     <nav class="trilha" aria-label="Trilha de navegação">
       <ol>
-        <li>Gestão</li>
-        <li><a href="copilot.html">Copilot</a></li>
+        <li>Copilot</li>
         <li><span aria-current="page">Meu consumo</span></li>
       </ol>
     </nav>

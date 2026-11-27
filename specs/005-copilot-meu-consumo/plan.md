@@ -6,7 +6,7 @@
 
 ## Resumo
 
-Primeira etapa do porte do `gestao-copilot` (PRD CP-03): a página **Gestão › Copilot** (`copilot/pessoas/{login}?de=&ate=`), em que quem tem `CopilotProprio.CanSelect` vê o próprio consumo de AI Credits. Ela mostra licença, times, limite vigente, uso do limite, evolução diária e consumo por modelo, num período de até 92 dias dentro de 24 meses. A pessoa liga a sua conta do GitHub por **Conectar ao GitHub**, feito com o manipulador OAuth do ASP.NET Core sem escopo. A ligação fica num cookie protegido de 30 dias, preso à matrícula, sem estado no servidor. Um middleware a entrega ao circuito Blazor como uma segunda identidade do usuário. Os dados vêm da API REST do GitHub com um token de leitura de billing guardado no servidor (`appsettings`, emenda 3.2.0). As leituras ficam em cache só em memória (`LeituraEmCache`, com prazos por tipo de dado e limpeza das entradas vencidas), e as regras do `gestao-copilot` são portadas para o `Domain`. Os handlers nunca recebem o login: leem a conta da conexão, o que torna impossível ler dados de outra pessoa. Nenhuma escrita no GitHub.
+Primeira etapa do porte do `gestao-copilot` (PRD CP-03): a página **Copilot › Meu consumo** (`copilot/meu-consumo/{login}?de=&ate=`), em que quem tem `CopilotProprio.CanSelect` vê o próprio consumo de AI Credits. Ela mostra licença, times, limite vigente, uso do limite, evolução diária e consumo por modelo, num período de até 92 dias dentro de 24 meses. A pessoa liga a sua conta do GitHub por **Conectar ao GitHub**, feito com o manipulador OAuth do ASP.NET Core sem escopo. A ligação fica num cookie protegido de 30 dias, preso à matrícula, sem estado no servidor. Um middleware a entrega ao circuito Blazor como uma segunda identidade do usuário. Os dados vêm da API REST do GitHub com um token de leitura de billing guardado no servidor (`appsettings`, emenda 3.2.0). As leituras ficam em cache só em memória (`LeituraEmCache`, com prazos por tipo de dado e limpeza das entradas vencidas), e as regras do `gestao-copilot` são portadas para o `Domain`. Os handlers nunca recebem o login: leem a conta da conexão, o que torna impossível ler dados de outra pessoa. Nenhuma escrita no GitHub.
 
 ## Contexto técnico
 
@@ -112,7 +112,7 @@ src/
 ├── Tcmrj.Siat.App/
 │   └── Web/
 │       ├── ~ Navegacao.cs                   # rotas e Copilot(login, de, ate)
-│       ├── ~ Ferramentas.cs                 # grupo Gestão, ferramenta Copilot
+│       ├── ~ Ferramentas.cs                 # grupo Copilot, ferramenta Meu consumo
 │       ├── Features/Copilot/
 │       │   ├── + ObterPessoaCopilot.cs      # Query(Atualizar) → PessoaCopilotVM; associação a cada carga, pessoa da carga compartilhada (R4)
 │       │   ├── + ObterConsumoDoPeriodo.cs   # Query(De, Ate, Atualizar, Progresso) → ConsumoDoPeriodoVM
@@ -141,7 +141,7 @@ src/
 │   │   ├── + ValidacaoRetornoGitHub.cs      # OnCreatingTicket/OnRemoteFailure, testável
 │   │   └── + RegistroConexaoGitHub.cs       # DBLog da conexão (R10)
 │   ├── Components/
-│   │   ├── Pages/Copilot/+ Copilot.razor    # rotas copilot e copilot/pessoas/{Login}
+│   │   ├── Pages/Copilot/+ MeuConsumo.razor # rotas copilot/meu-consumo e copilot/meu-consumo/{Login}
 │   │   └── Shared/
 │   │       ├── + FiltroDePeriodo.razor
 │   │       ├── + ResumoNumerico.razor
@@ -153,18 +153,18 @@ src/
     ├── Features/~ Permissoes.feature        # + cenários do Copilot
     ├── Features/Steps/+ PermissoesDoCopilotSteps.cs
     ├── Componentes/
-    │   ├── + CopilotPaginaTests.cs
+    │   ├── + MeuConsumoPaginaTests.cs
     │   ├── + FiltroDePeriodoTests.cs
     │   ├── + BarraDeUsoTests.cs
     │   ├── + ResumoNumericoTests.cs
     │   ├── + EvolucaoDiariaTests.cs
     │   ├── + TabelaDeModelosTests.cs
-    │   ├── ~ MenuTests.cs                   # grupo Gestão
+    │   ├── ~ MenuTests.cs                   # grupo Copilot
     │   └── ~ HomeTests.cs                   # atalho do Copilot
     └── Unidade/
         ├── ~ LeituraEmCacheTests.cs         # limpeza
         ├── ~ NavegacaoTests.cs              # rotas do Copilot
-        ├── ~ FerramentasTests.cs            # grupo Gestão
+        ├── ~ FerramentasTests.cs            # grupo Copilot
         └── Copilot/
             ├── + PeriodoTests.cs
             ├── + RelatorioDeConsumoTests.cs
@@ -185,7 +185,7 @@ src/
             └── + ObterUsoDoLimiteHandlerTests.cs
 ```
 
-Documentação do projeto a atualizar na entrega: `README.md` (módulo e configuração), `.github/copilot-instructions.md` (Gestão › Copilot na visão geral) e `DESIGN.md` (componentes novos).
+Documentação do projeto a atualizar na entrega: `README.md` (módulo e configuração), `.github/copilot-instructions.md` (Copilot › Meu consumo na visão geral) e `DESIGN.md` (componentes novos).
 
 **Decisão de estrutura**: segue as camadas da 001 a 004.
 

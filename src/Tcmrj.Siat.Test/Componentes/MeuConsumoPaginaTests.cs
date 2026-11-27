@@ -17,16 +17,17 @@ using Tcmrj.Siat.Domain.Models;
 using Tcmrj.Siat.Domain.Models.Copilot;
 using Tcmrj.Siat.Infra.Configurations;
 using Tcmrj.Siat.Test.Unidade.Copilot;
+using Tcmrj.Siat.Web.Components.Shared;
 using Tcmrj.Siat.Web.Services;
-using Pagina = Tcmrj.Siat.Web.Components.Pages.Copilot.Copilot;
+using Pagina = Tcmrj.Siat.Web.Components.Pages.Copilot.MeuConsumo;
 
 namespace Tcmrj.Siat.Test.Componentes;
 
 /// <summary>
-/// Página Gestão › Copilot › Meu consumo (specs/005-copilot-meu-consumo/contracts/rotas-ui.md): conexão (T027), dados
+/// Página Copilot › Meu consumo (specs/005-copilot-meu-consumo/contracts/rotas-ui.md): conexão (T027), dados
 /// (T039), período (T047) e leitura, cancelamento e erros (T051).
 /// </summary>
-public sealed class CopilotPaginaTests : BunitContext
+public sealed class MeuConsumoPaginaTests : BunitContext
 {
     private static readonly DateTimeOffset Agora = new(2026, 11, 27, 13, 5, 0, TimeSpan.Zero);
     private static readonly DateOnly Hoje = new(2026, 11, 27);
@@ -43,7 +44,7 @@ public sealed class CopilotPaginaTests : BunitContext
         (q, _) => Task.FromResult(Result.Success<ConsumoDoPeriodoVM, Erro>(Consumo(q)));
     private Func<Result<UsoDoLimiteVM, Erro>> _uso = () => UsoDoLimiteVM.De(UsoDoLimite.Calcular(40, new LimiteVigente.Individual(50), "2026-11"), 40);
 
-    public CopilotPaginaTests()
+    public MeuConsumoPaginaTests()
     {
         Services.AddSingleton(_autorizacao.Object);
         Services.AddSingleton(_conexoes.Object);
@@ -81,11 +82,11 @@ public sealed class CopilotPaginaTests : BunitContext
         null,
         "tcmrj");
 
-    private static ConsumoDoPeriodoVM Consumo(ObterConsumoDoPeriodo.Query q)
+    private static ConsumoDoPeriodoVM Consumo(ObterConsumoDoPeriodo.Query q, decimal liquidoDoDia = 0.5m)
     {
         var periodo = Periodo.Validar(q.De, q.Ate, Hoje).Value;
         var dias = periodo.Dias.Select(d => new DiaDeConsumo(d, new RelatorioDeConsumo(
-            new Consumo(25, 1, 0.5m), [new ConsumoPorModelo("GPT-5", new Consumo(25, 1, 0.5m))], Agora))).ToList();
+            new Consumo(25, 1, liquidoDoDia), [new ConsumoPorModelo("GPT-5", new Consumo(25, 1, liquidoDoDia))], Agora))).ToList();
         return ConsumoDoPeriodoVM.De(ConsumoDoPeriodo.De(periodo, dias, Agora));
     }
 
@@ -104,7 +105,7 @@ public sealed class CopilotPaginaTests : BunitContext
         return Render<Pagina>(p => p.Add(c => c.Login, login));
     }
 
-    private IRenderedComponent<Pagina> AbrirAna(string consulta = "") => Abrir("copilot/pessoas/ana-m" + consulta, "ana-m");
+    private IRenderedComponent<Pagina> AbrirAna(string consulta = "") => Abrir("copilot/meu-consumo/ana-m" + consulta, "ana-m");
 
     private void NenhumaConsulta() => _mediador.VerifyNoOtherCalls();
 
@@ -115,7 +116,7 @@ public sealed class CopilotPaginaTests : BunitContext
     {
         _conexoes.Setup(c => c.ObterAsync()).ReturnsAsync((ConexaoGitHub?)null);
 
-        var pagina = Abrir("copilot");
+        var pagina = Abrir("copilot/meu-consumo");
 
         pagina.Find("#titulo-conectar").TextContent.Should().Be("Conecte sua conta do GitHub");
         var link = pagina.Find("#conectar-github");
@@ -141,10 +142,10 @@ public sealed class CopilotPaginaTests : BunitContext
     {
         _conexoes.Setup(c => c.ObterAsync()).ReturnsAsync((ConexaoGitHub?)null);
 
-        var pagina = Abrir("copilot?conexao=" + parametro);
+        var pagina = Abrir("copilot/meu-consumo?conexao=" + parametro);
 
         pagina.Find(".avisos").TextContent.Should().Contain(mensagem);
-        Navegacao.Uri.Should().EndWith("/copilot");
+        Navegacao.Uri.Should().EndWith("/copilot/meu-consumo");
         Navegacao.History.First().Options.ReplaceHistoryEntry.Should().BeTrue();
     }
 
@@ -153,7 +154,7 @@ public sealed class CopilotPaginaTests : BunitContext
     {
         _conexoes.Setup(c => c.ObterAsync()).ReturnsAsync((ConexaoGitHub?)null);
 
-        var pagina = Abrir("copilot?conexao=nao-membro&conta=%3Cb%3Ex%3C%2Fb%3E");
+        var pagina = Abrir("copilot/meu-consumo?conexao=nao-membro&conta=%3Cb%3Ex%3C%2Fb%3E");
 
         pagina.Find(".avisos").TextContent.Should().Contain("A conta do GitHub não é membro ativo da organização tcmrj.").And.NotContain("<b>");
     }
@@ -161,9 +162,9 @@ public sealed class CopilotPaginaTests : BunitContext
     [Fact]
     public void Com_conexao_copilot_navega_para_a_propria_pessoa_mantendo_o_periodo()
     {
-        Abrir("copilot?de=2026-10-01&ate=2026-10-31");
+        Abrir("copilot/meu-consumo?de=2026-10-01&ate=2026-10-31");
 
-        Navegacao.Uri.Should().EndWith("copilot/pessoas/ana-m?de=2026-10-01&ate=2026-10-31");
+        Navegacao.Uri.Should().EndWith("copilot/meu-consumo/ana-m?de=2026-10-01&ate=2026-10-31");
         Navegacao.History.First().Options.ReplaceHistoryEntry.Should().BeTrue();
         NenhumaConsulta();
     }
@@ -218,6 +219,18 @@ public sealed class CopilotPaginaTests : BunitContext
         pagina.FindAll(".evolucao button.dia").Should().HaveCount(27);
         pagina.Find(".tabela-modelos").TextContent.Should().Contain("GPT-5");
         pagina.Find("footer.rodape").TextContent.Should().Contain("refletem a situação atual").And.Contain("atraso").And.Contain("13:05 UTC de 27/11/2026");
+    }
+
+    [Fact]
+    public void Valor_liquido_zero_com_consumo_explica_o_desconto()
+    {
+        _consumo = (q, _) => Task.FromResult(Result.Success<ConsumoDoPeriodoVM, Erro>(Consumo(q, liquidoDoDia: 0)));
+
+        var pagina = AbrirAna();
+
+        pagina.Find(".resumo").TextContent.Should().Contain("US$ 0.00")
+            .And.Contain("Consumo todo descontado pelo GitHub · não inclui o preço das licenças");
+        pagina.Find(".painel-nota").TextContent.Should().Be(TabelaDeModelos.NotaLiquidoZero);
     }
 
     [Theory]
@@ -339,13 +352,13 @@ public sealed class CopilotPaginaTests : BunitContext
         pagina.Find("#periodo-ate").Change("2026-10-31");
         pagina.Find("form.filtro-periodo").Submit();
 
-        Navegacao.Uri.Should().EndWith("copilot/pessoas/ana-m?de=2026-10-01&ate=2026-10-31");
+        Navegacao.Uri.Should().EndWith("copilot/meu-consumo/ana-m?de=2026-10-01&ate=2026-10-31");
         Navegacao.History.First().Options.ReplaceHistoryEntry.Should().BeTrue();
         Navegacao.History.First().Options.ForceLoad.Should().BeFalse();
 
         pagina.FindAll(".atalhos button").Single(b => b.TextContent == "Mês atual").Click();
 
-        Navegacao.Uri.Should().EndWith("copilot/pessoas/ana-m");
+        Navegacao.Uri.Should().EndWith("copilot/meu-consumo/ana-m");
     }
 
     [Theory]
@@ -367,7 +380,7 @@ public sealed class CopilotPaginaTests : BunitContext
 
         pagina.FindAll(".evolucao button.dia")[9].Click();
 
-        Navegacao.Uri.Should().EndWith("copilot/pessoas/ana-m?de=2026-11-10&ate=2026-11-10");
+        Navegacao.Uri.Should().EndWith("copilot/meu-consumo/ana-m?de=2026-11-10&ate=2026-11-10");
     }
 
     [Theory]
@@ -376,9 +389,9 @@ public sealed class CopilotPaginaTests : BunitContext
     [InlineData("a..b", "a..b")]
     public void Outro_login_navega_para_a_propria_pessoa_com_o_mesmo_periodo_sem_consultar(string noEndereco, string login)
     {
-        var pagina = Abrir($"copilot/pessoas/{noEndereco}?de=2026-10-01&ate=2026-10-31", login);
+        var pagina = Abrir($"copilot/meu-consumo/{noEndereco}?de=2026-10-01&ate=2026-10-31", login);
 
-        Navegacao.Uri.Should().EndWith("copilot/pessoas/ana-m?de=2026-10-01&ate=2026-10-31");
+        Navegacao.Uri.Should().EndWith("copilot/meu-consumo/ana-m?de=2026-10-01&ate=2026-10-31");
         pagina.Markup.Should().NotContain(login).And.NotContain("&lt;script");
         NenhumaConsulta();
     }
@@ -386,7 +399,7 @@ public sealed class CopilotPaginaTests : BunitContext
     [Fact]
     public void Login_com_outra_caixa_nao_navega()
     {
-        Abrir("copilot/pessoas/ANA-M", "ANA-M");
+        Abrir("copilot/meu-consumo/ANA-M", "ANA-M");
 
         Navegacao.History.Should().ContainSingle("só a navegação de abertura do teste");
         _mediador.Verify(m => m.Send(It.IsAny<ObterPessoaCopilot.Query>(), It.IsAny<CancellationToken>()), Times.Once);

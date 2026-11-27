@@ -33,7 +33,7 @@ Os esquemas só são registrados quando `Copilot:OAuth` está completo. Nenhum d
    3. `GET /orgs/{org}/memberships/{login}` com o token de leitura → `state = active` e `user.id = id`, senão falha `nao-membro`.
    4. Identidade com `github_id`, `github_login`, `matricula`; `IsPersistent = true`, `ExpiresUtc = agora + 30 dias`, `AllowRefresh = false`.
    5. Registra "Conexão" no log; o token do usuário é descartado.
-4. `OnRemoteFailure` (acesso negado no GitHub, `state` inválido, falha do passo 3): registra "Recusa" com o motivo, `HandleResponse()` e redireciona para `copilot?conexao={motivo}`.
+4. `OnRemoteFailure` (acesso negado no GitHub, `state` inválido, falha do passo 3): registra "Recusa" com o motivo, `HandleResponse()` e redireciona para `copilot/meu-consumo?conexao={motivo}`.
 
 ## Leitura no circuito
 
@@ -41,7 +41,7 @@ Os esquemas só são registrados quando `Copilot:OAuth` está completo. Nenhum d
 
 ## Desconexão
 
-`copilot/github/desconectar`: `SignOutAsync("GitHubConexao")`, registra "Desconexão" (motivo `usuario` ou `nao-membro`) e redireciona com navegação completa: com motivo `nao-membro`, sempre para `copilot?conexao=nao-membro-desconectada`; senão, para `retorno`, se for local, ou para `copilot?conexao=desconectada`. A página chama com `forceLoad: true`, para abrir um circuito sem a identidade.
+`copilot/github/desconectar`: `SignOutAsync("GitHubConexao")`, registra "Desconexão" (motivo `usuario` ou `nao-membro`) e redireciona com navegação completa: com motivo `nao-membro`, sempre para `copilot/meu-consumo?conexao=nao-membro-desconectada`; senão, para `retorno`, se for local, ou para `copilot/meu-consumo?conexao=desconectada`. A página chama com `forceLoad: true`, para abrir um circuito sem a identidade.
 
 ## Registro no log (DBLog, TypeID 10)
 

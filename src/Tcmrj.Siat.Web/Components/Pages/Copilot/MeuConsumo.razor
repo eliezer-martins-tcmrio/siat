@@ -1,5 +1,5 @@
-@page "/copilot"
-@page "/copilot/pessoas/{Login}"
+@page "/copilot/meu-consumo"
+@page "/copilot/meu-consumo/{Login}"
 @attribute [Authorize]
 @implements IDisposable
 @using System.Text.RegularExpressions
@@ -23,14 +23,14 @@
 @inject TimeProvider Relogio
 @inject IOptionsMonitor<CopilotOptions> Opcoes
 
-@* Gestão › Copilot › Meu consumo (specs/005-copilot-meu-consumo; contrato visual design/copilot.html;
+@* Copilot › Meu consumo (specs/005-copilot-meu-consumo; contrato visual design/copilot.html;
    contracts/rotas-ui.md).
    - Acesso: CopilotProprio.CanSelect no OnInitializedAsync, antes de ler a conexão e de chamar qualquer feature; sem
      ele, AcessoNegado. As features autorizam de novo (FR-001). Seção Copilot incompleta: só a mensagem de não
      configurado (Princípio IV).
    - Sem conexão: a explicação e "Conectar ao GitHub" (link com navegação completa, target _top). A mensagem de
      "conexao" é lida uma vez e sai do endereço (replace).
-   - Com conexão: "copilot" e outro login em "copilot/pessoas/{login}" navegam para a própria pessoa mantendo o período
+   - Com conexão: "copilot/meu-consumo" e outro login em "copilot/meu-consumo/{login}" navegam para a própria pessoa mantendo o período
      (FR-004); o login do endereço nunca é exibido nem enviado.
    - Três consultas em paralelo (pessoa, período e, quando o período inclui o mês atual, uso do limite), que
      compartilham a pessoa da carga no serviço. O erro da pessoa prevalece sobre o mesmo erro do período e do mês.
@@ -239,8 +239,7 @@ else
     private static readonly RenderFragment Trilha =
         @<nav class="trilha" aria-label="Trilha de navegação">
             <ol>
-                <li>Gestão</li>
-                <li><a href="@Navegacao.RotaCopilot">Copilot</a></li>
+                <li>Copilot</li>
                 <li><span aria-current="page">Meu consumo</span></li>
             </ol>
         </nav>;
@@ -298,7 +297,7 @@ else
 
     private string Titulo => PessoaAtual?.Titulo ?? conexao?.Login ?? "Meu consumo";
 
-    private string EnderecoDeConexao => Navegacao.ConectarGitHub(Navegacao.Copilot(conexao?.Login, De, Ate));
+    private string EnderecoDeConexao => Navegacao.ConectarGitHub(Navegacao.MeuConsumo(conexao?.Login, De, Ate));
 
     private string MensagemDaLeitura => periodo is { } p && consumo.EmAndamento
         ? $"Lendo {diasLidos.ToString(CultureInfo.InvariantCulture)} de {p.QuantidadeDeDias.ToString(CultureInfo.InvariantCulture)} dias"
@@ -319,7 +318,10 @@ else
 
             lista.Add(lido is null
                 ? new IndicadorResumo("Valor líquido", Indisponivel: true)
-                : new IndicadorResumo("Valor líquido", FormatoCopilot.Usd(lido.Total.ValorLiquido), "Não inclui o preço das licenças"));
+                : new IndicadorResumo("Valor líquido", FormatoCopilot.Usd(lido.Total.ValorLiquido),
+                    lido.Total.ValorBruto > 0 && lido.Total.ValorLiquido == 0
+                        ? "Consumo todo descontado pelo GitHub · não inclui o preço das licenças"
+                        : "Não inclui o preço das licenças"));
 
             lista.Add(pessoaLida?.Limite switch
             {
@@ -370,7 +372,7 @@ else
         // A mensagem é lida uma vez e sai do endereço; sem conexão, fica na explicação.
         if (ConexaoParametro is not null && conexao is null)
         {
-            Navigation.NavigateTo(Navegacao.Copilot(null, De, Ate), replace: true);
+            Navigation.NavigateTo(Navegacao.MeuConsumo(null, De, Ate), replace: true);
         }
     }
 
@@ -389,10 +391,10 @@ else
 
         urlVista = daUrl;
 
-        // "copilot", outro login ou um login inválido: a própria pessoa, com o mesmo período (FR-004).
+        // "copilot/meu-consumo", outro login ou um login inválido: a própria pessoa, com o mesmo período (FR-004).
         if (!string.Equals(Login, conexao.Login, StringComparison.OrdinalIgnoreCase))
         {
-            Navigation.NavigateTo(Navegacao.Copilot(conexao.Login, De, Ate), replace: true);
+            Navigation.NavigateTo(Navegacao.MeuConsumo(conexao.Login, De, Ate), replace: true);
             return;
         }
 
@@ -549,7 +551,7 @@ else
         Interacao.Interagir();
         var padrao = escolhido.EhPadrao(Hoje);
         Navigation.NavigateTo(
-            Navegacao.Copilot(conexao?.Login, padrao ? null : Periodo.Texto(escolhido.De), padrao ? null : Periodo.Texto(escolhido.Ate)),
+            Navegacao.MeuConsumo(conexao?.Login, padrao ? null : Periodo.Texto(escolhido.De), padrao ? null : Periodo.Texto(escolhido.Ate)),
             replace: true);
     }
 
@@ -558,7 +560,7 @@ else
     private void EscolherDia(DateOnly dia) => AplicarPeriodo(new Periodo(dia, dia));
 
     private void Desconectar() =>
-        Navigation.NavigateTo(Navegacao.DesconectarGitHub(retorno: Navegacao.RotaCopilot), forceLoad: true);
+        Navigation.NavigateTo(Navegacao.DesconectarGitHub(retorno: Navegacao.RotaMeuConsumo), forceLoad: true);
 
     private static string Inicial(string login) => login.Length == 0 ? "?" : login[..1].ToUpperInvariant();
 
@@ -575,7 +577,7 @@ else
     }
 
     /// <summary>Andamento da leitura dos dias, repassado à consulta; renderiza no circuito.</summary>
-    private sealed class Andamento(Copilot pagina) : IProgress<int>
+    private sealed class Andamento(MeuConsumo pagina) : IProgress<int>
     {
         public void Report(int value)
         {

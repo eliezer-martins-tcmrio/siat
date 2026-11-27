@@ -21,9 +21,9 @@ Roteiro manual dos fluxos das histórias (Princípio V). As regras e os componen
 
 | Passo | Esperado |
 |---|---|
-| Entrar com A, num navegador sem o cookie `.Siat.GitHub`, e abrir **Gestão › Copilot** | Explicação "Conecte sua conta do GitHub" e **Conectar ao GitHub**; nenhuma chamada ao GitHub no log da aplicação |
+| Entrar com A, num navegador sem o cookie `.Siat.GitHub`, e abrir **Copilot › Meu consumo** | Explicação "Conecte sua conta do GitHub" e **Conectar ao GitHub**; nenhuma chamada ao GitHub no log da aplicação |
 | Acionar **Conectar ao GitHub** | Tela de autorização do GitHub para a OAuth App, **sem permissões pedidas** além da identificação |
-| Autorizar | Volta para `copilot/pessoas/{login de A}` com os dados; no DBLog, "Conexão da conta {login} do GitHub por {matrícula}"; cookie `.Siat.GitHub` `HttpOnly`, `Secure`, expiração em 30 dias |
+| Autorizar | Volta para `copilot/meu-consumo/{login de A}` com os dados; no DBLog, "Conexão da conta {login} do GitHub por {matrícula}"; cookie `.Siat.GitHub` `HttpOnly`, `Secure`, expiração em 30 dias |
 | Medir do clique no menu até os dados, nesta primeira vez | Menos de 1 minuto (SC-001) |
 | Sair do SIAT, entrar de novo com A no mesmo navegador | A página abre já conectada (esclarecimento de 2026-11-27) |
 | Sair e entrar com C no mesmo navegador; depois com outro usuário do grupo `Copilot` | C: acesso negado. Outro usuário: explicação de conexão; a conta de A não vale para ele |
@@ -36,7 +36,7 @@ Roteiro manual dos fluxos das histórias (Princípio V). As regras e os componen
 
 | Passo | Esperado |
 |---|---|
-| Com A conectado, abrir **Gestão › Copilot** | Trilha **Gestão › Copilot › Meu consumo**; período do dia 1 do mês até hoje (UTC); item **Copilot** marcado no menu |
+| Com A conectado, abrir **Copilot › Meu consumo** | Trilha **Copilot › Meu consumo**; período do dia 1 do mês até hoje (UTC); item **Meu consumo** marcado no menu |
 | Olhar o cabeçalho | Nome e foto do GitHub, "Licença Copilot ativa", times com link (nova aba) e "via sub-time" onde houver |
 | Olhar o resumo | Consumo bruto (créditos e período), valor líquido com "Não inclui o preço das licenças", limite vigente com a origem, uso do limite com faixa em texto e "US$ N abaixo do limite no relatório" |
 | Comparar com a página de A no `gestao-copilot`, mesmo período | Consumo bruto, líquido, créditos e consumo por modelo iguais; limite igual ao que o owner vê (SC-003). Se A não tiver exceção individual, o SIAT mostra o valor do padrão (o `gestao-copilot` mostra a membros só "Padrão da organização") |
@@ -72,8 +72,8 @@ Roteiro manual dos fluxos das histórias (Princípio V). As regras e os componen
 
 | Passo | Esperado |
 |---|---|
-| Com C, abrir `copilot`, `copilot/pessoas/{qualquer}` e `copilot/github/conectar` | Acesso negado com o recurso `CopilotProprio`; sem item no menu nem atalho no Início |
-| Com A, abrir `copilot/pessoas/{LOGIN-EM-MAIÚSCULAS}` | Página de A |
+| Com C, abrir `copilot/meu-consumo`, `copilot/meu-consumo/{qualquer}` e `copilot/github/conectar` | Acesso negado com o recurso `CopilotProprio`; sem item no menu nem atalho no Início |
+| Com A, abrir `copilot/meu-consumo/{LOGIN-EM-MAIÚSCULAS}` | Página de A |
 | Retirar A da organização no GitHub (ou usar uma conta de teste) e atualizar a página | Ligação desfeita, mensagem de que a conta não é membro ativo; "Desconexão" com motivo `nao-membro` no DBLog |
 | Percorrer conexão e página só com teclado e com leitor de tela | Filtro, atalhos, Conectar, Desconectar, Atualizar agora, links dos times e dias da evolução alcançáveis, com foco visível e nomes que dizem o que fazem |
 | Temas claro, escuro e do sistema | Contraste AA em textos, faixas e gráfico |

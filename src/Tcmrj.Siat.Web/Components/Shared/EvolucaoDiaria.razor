@@ -2,18 +2,30 @@
 
 @* Evolução diária do período (specs/005-copilot-meu-consumo, FR-017; research.md R11), em SVG próprio portado do
    usage-evolution.tsx do gestao-copilot: uma coluna por dia, seletor de métrica e visão por modelo (cinco modelos de
-   maior total + "Outros"). Cada dia é um botão alcançável por teclado cujo aria-label é a alternativa em texto; acioná-lo
-   filtra o período para aquele dia. Cores dos tokens do DESIGN.md (classes .serie-*). *@
+   maior total + "Outros"). Eixo de valores com grade em passos redondos (EscalaDoGrafico) e total do período no
+   cabeçalho, para a troca de métrica ser visível. Cada dia é um botão alcançável por teclado cujo aria-label é a
+   alternativa em texto; a dica visual (hover e foco) repete esse conteúdo e fica fora da árvore de acessibilidade.
+   Acionar o dia filtra o período para ele. Cores dos tokens do DESIGN.md (classes .serie-*). *@
+
+@{
+    // Calculadas uma vez por renderização: as séries percorrem todos os dias e modelos.
+    var series = Series;
+    var escala = Escala;
+}
 
 <section class="painel evolucao" aria-labelledby="titulo-evolucao">
-    <header>
-        <h2 id="titulo-evolucao">Evolução diária</h2>
+    <header class="painel-cabecalho">
+        <div class="titulo">
+            <h2 id="titulo-evolucao">Evolução diária</h2>
+            <span class="total" aria-live="polite">@FormatoCopilot.Valor(metrica, Total) no período (@metrica.Rotulo())</span>
+        </div>
         <div class="empurra">
             <div class="segmentado" role="group" aria-label="Métrica">
                 @foreach (var opcao in Metricas)
                 {
-                    <button type="button" aria-pressed="@(metrica == opcao ? "true" : "false")"
-                            disabled="@(porModelo && opcao == MetricaDeConsumo.ValorLiquido)"
+                    var indisponivel = porModelo && opcao == MetricaDeConsumo.ValorLiquido;
+                    <button type="button" aria-pressed="@(metrica == opcao ? "true" : "false")" disabled="@indisponivel"
+                            title="@(indisponivel ? "A visão por modelo mostra valor bruto ou créditos" : null)"
                             @onclick="() => metrica = opcao">@Rotulo(opcao)</button>
                 }
             </div>
@@ -25,59 +37,84 @@
     </header>
 
     <div class="grafico">
-        <div class="colunas">
-            @for (var i = 0; i < Dias.Count; i++)
+        <div class="escala" aria-hidden="true">
+            <span class="medida">@RotuloDaEscala(escala.Topo)</span>
+            @foreach (var marca in escala.Marcas)
             {
-                var indice = i;
-                var dia = Dias[indice];
-                <button type="button" class="dia" @key="dia.Data" aria-label="@RotuloDoDia(indice)"
-                        @onclick="() => AoEscolherDia.InvokeAsync(dia.Data)">
-                    <svg viewBox="0 0 10 100" preserveAspectRatio="none" aria-hidden="true" focusable="false">
-                        @if (porModelo)
-                        {
-                            var base_ = 100m;
-                            @foreach (var serie in Series)
+                <span style="bottom: @Numero(escala.Altura(marca))%">@RotuloDaEscala(marca)</span>
+            }
+        </div>
+        <div class="area">
+            <div class="grade" aria-hidden="true">
+                @foreach (var marca in escala.Marcas)
+                {
+                    <span style="bottom: @Numero(escala.Altura(marca))%"></span>
+                }
+            </div>
+            <div class="colunas">
+                @for (var i = 0; i < Dias.Count; i++)
+                {
+                    var indice = i;
+                    var dia = Dias[indice];
+                    var altura = escala.Altura(metrica.De(dia.Consumo));
+                    <button type="button" class="dia" @key="dia.Data" aria-label="@RotuloDoDia(indice, series)"
+                            @onclick="() => AoEscolherDia.InvokeAsync(dia.Data)">
+                        <svg viewBox="0 0 10 100" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+                            @if (porModelo)
                             {
-                                var altura = Altura(serie.Valores[indice]);
-                                if (altura > 0)
+                                var base_ = 100m;
+                                @foreach (var serie in series)
                                 {
-                                    base_ -= altura;
-                                    <rect class="@serie.Classe" x="0" y="@Numero(base_)" width="10" height="@Numero(altura)" />
+                                    var parte = escala.Altura(serie.Valores[indice]);
+                                    if (parte > 0)
+                                    {
+                                        base_ -= parte;
+                                        <rect class="@serie.Classe" x="0" y="@Numero(base_)" width="10" height="@Numero(parte)" />
+                                    }
                                 }
                             }
-                        }
-                        else
-                        {
-                            var altura = Altura(metrica.De(dia.Consumo));
-                            @if (altura > 0)
+                            else if (altura > 0)
                             {
                                 <rect x="0" y="@Numero(100 - altura)" width="10" height="@Numero(altura)" />
                             }
-                        }
-                    </svg>
-                </button>
-            }
+                        </svg>
+                        <span class="dica @LadoDaDica(indice)" style="bottom: @Numero(altura)%" aria-hidden="true">
+                            <strong>@FormatoCopilot.Data(dia.Data)</strong>
+                            @if (porModelo)
+                            {
+                                @foreach (var serie in series.Where(s => s.Valores[indice] > 0))
+                                {
+                                    <span class="linha" @key="serie.Rotulo">
+                                        <span class="marca @serie.Classe"></span>
+                                        <span class="nome">@serie.Rotulo</span>
+                                        <span class="valor">@FormatoCopilot.Valor(metrica, serie.Valores[indice])</span>
+                                    </span>
+                                }
+                            }
+                            <span class="linha soma">
+                                <span class="nome">@(porModelo ? "Total" : Rotulo(metrica))</span>
+                                <span class="valor">@FormatoCopilot.Valor(metrica, metrica.De(dia.Consumo))</span>
+                            </span>
+                        </span>
+                    </button>
+                }
+            </div>
         </div>
         @if (Dias.Count > 0)
         {
             <div class="eixo" aria-hidden="true">
-                <span>@FormatoCopilot.Data(Dias[0].Data)</span>
-                @if (Dias.Count > 2)
+                @for (var i = 0; i < Dias.Count; i++)
                 {
-                    <span>@FormatoCopilot.Data(Dias[Dias.Count / 2].Data)</span>
-                }
-                @if (Dias.Count > 1)
-                {
-                    <span>@FormatoCopilot.Data(Dias[^1].Data)</span>
+                    <span>@(i % PassoDoEixo == 0 ? Dias[i].Data.ToString("dd/MM", CultureInfo.InvariantCulture) : null)</span>
                 }
             </div>
         }
     </div>
 
-    @if (porModelo && Series.Count > 0)
+    @if (porModelo && series.Count > 0)
     {
         <div class="legenda-modelos">
-            @foreach (var serie in Series)
+            @foreach (var serie in series)
             {
                 <span @key="serie.Rotulo"><span class="marca @serie.Classe" aria-hidden="true"></span>@serie.Rotulo</span>
             }
@@ -87,6 +124,9 @@
 
 @code {
     private static readonly MetricaDeConsumo[] Metricas = [MetricaDeConsumo.ValorBruto, MetricaDeConsumo.ValorLiquido, MetricaDeConsumo.Creditos];
+
+    // Rótulos de data no eixo horizontal: no máximo cerca de oito, para não se sobreporem.
+    private const int RotulosNoEixo = 8;
 
     [Parameter, EditorRequired]
     public IReadOnlyList<DiaVM> Dias { get; set; } = [];
@@ -100,12 +140,22 @@
 
     private IReadOnlyList<Serie> Series => SerieDeModelos.Montar(Dias, metrica);
 
-    // Maior valor do dia (total, ou soma das séries) na métrica: topo do gráfico.
-    private decimal Maximo => Dias.Count == 0 ? 0 : Dias.Max(d => metrica.De(d.Consumo));
+    private decimal Total => Dias.Sum(d => metrica.De(d.Consumo));
 
-    private decimal Altura(decimal valor) => Maximo <= 0 || valor <= 0 ? 0 : Math.Clamp(valor / Maximo * 100, 0, 100);
+    // O topo vem do maior total diário na métrica (que é também a soma das séries do dia).
+    private EscalaDoGrafico Escala => Dias.Count == 0
+        ? EscalaDoGrafico.Vazia
+        : EscalaDoGrafico.Para(Dias.Max(d => metrica.De(d.Consumo)), inteiros: metrica == MetricaDeConsumo.Creditos);
+
+    private int PassoDoEixo => Math.Max(1, (int)Math.Ceiling(Dias.Count / (double)RotulosNoEixo));
 
     private static string Numero(decimal valor) => valor.ToString("0.###", CultureInfo.InvariantCulture);
+
+    private string RotuloDaEscala(decimal valor) => FormatoCopilot.Valor(metrica, valor);
+
+    // Nas colunas das pontas a dica se alinha à borda, para não sair do painel.
+    private string LadoDaDica(int indice) =>
+        indice < Dias.Count / 4 ? "inicio" : indice >= Dias.Count - Dias.Count / 4 ? "fim" : "meio";
 
     private static string Rotulo(MetricaDeConsumo opcao) => opcao switch
     {
@@ -129,7 +179,7 @@
     /// "27/11/2026, valor bruto US$ 1.23. Filtrar este dia." ou, por modelo, as séries com valor na ordem da legenda
     /// ("27/11/2026, valor bruto: GPT-5 US$ 0.80; Outros US$ 0.10. Filtrar este dia."); sem consumo, "sem consumo".
     /// </summary>
-    private string RotuloDoDia(int indice)
+    private string RotuloDoDia(int indice, IReadOnlyList<Serie> series)
     {
         var dia = Dias[indice];
         var data = FormatoCopilot.Data(dia.Data);
@@ -138,7 +188,7 @@
             return $"{data}, {metrica.Rotulo()} {FormatoCopilot.Valor(metrica, metrica.De(dia.Consumo))}. Filtrar este dia.";
         }
 
-        var partes = Series
+        var partes = series
             .Where(s => s.Valores[indice] > 0)
             .Select(s => $"{s.Rotulo} {FormatoCopilot.Valor(metrica, s.Valores[indice])}")
             .ToList();

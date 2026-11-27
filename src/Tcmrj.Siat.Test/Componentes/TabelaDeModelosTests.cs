@@ -28,6 +28,29 @@ public sealed class TabelaDeModelosTests : BunitContext
     }
 
     [Fact]
+    public void Liquido_zero_em_todos_os_modelos_mostra_a_nota()
+    {
+        var tabela = Render<TabelaDeModelos>(p => p.Add(c => c.Modelos, new ModeloVM[]
+        {
+            new("GPT-5", true, new Consumo(131, 1.31m, 0), 0.8m),
+            new("Claude", true, new Consumo(32, 0.32m, 0), 0.2m),
+        }));
+
+        tabela.Find(".painel-nota").TextContent.Should().Be(TabelaDeModelos.NotaLiquidoZero);
+    }
+
+    [Fact]
+    public void Com_valor_liquido_nao_mostra_a_nota()
+    {
+        var tabela = Render<TabelaDeModelos>(p => p.Add(c => c.Modelos, new ModeloVM[]
+        {
+            new("GPT-5", true, new Consumo(131, 1.31m, 0.40m), 1m),
+        }));
+
+        tabela.FindAll(".painel-nota").Should().BeEmpty();
+    }
+
+    [Fact]
     public void Sem_modelos_mostra_sem_consumo_reportado()
     {
         var tabela = Render<TabelaDeModelos>(p => p.Add(c => c.Modelos, Array.Empty<ModeloVM>()));

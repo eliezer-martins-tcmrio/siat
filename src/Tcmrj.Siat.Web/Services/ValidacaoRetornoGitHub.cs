@@ -21,7 +21,7 @@ namespace Tcmrj.Siat.Web.Services;
 /// renovação; registro "Conexao".</item>
 /// </list>
 /// Qualquer recusa vira <see cref="RecusaDeConexaoGitHubException"/>, que o evento de falha remota trata com
-/// <see cref="TratarFalha"/>: registro "Recusa" e volta a <c>copilot?conexao={motivo}</c>, sem cookie.
+/// <see cref="TratarFalha"/>: registro "Recusa" e volta a <c>copilot/meu-consumo?conexao={motivo}</c>, sem cookie.
 /// </summary>
 public sealed partial class ValidacaoRetornoGitHub(
     IGitHubCopilotRepository repositorio,
@@ -105,7 +105,7 @@ public sealed partial class ValidacaoRetornoGitHub(
 
     /// <summary>
     /// Falha do retorno (recusa da validação, acesso negado no GitHub, <c>state</c> ou correlação inválidos): registra
-    /// "Recusa" com o motivo e devolve o endereço local de volta, <c>copilot?conexao={motivo}</c>.
+    /// "Recusa" com o motivo e devolve o endereço local de volta, <c>copilot/meu-consumo?conexao={motivo}</c>.
     /// </summary>
     public string TratarFalha(Exception? falha, AuthenticationProperties? propriedades, ClaimsPrincipal? usuarioAtual)
     {
@@ -133,7 +133,7 @@ public sealed partial class ValidacaoRetornoGitHub(
     }
 
     /// <summary>Endereço local (relativo ao <c>&lt;base href&gt;</c>) da página com a mensagem do motivo.</summary>
-    public static string EnderecoDeVolta(string motivo) => $"{Navegacao.RotaCopilot}?{Navegacao.ParametroConexao}={Uri.EscapeDataString(motivo)}";
+    public static string EnderecoDeVolta(string motivo) => $"{Navegacao.RotaMeuConsumo}?{Navegacao.ParametroConexao}={Uri.EscapeDataString(motivo)}";
 
     private void Recusar(string motivo, AuthenticationProperties? propriedades, ClaimsPrincipal? usuarioAtual, string? login, long? id)
     {

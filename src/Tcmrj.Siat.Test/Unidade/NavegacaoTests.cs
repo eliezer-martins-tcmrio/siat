@@ -158,32 +158,31 @@ public class NavegacaoTests
     // ---------- Copilot (specs/005-copilot-meu-consumo/contracts/rotas-ui.md) ----------
 
     [Fact]
-    public void Copilot_sem_login_e_a_rota_da_explicacao()
+    public void MeuConsumo_sem_login_e_a_rota_da_explicacao()
     {
-        Navegacao.RotaCopilot.Should().Be("copilot");
-        Navegacao.Copilot().Should().Be("copilot");
-        Navegacao.RotaPessoaCopilot.Should().StartWith(Navegacao.RotaCopilot);
+        Navegacao.RotaMeuConsumo.Should().Be("copilot/meu-consumo");
+        Navegacao.MeuConsumo().Should().Be("copilot/meu-consumo");
     }
 
     [Fact]
-    public void Copilot_com_login_e_periodo()
+    public void MeuConsumo_com_login_e_periodo()
     {
-        Navegacao.Copilot("ana-m").Should().Be("copilot/pessoas/ana-m");
-        Navegacao.Copilot("ana-m", "2026-10-01", "2026-10-31").Should().Be("copilot/pessoas/ana-m?de=2026-10-01&ate=2026-10-31");
-        Navegacao.Copilot("ana-m", "", " ").Should().Be("copilot/pessoas/ana-m");
+        Navegacao.MeuConsumo("ana-m").Should().Be("copilot/meu-consumo/ana-m");
+        Navegacao.MeuConsumo("ana-m", "2026-10-01", "2026-10-31").Should().Be("copilot/meu-consumo/ana-m?de=2026-10-01&ate=2026-10-31");
+        Navegacao.MeuConsumo("ana-m", "", " ").Should().Be("copilot/meu-consumo/ana-m");
     }
 
     [Fact]
-    public void Copilot_escapa_o_login()
+    public void MeuConsumo_escapa_o_login()
     {
-        Navegacao.Copilot("a/b?c#d").Should().Be("copilot/pessoas/a%2Fb%3Fc%23d");
+        Navegacao.MeuConsumo("a/b?c#d").Should().Be("copilot/meu-consumo/a%2Fb%3Fc%23d");
     }
 
     [Fact]
     public void ConectarGitHub_escapa_o_retorno()
     {
-        Navegacao.ConectarGitHub("copilot/pessoas/ana-m?de=2026-10-01")
-            .Should().Be("copilot/github/conectar?retorno=copilot%2Fpessoas%2Fana-m%3Fde%3D2026-10-01");
+        Navegacao.ConectarGitHub("copilot/meu-consumo/ana-m?de=2026-10-01")
+            .Should().Be("copilot/github/conectar?retorno=copilot%2Fmeu-consumo%2Fana-m%3Fde%3D2026-10-01");
     }
 
     [Fact]
@@ -191,6 +190,6 @@ public class NavegacaoTests
     {
         Navegacao.DesconectarGitHub().Should().Be("copilot/github/desconectar");
         Navegacao.DesconectarGitHub("nao-membro").Should().Be("copilot/github/desconectar?motivo=nao-membro");
-        Navegacao.DesconectarGitHub(retorno: "copilot").Should().Be("copilot/github/desconectar?retorno=copilot");
+        Navegacao.DesconectarGitHub(retorno: "copilot/meu-consumo").Should().Be("copilot/github/desconectar?retorno=copilot%2Fmeu-consumo");
     }
 }

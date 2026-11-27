@@ -456,6 +456,11 @@ a.menu-item:hover { background: oklch(from var(--color-sidebar-strong) l c h / 0
   background: var(--color-surface); border: 1px solid var(--color-line);
   border-radius: var(--radius-card); box-shadow: var(--shadow-card);
 }
+/* Cabeçalho de painel com título (e, à direita, controles em .empurra), como em Evolução diária e Consumo por modelo. */
+.painel-cabecalho { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 18px; }
+.painel-cabecalho h2 { font-size: 14px; font-weight: 600; margin: 0; }
+/* Nota de rodapé de painel (texto explicativo abaixo de uma tabela ou gráfico). */
+.painel-nota { margin: 0; padding: 10px 18px 12px; font-size: 12px; line-height: 1.5; color: var(--color-muted); }
 /* Divisória entre as seções do painel; no formulário de filtros não há seções (e zerar a borda de todos os filhos
    cortava o topo dos botões secundários). */
 .painel:not(.filtros) > * + * { border-top: 1px solid var(--color-line); }
@@ -738,7 +743,7 @@ pre.codigo.escuro { background: var(--color-code-bg); border-color: var(--color-
 }
 .botao.alternar-periodo[aria-expanded="true"]:hover { background: oklch(from var(--color-accent-ink) calc(l + 0.06) c h); }
 
-/* ---------- Gestão › Copilot › Meu consumo (design/copilot.html; specs/005-copilot-meu-consumo) ---------- */
+/* ---------- Copilot › Meu consumo (design/copilot.html; specs/005-copilot-meu-consumo) ---------- */
 .nota { font-size: 12px; color: var(--color-muted); }
 
 /* Pessoa: foto, nome e etiquetas (licença e times). */
@@ -779,26 +784,61 @@ pre.codigo.escuro { background: var(--color-code-bg); border-color: var(--color-
 .barra-uso[data-faixa="indisponivel"] .faixa { color: var(--color-muted); }
 .barra-uso .nota { line-height: 1.4; }
 
-/* Evolução diária: colunas por dia em SVG; cada dia é um botão. */
-.evolucao > header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 18px; }
-.evolucao > header h2 { font-size: 14px; font-weight: 600; margin: 0; }
+/* Evolução diária: eixo de valores e grade à esquerda, colunas por dia em SVG (cada dia é um botão) e datas abaixo.
+   A cor de cada série vem de --cor-serie (classes .serie-*), que o retângulo lê; sem série, a cor de destaque. */
+.evolucao > header .titulo { display: flex; flex-direction: column; gap: 2px; }
+.evolucao > header .total { font-size: 12px; color: var(--color-muted); font-variant-numeric: tabular-nums; }
 .evolucao > header .empurra { margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-.evolucao .grafico { padding: 14px 18px 8px; }
-.evolucao .colunas { display: flex; align-items: flex-end; gap: 2px; height: 180px; border-bottom: 1px solid var(--color-line); }
-.evolucao .dia { flex: 1 1 0; min-width: 4px; height: 100%; display: flex; align-items: flex-end; padding: 0; border: 0; border-radius: 3px 3px 0 0; background: none; cursor: pointer; }
+.evolucao .segmentado button:disabled { opacity: .45; cursor: not-allowed; }
+.evolucao .grafico {
+  display: grid; grid-template-columns: auto 1fr; grid-template-rows: 200px auto; column-gap: 10px;
+  padding: 18px 18px 10px;
+}
+.evolucao .escala { position: relative; display: flex; flex-direction: column; font-size: 11px; color: var(--color-muted); text-align: right; font-variant-numeric: tabular-nums; }
+.evolucao .escala .medida { visibility: hidden; height: 0; overflow: hidden; }
+.evolucao .escala span:not(.medida) { position: absolute; right: 0; transform: translateY(50%); white-space: nowrap; line-height: 1; }
+.evolucao .area { position: relative; }
+.evolucao .grade { position: absolute; inset: 0; pointer-events: none; }
+.evolucao .grade span { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--color-line); }
+.evolucao .grade span:first-child { border-top-style: solid; border-top-color: var(--color-field); }
+.evolucao .colunas { position: relative; display: flex; align-items: flex-end; gap: 4px; height: 100%; }
+.evolucao .dia {
+  position: relative; flex: 1 1 0; min-width: 4px; height: 100%; display: flex; align-items: flex-end; justify-content: center;
+  padding: 0; border: 0; border-radius: 4px 4px 0 0; background: none; cursor: pointer;
+}
 .evolucao .dia:hover, .evolucao .dia:focus-visible { background: var(--color-soft); }
-.evolucao .dia svg { display: block; width: 100%; height: 100%; }
-.evolucao .dia rect { fill: var(--color-accent); }
-.evolucao .eixo { display: flex; justify-content: space-between; padding-top: 4px; font-size: 11px; color: var(--color-muted); font-variant-numeric: tabular-nums; }
-.evolucao .legenda-modelos { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 8px 18px 12px; font-size: 12px; color: var(--color-muted); }
+.evolucao .dia:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+.evolucao .dia svg { display: block; width: 76%; max-width: 44px; height: 100%; overflow: visible; }
+.evolucao .dia rect { fill: var(--cor-serie, var(--color-accent)); stroke: var(--color-surface); stroke-width: 1px; vector-effect: non-scaling-stroke; transition: opacity .12s; }
+.evolucao .colunas:hover .dia:not(:hover) rect { opacity: .55; }
+/* Dica (hover e foco): repete o aria-label do dia, que é a alternativa em texto. */
+.evolucao .dica {
+  position: absolute; z-index: 2; display: none; flex-direction: column; gap: 3px; min-width: 150px; margin-bottom: 8px;
+  padding: 8px 10px; border: 1px solid var(--color-line); border-radius: var(--radius-control);
+  background: var(--color-surface); box-shadow: var(--shadow-card); color: var(--color-ink);
+  font-size: 12px; text-align: left; white-space: nowrap; pointer-events: none;
+}
+.evolucao .dica.meio { left: 50%; transform: translateX(-50%); }
+.evolucao .dica.inicio { left: 0; }
+.evolucao .dica.fim { right: 0; }
+.evolucao .dia:hover .dica, .evolucao .dia:focus-visible .dica { display: flex; }
+.evolucao .dica strong { font-weight: 600; margin-bottom: 2px; }
+.evolucao .dica .linha { display: flex; align-items: center; gap: 6px; }
+.evolucao .dica .nome { color: var(--color-muted); }
+.evolucao .dica .valor { margin-left: auto; padding-left: 12px; font-variant-numeric: tabular-nums; }
+.evolucao .dica .soma { margin-top: 2px; padding-top: 4px; border-top: 1px solid var(--color-line); font-weight: 600; }
+.evolucao .dica .soma .nome { color: var(--color-ink); }
+.evolucao .eixo { grid-column: 2; display: flex; gap: 4px; padding-top: 6px; font-size: 11px; color: var(--color-muted); font-variant-numeric: tabular-nums; }
+.evolucao .eixo span { flex: 1 1 0; min-width: 4px; text-align: center; white-space: nowrap; overflow: visible; }
+.evolucao .legenda-modelos { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 10px 18px 12px; font-size: 12px; color: var(--color-muted); }
 .evolucao .legenda-modelos span { display: inline-flex; align-items: center; gap: 6px; }
-.evolucao .marca { width: 10px; height: 10px; border-radius: 2px; flex: none; }
-.serie-1 { fill: var(--color-accent); background: var(--color-accent); }
-.serie-2 { fill: var(--color-env-dsv); background: var(--color-env-dsv); }
-.serie-3 { fill: var(--color-env-hml); background: var(--color-env-hml); }
-.serie-4 { fill: var(--color-ok); background: var(--color-ok); }
-.serie-5 { fill: var(--color-env-prd); background: var(--color-env-prd); }
-.serie-outros { fill: var(--color-env-cont); background: var(--color-env-cont); }
+.evolucao .marca { width: 10px; height: 10px; border-radius: 2px; flex: none; background: var(--cor-serie, var(--color-accent)); }
+.serie-1 { --cor-serie: var(--color-accent); }
+.serie-2 { --cor-serie: var(--color-env-dsv); }
+.serie-3 { --cor-serie: var(--color-env-hml); }
+.serie-4 { --cor-serie: var(--color-ok); }
+.serie-5 { --cor-serie: var(--color-env-prd); }
+.serie-outros { --cor-serie: var(--color-env-cont); }
 .alternar { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
 
 /* Tabela de modelos. */
